@@ -13,7 +13,7 @@ import ExternalLink from 'components/external_link';
 
 import desktopImg from 'images/deep-linking/deeplinking-desktop-img.png';
 import mobileImg from 'images/deep-linking/deeplinking-mobile-img.png';
-import MattermostLogoSvg from 'images/logo.svg';
+import CUHKSAILogoPng from 'images/cuhk-sai-logo01.png';
 import {LandingPreferenceTypes} from 'utils/constants';
 
 type Props = {
@@ -315,7 +315,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
         let openingLink = (
             <FormattedMessage
                 id='get_app.openingLink'
-                defaultMessage='Opening link in Mattermost...'
+                defaultMessage='Opening link in SAI-Net...'
             />
         );
         if (this.props.enableCustomBrand) {
@@ -324,7 +324,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                     id='get_app.openingLinkWhiteLabel'
                     defaultMessage='Opening link in {appName}...'
                     values={{
-                        appName: this.props.siteName || 'Mattermost',
+                        appName: this.props.siteName || 'SAI-Net',
                     }}
                 />
             );
@@ -357,9 +357,10 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
         let viewApp = (
             <FormattedMessage
                 id='get_app.ifNothingPrompts'
+                tagName='em'
                 defaultMessage='You can view {siteName} in the desktop app or continue in your web browser.'
                 values={{
-                    siteName: this.props.enableCustomBrand ? '' : ' Mattermost',
+                    siteName: this.props.enableCustomBrand ? '' : 'SAI-Net',
                 }}
             />
         );
@@ -367,9 +368,10 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
             viewApp = (
                 <FormattedMessage
                     id='get_app.ifNothingPromptsMobile'
+                    tagName='em'
                     defaultMessage='You can view {siteName} in the mobile app or continue in your web browser.'
                     values={{
-                        siteName: this.props.enableCustomBrand ? '' : ' Mattermost',
+                        siteName: this.props.enableCustomBrand ? '' : 'SAI-Net',
                     }}
                 />
             );
@@ -442,7 +444,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
         let header = (
             <div className='get-app__header'>
                 <img
-                    src={MattermostLogoSvg}
+                    src={CUHKSAILogoPng}
                     className='get-app__logo'
                 />
             </div>
