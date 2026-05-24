@@ -60,6 +60,8 @@ import LoginMfa from './login_mfa';
 
 import './login.scss';
 
+import customLogo from 'images/cuhk-sai-logo01.png';
+
 const MOBILE_SCREEN_WIDTH = 1200;
 
 type LoginProps = {
@@ -867,7 +869,7 @@ const Login = ({onCustomizeHeader}: LoginProps) => {
 
         return (
             <p className='login-body-message-subtitle'>
-                {formatMessage({id: 'login.subtitle', defaultMessage: 'Collaborate with your team in real-time'})}
+                {formatMessage({id: 'login.subtitle', defaultMessage: 'Connect, Communicate and Collaborate'})}
             </p>
         );
     };
@@ -954,7 +956,7 @@ const Login = ({onCustomizeHeader}: LoginProps) => {
                         <img
                             className={classNames('login-body-custom-branding-image')}
                             alt='brand'
-                            src={Client4.getBrandImageUrl('0')}
+                            src={customLogo}
                             onError={handleBrandImageError}
                         />
                     ) : (

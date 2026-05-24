@@ -5283,7 +5283,7 @@
   "login.session_expired.notification.body": "请登录以继续接收通知。",
   "login.session_expired.notification.title": "会话已过期",
   "login.session_expired.title": "* 会话已过期 - {siteName}",
-  "login.subtitle": "和您的团队实时协作",
+  "login.subtitle": "交流、连接与协作",
   "login.terms_rejected": "在访问{siteName}前您必须同意服务条款。请联系您的系统管理员了解详情。",
   "login.title": "登录您的账号",
   "login.userNotFound": "我们找不到匹配您的登录凭据的账号。",

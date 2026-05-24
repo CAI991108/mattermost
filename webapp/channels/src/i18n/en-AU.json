@@ -5079,7 +5079,7 @@
   "login.session_expired.notification.body": "Please sign in to continue receiving notifications.",
   "login.session_expired.notification.title": "Session Expired",
   "login.session_expired.title": "* Session Expired - {siteName}",
-  "login.subtitle": "Collaborate with your team in real-time",
+  "login.subtitle": "Connect, Communicate and Collaborate",
   "login.terms_rejected": "You must agree to the Terms of Use before accessing {siteName}. Please contact your System Administrator for more details.",
   "login.title": "Log in to your account",
   "login.userNotFound": "An account matching your login credentials could not be found.",
