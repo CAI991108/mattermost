@@ -360,3 +360,150 @@ body {
         stroke-dashoffset: 0;
     }
 }
+
+/* SAI-Net showcase loading override */
+.LoadingScreen {
+    --background-color: #030306;
+    --background-gradient: none;
+    --background-texture: transparent;
+    --gradient-center-color: #030306;
+    position: absolute;
+    z-index: 1000;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    align-items: center;
+    justify-content: center;
+    background:
+        radial-gradient(circle at 40% 38%, rgba(48, 32, 255, 0.18), transparent 28%),
+        radial-gradient(circle at 62% 42%, rgba(255, 90, 31, 0.14), transparent 26%),
+        #030306;
+    color: #f7f8ff;
+    opacity: 1;
+    transition: opacity 400ms 0ms ease-in, visibility 400ms 0ms step-start;
+    visibility: visible;
+}
+
+@media (prefers-color-scheme: dark) {
+    .LoadingScreen {
+        --background-color: #030306;
+        --background-gradient: none;
+        --background-texture: transparent;
+        --gradient-center-color: #030306;
+    }
+}
+
+.LoadingScreen__background {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.LoadingScreen__background::before {
+    position: absolute;
+    width: min(760px, 74vw);
+    height: min(420px, 44vh);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    content: "";
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -42%) perspective(980px) rotateX(66deg) translateY(90px);
+}
+
+.LoadingScreen--loaded {
+    opacity: 0;
+    transition: opacity 400ms 0ms ease-in, visibility 400ms 0ms step-end;
+    visibility: hidden;
+}
+
+.LoadingAnimation {
+    display: grid;
+    width: 100vw;
+    height: 100vh;
+    place-items: center;
+    opacity: 1;
+    transform: scale3d(1, 1, 1);
+}
+
+.LoadingAnimation__logo-shell {
+    position: relative;
+    display: grid;
+    width: 100vw;
+    height: 100vh;
+    align-items: center;
+    justify-items: center;
+    overflow: hidden;
+}
+
+.LoadingAnimation__logo-canvas {
+    position: relative;
+    display: block;
+    width: min(92vw, 1180px);
+    height: min(72vh, 680px);
+}
+
+.LoadingAnimation__caption {
+    position: absolute;
+    bottom: clamp(28px, 6vh, 58px);
+    overflow: hidden;
+    background:
+        linear-gradient(90deg, rgba(247, 248, 255, 0.54), rgba(247, 248, 255, 0.9), rgba(247, 248, 255, 0.54)),
+        linear-gradient(90deg, #3020ff, #ff5a1f, #3020ff);
+    background-clip: text;
+    background-size: 100% 100%, 240% 100%;
+    color: transparent;
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-shadow: 0 0 16px rgba(130, 149, 255, 0.18);
+    text-transform: uppercase;
+    -webkit-background-clip: text;
+    animation: LoadingAnimation__caption-color-flow 4.6s linear infinite;
+}
+
+.LoadingAnimation__caption::after {
+    position: absolute;
+    inset: -20% -40%;
+    animation: LoadingAnimation__caption-shimmer 1.85s ease-in-out infinite;
+    background: linear-gradient(110deg, transparent 34%, rgba(255, 255, 255, 0.92) 48%, transparent 62%);
+    content: "";
+    mix-blend-mode: screen;
+    transform: translateX(-72%);
+}
+
+.LoadingAnimation--loaded .LoadingAnimation__logo-shell {
+    animation: LoadingAnimation__fade-out 400ms 0ms ease-in forwards, LoadingAnimation__shrink 400ms 0ms ease-in forwards;
+}
+
+@keyframes LoadingAnimation__caption-shimmer {
+    0% {
+        transform: translateX(-72%);
+    }
+
+    46%,
+    100% {
+        transform: translateX(72%);
+    }
+}
+
+@keyframes LoadingAnimation__caption-color-flow {
+    0% {
+        background-position: 0 0, 0% 0;
+    }
+
+    100% {
+        background-position: 0 0, 240% 0;
+    }
+}
+
+@media only screen and (max-width: 720px) {
+    .LoadingAnimation__logo-canvas {
+        width: 96vw;
+        height: 62vh;
+    }
+}
