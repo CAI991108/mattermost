@@ -179,6 +179,4 @@ docker-compose.override.yaml
 server/prev-report.xml
 server/prev-gotestsum.json
 server/shard-*.txt
-.augment/
-lzx/
-.sanshu-memory/
+
