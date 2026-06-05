@@ -1,0 +1,16 @@
+.eslintcache
+junit.xml
+node_modules
+.parcel-cache
+*.tsbuildinfo
+.rollup.cache
+*.tar.gz
+
+channels/dist
+playbooks/dist
+boards/dist
+platform/*/dist
+platform/*/lib
+
+config.override.mk
+build/test-results*.xml
