@@ -58,13 +58,13 @@ describe('components/onboarding_tasklist/onboarding_tasklist_completed.tsx', () 
         expect(container.querySelectorAll('.completed-subtitle')).toHaveLength(1);
     });
 
-    test('displays the no thanks option to close the onboarding list', async () => {
+    test('displays the confirmation option to close the onboarding list', async () => {
         const {container} = renderWithContext(<Completed {...props}/>, initialState);
-        const noThanksLink = container.querySelectorAll('.no-thanks-link');
-        expect(noThanksLink).toHaveLength(1);
+        const confirmationButton = container.querySelectorAll('.got-it-button');
+        expect(confirmationButton).toHaveLength(1);
 
-        // calls the dissmiss function on click
-        await userEvent.click(noThanksLink[0]);
+        // calls the dismiss function on click
+        await userEvent.click(confirmationButton[0]);
         expect(dismissMockFn).toHaveBeenCalledTimes(1);
     });
 });

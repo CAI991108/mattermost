@@ -56,7 +56,11 @@ body {
     height: 100%;
 }
 .LoadingScreen__background {
-    background: var(--background-color);
+    background-color: var(--background-color);
+    background-image: url("images/admin-onboarding-background.jpg");
+    background-position: 50%;
+    background-repeat: no-repeat;
+    background-size: cover;
 }
 
 .LoadingScreen--loaded {
@@ -361,7 +365,7 @@ body {
     }
 }
 
-/* SAI-Net showcase loading override */
+/* IUIN Platform showcase loading override */
 .LoadingScreen {
     --background-color: #ffffff;
     --background-gradient: none;
@@ -396,19 +400,17 @@ body {
 .LoadingScreen__background {
     position: fixed;
     inset: 0;
+    background-color: var(--background-color);
+    background-image: url("images/admin-onboarding-background.jpg");
+    background-position: 50%;
+    background-repeat: no-repeat;
+    background-size: cover;
     overflow: hidden;
     pointer-events: none;
 }
 
 .LoadingScreen__background::before {
-    position: absolute;
-    width: min(760px, 74vw);
-    height: min(420px, 44vh);
-    border: 1px solid rgba(30, 50, 92, 0.08);
-    content: "";
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -42%) perspective(980px) rotateX(66deg) translateY(90px);
+    content: none;
 }
 
 .LoadingScreen--loaded {

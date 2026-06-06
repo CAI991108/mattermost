@@ -3815,7 +3815,7 @@
   "get_app.ifNothingPrompts": "你可以在桌面應用程式中開啟 {siteName}，也可以繼續在瀏覽器中查看。",
   "get_app.ifNothingPromptsMobile": "你可以在行動應用程式中開啟 {siteName}，也可以繼續在瀏覽器中查看。",
   "get_app.launching": "歡迎來到人工智能學院",
-  "get_app.openingLink": "正在 SAI-Net 中開啟連結...",
+  "get_app.openingLink": "正在 IUIN Platform 中開啟連結...",
   "get_app.openingLinkWhiteLabel": "正在 {appName} 中開啟連結...",
   "get_app.redirectedInMoments": "即將跳轉。",
   "get_app.rememberMyPreference": "記住我的選擇",
