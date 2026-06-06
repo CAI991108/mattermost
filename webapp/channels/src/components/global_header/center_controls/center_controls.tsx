@@ -15,7 +15,7 @@ import UserGuideDropdown from './user_guide_dropdown';
 const CenterControlsContainer = styled.div`
     display: flex;
     align-items: center;
-    height: 40px;
+    height: 100%;
     justify-content: center;
     flex-grow: 1;
     flex-basis: 40%;

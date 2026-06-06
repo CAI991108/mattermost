@@ -29,7 +29,7 @@ import SettingsButton from './settings_button';
 const RightControlsContainer = styled.div`
     display: flex;
     align-items: center;
-    height: 40px;
+    height: 100%;
     flex-shrink: 0;
     position: relative;
     flex-basis: 30%;

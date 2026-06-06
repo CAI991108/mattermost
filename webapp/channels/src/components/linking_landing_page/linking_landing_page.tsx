@@ -13,7 +13,7 @@ import ExternalLink from 'components/external_link';
 
 import desktopImg from 'images/deep-linking/deeplinking-desktop-img.png';
 import mobileImg from 'images/deep-linking/deeplinking-mobile-img.png';
-import CUHKSAILogoPng from 'images/cuhk-sai-logo01.png';
+import MattermostLogoSvg from 'images/logo.svg';
 import {LandingPreferenceTypes} from 'utils/constants';
 
 type Props = {
@@ -177,7 +177,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
             return (
                 <FormattedMessage
                     id='get_app.systemDialogMessageMobile'
-                    defaultMessage='在应用中打开'
+                    defaultMessage='View in App'
                 />
             );
         }
@@ -185,7 +185,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
         return (
             <FormattedMessage
                 id='get_app.systemDialogMessage'
-                defaultMessage='在桌面应用中打开'
+                defaultMessage='View in Desktop App'
             />
         );
     };
@@ -247,29 +247,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
         );
     };
 
-    renderDownloadLinkText = () => {
-        const isMobile = UserAgent.isMobile();
-
-        if (isMobile) {
-            return (
-                <FormattedMessage
-                    id='get_app.dontHaveTheMobileApp'
-                    defaultMessage={'Don\'t have the Mobile App?'}
-                />
-            );
-        }
-
-        return (
-            <FormattedMessage
-                id='get_app.dontHaveTheDesktopApp'
-                defaultMessage={'Don\'t have the Desktop App?'}
-            />
-        );
-    };
-
     renderDownloadLinkSection = () => {
-        const downloadLink = this.getDownloadLink();
-
         if (this.state.redirectPage) {
             return (
                 <div className='get-app__download-link'>
@@ -289,42 +267,25 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                     />
                 </div>
             );
-        } else if (downloadLink) {
-            return (
-                <div className='get-app__download-link'>
-                    {this.renderDownloadLinkText()}
-                    {'\u00A0'}
-                    <br/>
-                    <a href={downloadLink}>
-                        <FormattedMessage
-                            id='get_app.downloadTheAppNow'
-                            defaultMessage='立即下载应用。'
-                        />
-                    </a>
-                </div>
-            );
         }
 
         return null;
     };
 
     renderDialogHeader = () => {
-        const downloadLink = this.getDownloadLink();
-        const isMobile = UserAgent.isMobile();
-
         let openingLink = (
-            <FormattedMessage
-                id='get_app.openingLink'
-                defaultMessage='正在 SAI-Net 中打开链接...'
-            />
+                <FormattedMessage
+                    id='get_app.openingLink'
+                    defaultMessage='正在 IUIN Platform 中打开链接...'
+                />
         );
         if (this.props.enableCustomBrand) {
             openingLink = (
                 <FormattedMessage
                     id='get_app.openingLinkWhiteLabel'
-                    defaultMessage='正在 {appName} 中打开链接...'
+                    defaultMessage='Opening link in {appName}...'
                     values={{
-                        appName: this.props.siteName || 'SAI-Net',
+                        appName: this.props.siteName || 'IUIN Platform',
                     }}
                 />
             );
@@ -337,43 +298,11 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                     <div className={`get-app__alternative${this.state.redirectPage ? ' redirect-page' : ''}`}>
                         <FormattedMessage
                             id='get_app.redirectedInMoments'
-                            defaultMessage='即将跳转。'
+                            defaultMessage='You will be redirected in a few moments.'
                         />
                         <br/>
-                        {this.renderDownloadLinkText()}
-                        {'\u00A0'}
-                        <br className='mobile-only'/>
-                        <a href={downloadLink}>
-                            <FormattedMessage
-                                id='get_app.downloadTheAppNow'
-                                defaultMessage='立即下载应用。'
-                            />
-                        </a>
                     </div>
                 </h1>
-            );
-        }
-
-        let viewApp = (
-            <FormattedMessage
-                id='get_app.ifNothingPrompts'
-                tagName='em'
-                defaultMessage='你可以在桌面应用中打开 {siteName}，也可以继续在浏览器中查看。'
-                values={{
-                    siteName: this.props.enableCustomBrand ? '' : 'SAI-Net',
-                }}
-            />
-        );
-        if (isMobile) {
-            viewApp = (
-                <FormattedMessage
-                    id='get_app.ifNothingPromptsMobile'
-                    tagName='em'
-                    defaultMessage='你可以在移动应用中打开 {siteName}，也可以继续在浏览器中查看。'
-                    values={{
-                        siteName: this.props.enableCustomBrand ? '' : 'SAI-Net',
-                    }}
-                />
             );
         }
 
@@ -382,11 +311,8 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                 <FormattedMessage
                     id='get_app.launching'
                     tagName='h1'
-                    defaultMessage='欢迎来到人工智能学院'
+                    defaultMessage='欢迎来到人工智能学院平台'
                 />
-                <div className='get-app__alternative'>
-                    {viewApp}
-                </div>
             </div>
         );
     };
@@ -419,23 +345,10 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                     >
                         <FormattedMessage
                             id='get_app.continueToBrowser'
-                            defaultMessage='在浏览器中打开'
+                            defaultMessage='View in Browser'
                         />
                     </a>
                 </div>
-                <label className='get-app__preference'>
-                    <input
-                        type='checkbox'
-                        checked={this.state.rememberChecked}
-                        className='get-app__checkbox'
-                        onChange={this.handleChecked}
-                    />
-                    <FormattedMessage
-                        id='get_app.rememberMyPreference'
-                        defaultMessage='记住我的选择'
-                    />
-                </label>
-                {this.renderDownloadLinkSection()}
             </div>
         );
     };
@@ -444,7 +357,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
         let header = (
             <div className='get-app__header'>
                 <img
-                    src={CUHKSAILogoPng}
+                    src={MattermostLogoSvg}
                     className='get-app__logo'
                 />
             </div>

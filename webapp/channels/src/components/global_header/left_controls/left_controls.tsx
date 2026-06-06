@@ -12,7 +12,7 @@ import ProductMenu from './product_menu';
 const LeftControlsContainer = styled.div`
     display: flex;
     align-items: center;
-    height: 40px;
+    height: 100%;
     flex-shrink: 0;
     flex-basis: 30%;
 
