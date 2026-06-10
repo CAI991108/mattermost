@@ -7,7 +7,6 @@ import {FormattedMessage, useIntl} from 'react-intl';
 import {WithTooltip} from '@mattermost/shared/components/tooltip';
 
 import KeyboardShortcutSequence, {KEYBOARD_SHORTCUTS} from 'components/keyboard_shortcuts/keyboard_shortcuts_sequence';
-import PopoutButton from 'components/popout_button';
 
 import {RHSStates} from 'utils/constants';
 import {isChannelPopoutWindow, isPopoutWindow} from 'utils/popouts/popout_windows';
@@ -16,7 +15,7 @@ import type {PropsFromRedux} from './index';
 
 export interface Props extends PropsFromRedux {
     children: React.ReactNode;
-    newWindowHandler?: () => void;
+    hideControls?: boolean;
 }
 
 function SearchResultsHeader(props: Props) {
@@ -60,7 +59,7 @@ function SearchResultsHeader(props: Props) {
                 className='sidebar--right__title'
                 id='rhsPanelTitle'
             >
-                {props.canGoBack && (
+                {!props.hideControls && props.canGoBack && (
                     <button
                         className='sidebar--right__back btn btn-icon btn-sm'
                         onClick={props.actions.goBack}
@@ -93,10 +92,7 @@ function SearchResultsHeader(props: Props) {
                         </button>
                     </WithTooltip>
                 )}
-                {props.newWindowHandler && (
-                    <PopoutButton onClick={props.newWindowHandler}/>
-                )}
-                {(!isPopoutWindow() || isChannelPopoutWindow()) &&
+                {!props.hideControls && (!isPopoutWindow() || isChannelPopoutWindow()) &&
                     <WithTooltip
                         title={
                             <FormattedMessage
@@ -110,7 +106,7 @@ function SearchResultsHeader(props: Props) {
                             type='button'
                             className='sidebar--right__close btn btn-icon btn-sm'
                             aria-label='Close'
-                            onClick={props.actions.closeRightHandSide}
+                            onClick={props.actions.goBack}
                         >
                             <i
                                 className='icon icon-close'

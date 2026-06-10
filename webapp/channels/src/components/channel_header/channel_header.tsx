@@ -9,23 +9,20 @@ import type {WrappedComponentProps} from 'react-intl';
 
 import {WithTooltip} from '@mattermost/shared/components/tooltip';
 
-import {getPopoutChannelTitle} from 'components/channel_popout/channel_popout';
 import CustomStatusEmoji from 'components/custom_status/custom_status_emoji';
 import CustomStatusText from 'components/custom_status/custom_status_text';
-import PopoutButton from 'components/popout_button';
 import Timestamp from 'components/timestamp';
 import Tag from 'components/widgets/tag/tag';
 
 import CallButton from 'plugins/call_button';
 import ChannelHeaderPlug from 'plugins/channel_header_plug';
 import Pluggable from 'plugins/pluggable';
-import {getChannelRoutePathAndIdentifier} from 'utils/channel_utils';
 import {
     Constants,
     NotificationLevels,
     RHSStates,
 } from 'utils/constants';
-import {canPopout, isChannelPopoutWindow, popoutChannel} from 'utils/popouts/popout_windows';
+
 import {isEmptyObject} from 'utils/utils';
 
 import ChannelHeaderText from './channel_header_text';
@@ -99,14 +96,6 @@ class ChannelHeader extends React.PureComponent<Props> {
             this.props.actions.closeRightHandSide();
         } else if (this.props.channel) {
             this.props.actions.showChannelFiles(this.props.channel.id);
-        }
-    };
-
-    popoutChannelView = () => {
-        const {channel, team, dmUser, intl} = this.props;
-        if (channel && team) {
-            const {path, identifier} = getChannelRoutePathAndIdentifier(channel, dmUser?.username);
-            popoutChannel(intl.formatMessage(getPopoutChannelTitle(channel.type)), team.name, path, identifier);
         }
     };
 
@@ -397,18 +386,6 @@ class ChannelHeader extends React.PureComponent<Props> {
                                     className='channel-header__icons'
                                 >
                                     {muteTrigger}
-                                    {memberListButton}
-                                    {pinnedButton}
-                                    {this.props.isFileAttachmentsEnabled &&
-                                        <HeaderIconWrapper
-                                            buttonClass={channelFilesIconClass}
-                                            buttonId={'channelHeaderFilesButton'}
-                                            onClick={this.showChannelFiles}
-                                            tooltip={this.props.intl.formatMessage({id: 'channel_header.channelFiles', defaultMessage: 'Channel files'})}
-                                        >
-                                            {channelFilesIcon}
-                                        </HeaderIconWrapper>
-                                    }
                                     <Pluggable
                                         pluggableName='ChannelHeaderIcon'
                                         channel={channel}
@@ -440,13 +417,6 @@ class ChannelHeader extends React.PureComponent<Props> {
                             <CallButton/>
                         </>
                     )}
-                    {canPopout() && !isChannelPopoutWindow() && (
-                        <PopoutButton
-                            className='channel-header__icon'
-                            onClick={this.popoutChannelView}
-                        />
-                    )}
-                    <ChannelInfoButton channel={channel}/>
                 </div>
             </div>
         );

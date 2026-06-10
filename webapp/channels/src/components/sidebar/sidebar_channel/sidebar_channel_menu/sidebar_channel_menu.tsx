@@ -20,13 +20,12 @@ import {WithTooltip} from '@mattermost/shared/components/tooltip';
 
 import {isChannelInManagedCategory} from 'mattermost-redux/selectors/entities/channel_categories';
 
-import MenuItemOpenInNewWindow from 'components/channel_header_menu/menu_items/open_in_new_window';
 import ChannelInviteModal from 'components/channel_invite_modal';
 import ChannelMoveToSubmenu from 'components/channel_move_to_sub_menu';
 import * as Menu from 'components/menu';
 
 import Constants, {ModalIdentifiers} from 'utils/constants';
-import {canPopout, isChannelPopoutWindow} from 'utils/popouts/popout_windows';
+
 import {copyToClipboard} from 'utils/utils';
 
 import type {GlobalState} from 'types/store';
@@ -321,9 +320,6 @@ const SidebarChannelMenu = ({
                 onToggle: onMenuToggle,
             }}
         >
-            {canPopout() && !isChannelPopoutWindow() && (
-                <MenuItemOpenInNewWindow channel={channel}/>
-            )}
             {markAsReadUnreadMenuItem}
             {favoriteUnfavoriteMenuItem}
             {muteUnmuteChannelMenuItem}
