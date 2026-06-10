@@ -69,7 +69,7 @@ const EditedPostItem = ({post, isCurrent = false, postCurrentVersion, actions, i
 
     const handleUndo = useCallback(async () => {
         if (!postCurrentVersion) {
-            actions.closeRightHandSide();
+            actions.goBack();
             return;
         }
 
@@ -103,13 +103,13 @@ const EditedPostItem = ({post, isCurrent = false, postCurrentVersion, actions, i
 
     const handleRestore = useCallback(async () => {
         if (!postCurrentVersion || !post) {
-            actions.closeRightHandSide();
+            actions.goBack();
             return;
         }
 
         const result = await dispatch(restorePostVersion(post.original_id, post.id, connectionId));
         if (result.data) {
-            actions.closeRightHandSide();
+            actions.goBack();
             showInfoTooltip();
         }
 

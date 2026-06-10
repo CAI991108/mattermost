@@ -246,9 +246,6 @@ export default function ChannelMembersRHS({
 
             <Header
                 channel={channel}
-                canGoBack={canGoBack}
-                onClose={actions.closeRightHandSide}
-                goBack={actions.goBack}
             />
             {/* Show banner for policy-enforced channels */}
             {channel.policy_enforced && (

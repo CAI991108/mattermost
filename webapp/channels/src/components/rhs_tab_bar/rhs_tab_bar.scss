@@ -1,0 +1,45 @@
+.rhs-tab-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 44px;
+    height: 100%;
+    padding: 8px 0;
+    border-left: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    background: var(--center-channel-bg);
+    gap: 4px;
+
+    &__button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+        cursor: pointer;
+        transition: background-color 0.15s ease, color 0.15s ease;
+
+        &:hover {
+            background: rgba(var(--center-channel-color-rgb), 0.08);
+            color: rgba(var(--center-channel-color-rgb), 0.72);
+        }
+
+        &--active {
+            background: rgba(var(--button-bg-rgb), 0.08);
+            color: var(--button-bg);
+
+            &:hover {
+                background: rgba(var(--button-bg-rgb), 0.12);
+                color: var(--button-bg);
+            }
+        }
+
+        .icon {
+            font-size: 18px;
+        }
+    }
+}
