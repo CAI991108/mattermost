@@ -200,8 +200,6 @@ const ChannelInfoRhs = ({
         >
             <Header
                 channel={channel}
-                isMobile={isMobile}
-                onClose={actions.closeRightHandSide}
             />
             <Scrollbars
                 color='--center-channel-color-rgb'
