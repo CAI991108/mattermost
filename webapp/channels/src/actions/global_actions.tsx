@@ -32,7 +32,7 @@ import {handleNewPost} from 'actions/post_actions';
 import {loadProfilesForSidebar} from 'actions/user_actions';
 import {clearUserCookie} from 'actions/views/cookie';
 import {close as closeLhs} from 'actions/views/lhs';
-import {closeRightHandSide, closeMenu as closeRhsMenu, updateRhsState} from 'actions/views/rhs';
+import {closeRightHandSide, closeMenu as closeRhsMenu, updateRhsState, showChannelMembers} from 'actions/views/rhs';
 import * as WebsocketActions from 'actions/websocket_actions';
 import {getCurrentLocale} from 'selectors/i18n';
 import {getIsRhsOpen, getPreviousRhsState, getRhsState} from 'selectors/rhs';
@@ -112,6 +112,20 @@ export function emitChannelClickEvent(channel: Channel) {
 
         if (appsEnabled(state)) {
             dispatch(fetchAppBindings(chan.id));
+        }
+
+        // Default to showing channel members in the RHS for non-DM/GM channels
+        const isDmOrGm = chan.type === 'D' || chan.type === 'G';
+        if (!isDmOrGm) {
+            const currentRhsState = getRhsState(state);
+            const isChannelTabView = currentRhsState === RHSStates.CHANNEL_INFO ||
+                currentRhsState === RHSStates.CHANNEL_MEMBERS ||
+                currentRhsState === RHSStates.PIN ||
+                currentRhsState === RHSStates.CHANNEL_FILES;
+
+            if (!isRHSOpened || isChannelTabView) {
+                dispatch(showChannelMembers(chan.id));
+            }
         }
     }
 

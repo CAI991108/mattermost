@@ -213,16 +213,8 @@ export const KEYBOARD_SHORTCUTS = {
             defaultMessage: 'Set focus to input field:\t⌘|Shift|L',
         },
     }),
-    navOpenCloseSidebar: defineMessages({
-        default: {
-            id: 'shortcuts.nav.open_close_sidebar',
-            defaultMessage: 'Open or close the right sidebar:\tCtrl|.',
-        },
-        mac: {
-            id: 'shortcuts.nav.open_close_sidebar.mac',
-            defaultMessage: 'Open or close the right sidebar:\t⌘|.',
-        },
-    }),
+    // navOpenCloseSidebar: removed — RHS is now always open in Tab mode
+    // navOpenChannelInfo: removed — channel info is now a Tab, no toggle shortcut needed
     navExpandSidebar: defineMessages({
         default: {
             id: 'shortcuts.nav.expand_sidebar',
@@ -231,16 +223,6 @@ export const KEYBOARD_SHORTCUTS = {
         mac: {
             id: 'shortcuts.nav.expand_sidebar.mac',
             defaultMessage: 'Expand the right sidebar:\t⌘|Shift|.',
-        },
-    }),
-    navOpenChannelInfo: defineMessages({
-        default: {
-            id: 'shortcuts.nav.open_channel_info',
-            defaultMessage: 'View channel info:\tCtrl|Alt|I',
-        },
-        mac: {
-            id: 'shortcuts.nav.open_channel_info.mac',
-            defaultMessage: 'View channel info:\t⌘|Shift|I',
         },
     }),
     navToggleUnreads: defineMessages({

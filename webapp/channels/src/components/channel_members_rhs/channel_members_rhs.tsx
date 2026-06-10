@@ -251,9 +251,6 @@ export default function ChannelMembersRHS({
 
             <Header
                 channel={channel}
-                canGoBack={canGoBack}
-                onClose={actions.closeRightHandSide}
-                goBack={actions.goBack}
             />
             {/* Show banner only for channels whose policy gates membership. */}
             {isMembershipPolicy && (

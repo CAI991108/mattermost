@@ -2,39 +2,23 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import {FormattedMessage, useIntl} from 'react-intl';
+import {FormattedMessage} from 'react-intl';
 import styled from 'styled-components';
 
-import {WithTooltip} from '@mattermost/shared/components/tooltip';
 import type {Channel} from '@mattermost/types/channels';
 
 interface Props {
     channel: Channel;
-    isMobile: boolean;
-    onClose: () => void;
 }
 
 const HeaderTitle = styled.span`
     line-height: 2.4rem;
 `;
 
-const Header = ({channel, isMobile, onClose}: Props) => {
-    const {formatMessage} = useIntl();
-
+const Header = ({channel}: Props) => {
     return (
         <div className='sidebar--right__header'>
             <span className='sidebar--right__title'>
-                {isMobile && (
-                    <button
-                        className='sidebar--right__back btn btn-icon btn-sm'
-                        onClick={onClose}
-                        aria-label={formatMessage({id: 'rhs_header.back.icon', defaultMessage: 'Back Icon'})}
-                    >
-                        <i
-                            className='icon icon-arrow-back-ios'
-                        />
-                    </button>
-                )}
                 <h2>
                     <HeaderTitle
                         id='rhsPanelTitle'
@@ -53,27 +37,6 @@ const Header = ({channel, isMobile, onClose}: Props) => {
                     }
                 </h2>
             </span>
-
-            <WithTooltip
-                title={
-                    <FormattedMessage
-                        id='rhs_header.closeSidebarTooltip'
-                        defaultMessage='Close'
-                    />
-                }
-            >
-                <button
-                    id='rhsCloseButton'
-                    type='button'
-                    className='sidebar--right__close btn btn-icon btn-sm'
-                    aria-label={formatMessage({id: 'rhs_header.closeTooltip.icon', defaultMessage: 'Close Sidebar Icon'})}
-                    onClick={onClose}
-                >
-                    <i
-                        className='icon icon-close'
-                    />
-                </button>
-            </WithTooltip>
         </div>
     );
 };
