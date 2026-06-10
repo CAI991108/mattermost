@@ -13,12 +13,7 @@ import {setThreadFollow} from 'mattermost-redux/actions/threads';
 import {makeGetChannel} from 'mattermost-redux/selectors/entities/channels';
 import {getPost, makeGetPostsForThread} from 'mattermost-redux/selectors/entities/posts';
 
-import {focusPost} from 'components/permalink_view/actions';
-import PopoutButton from 'components/popout_button';
-import {getThreadPopoutTitle} from 'components/thread_popout/thread_popout';
 import Header from 'components/widgets/header';
-
-import {popoutThread} from 'utils/popouts/popout_windows';
 
 import type {GlobalState} from 'types/store';
 
@@ -90,16 +85,6 @@ const ThreadPane = ({
         dispatch(setThreadFollow(currentUserId, currentTeamId, threadId, !isFollowing));
     }, [dispatch, currentUserId, currentTeamId, threadId, isFollowing]);
 
-    const popout = useCallback(() => {
-        popoutThread(
-            intl.formatMessage(getThreadPopoutTitle(channel)),
-            threadId,
-            team,
-            (postId, returnTo) => {
-                dispatch(focusPost(postId, returnTo, currentUserId, {skipRedirectReplyPermalink: true}));
-            });
-    }, [threadId, team, intl, dispatch, currentUserId]);
-
     return (
         <div
             id={'thread-pane-container'}
@@ -138,7 +123,6 @@ const ThreadPane = ({
                             isFollowing={isFollowing}
                             onClick={followHandler}
                         />
-                        <PopoutButton onClick={popout}/>
                         <ThreadMenu
                             idPrefix='thread-menu'
                             threadId={threadId}

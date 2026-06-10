@@ -23,16 +23,14 @@ import FileSearchResultItem from 'components/file_search_results';
 import NoResultsIndicator from 'components/no_results_indicator/no_results_indicator';
 import {NoResultsVariant} from 'components/no_results_indicator/types';
 import DateSeparator from 'components/post_view/date_separator';
-import {getSearchPopoutTitle} from 'components/rhs_search_popout/title';
 import SearchHint from 'components/search_hint/search_hint';
 import SearchResultsHeader from 'components/search_results_header';
 import LoadingWrapper from 'components/widgets/loading/loading_wrapper';
 
 import {searchHintOptions, DataSearchTypes, RHSStates} from 'utils/constants';
 import {isFileAttachmentsEnabled} from 'utils/file_utils';
-import {popoutRhsSearch} from 'utils/popouts/popout_windows';
 
-import type {RhsState, SearchType} from 'types/store/rhs';
+import type {SearchType} from 'types/store/rhs';
 
 import FilesFilterMenu from './files_filter_menu';
 import MessageOrFileSelector from './messages_or_files_selector';
@@ -248,32 +246,6 @@ const SearchResults: React.FC<Props> = (props: Props): JSX.Element => {
         updateSearchTerms(term);
     };
 
-    const newWindowHandler = useCallback(() => {
-        let mode: NonNullable<RhsState> = RHSStates.SEARCH;
-        if (isMentionSearch) {
-            mode = RHSStates.MENTION;
-        } else if (isFlaggedPosts) {
-            mode = RHSStates.FLAG;
-        } else if (isPinnedPosts) {
-            mode = RHSStates.PIN;
-        } else if (isChannelFiles) {
-            mode = RHSStates.CHANNEL_FILES;
-        }
-
-        const needsChannel = isPinnedPosts || isChannelFiles;
-        const popoutTitle = getSearchPopoutTitle(mode);
-
-        popoutRhsSearch(
-            intl.formatMessage(popoutTitle, {serverName: '{serverName}', channelName: '{channelName}', searchTerms}),
-            currentTeam?.name ?? '',
-            searchTerms,
-            mode,
-            searchType as SearchType,
-            needsChannel ? currentChannel?.name : undefined,
-            searchTeamId,
-        );
-    }, [isMentionSearch, isFlaggedPosts, isPinnedPosts, isChannelFiles, intl, searchTerms, searchType, currentTeam?.name, currentChannel?.name, searchTeamId]);
-
     switch (true) {
     case isLoading:
         contentItems = (
@@ -385,7 +357,7 @@ const SearchResults: React.FC<Props> = (props: Props): JSX.Element => {
             className='SearchResults sidebar-right__body'
         >
             <SearchResultsHeader
-                newWindowHandler={newWindowHandler}
+                hideControls={isPinnedPosts || isChannelFiles}
             >
                 <h2 id='rhsPanelTitle'>
                     {formattedTitle}
