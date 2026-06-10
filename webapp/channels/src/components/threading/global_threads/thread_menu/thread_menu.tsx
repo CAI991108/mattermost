@@ -19,12 +19,8 @@ import {
 import {manuallyMarkThreadAsUnread} from 'actions/views/threads';
 
 import * as Menu from 'components/menu';
-import {focusPost} from 'components/permalink_view/actions';
-import PopoutMenuItem from 'components/popout_menu_item';
-import {getThreadPopoutTitle} from 'components/thread_popout/thread_popout';
 
 import {useReadout} from 'hooks/useReadout';
-import {isThreadPopoutWindow, popoutThread} from 'utils/popouts/popout_windows';
 import {getSiteURL} from 'utils/url';
 import {copyToClipboard} from 'utils/utils';
 
@@ -89,16 +85,6 @@ function ThreadMenu({
         unreadTimestamp,
     ]);
 
-    const popout = useCallback(() => {
-        popoutThread(
-            intl.formatMessage(getThreadPopoutTitle(channel)),
-            threadId,
-            team,
-            (postId, returnTo) => {
-                dispatch(focusPost(postId, returnTo, currentUserId, {skipRedirectReplyPermalink: true}));
-            });
-    }, [threadId, team, intl, dispatch, currentUserId, channel]);
-
     return (
         <Menu.Container
             menuButton={{
@@ -122,7 +108,6 @@ function ThreadMenu({
                 id: `${idPrefix}-dropdown-${threadId}`,
             }}
         >
-            {!isThreadPopoutWindow(team, threadId) && <PopoutMenuItem onClick={popout}/>}
             <Menu.Item
                 labels={isFollowing ? (
                     <>
