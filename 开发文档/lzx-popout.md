@@ -8,6 +8,48 @@ Mattermost 内置了一套 Popout 系统，可以将频道、线程、搜索结�
 
 用户在界面上触发弹窗的按钮/菜单项，使用 `<PopoutButton>` 或 `<PopoutMenuItem>` 组件。
 
+原始共 9 个入口，按功能分为 3 类：
+
+**频道相关（3个）**
+
+| 入口文件 | 位置 | 触发函数 |
+|---|---|---|
+| `channel_header.tsx` | 频道头部工具栏 | `popoutChannel()` |
+| `channel_header_menu.tsx` | 频道名右键菜单 | `popoutChannel()` |
+| `sidebar_channel_menu.tsx` | 侧边栏频道右键菜单 | `popoutChannel()` |
+
+**线程相关（3个）**
+
+| 入口文件 | 位置 | 触发函数 |
+|---|---|---|
+| `rhs_header_post.tsx` | 右侧面板线程 header | `popoutThread()` |
+| `thread_pane.tsx` | 全局线程列表面板 | `popoutThread()` |
+| `thread_menu.tsx` | 线程右键菜单 | `popoutThread()` |
+
+**搜索/插件/帮助（3个）**
+
+| 入口文件 | 位置 | 触发函数 |
+|---|---|---|
+| `search_results.tsx` + `search_results_header.tsx` | 搜索结果面板 header | `popoutRhsSearch()` |
+| `rhs_plugin.tsx` | 插件 RHS 面板 | `popoutRhsPlugin()` |
+| `help_button.tsx` | 编辑器底部帮助按钮 | `popoutHelp()` |
+
+### 两种运行模式
+
+Popout 系统在不同运行环境下行为不同：
+
+**浏览器模式**（`isDesktopApp()` 返回 false）
+- 通过 `window.open()` 打开新浏览器弹窗
+- 窗口尺寸：宽 800px，定位在主窗口右上角（`window.screenX + window.outerWidth - 800`）
+- 子窗口与父窗口通过 `window.postMessage()` 双向通信
+- 子窗口内的导航行为被拦截，URL 变化通知父窗口同步跳转
+
+**桌面端模式**（`isDesktopApp()` 返回 true）
+- 通过 `DesktopApp.setupDesktopPopout()` 打开原生桌面窗口
+- 通信通过 `DesktopApp.sendToParentWindow()` / `DesktopApp.onMessageFromParentWindow()`
+- 桌面端窗口标题通过 `DesktopApp.updatePopoutTitleTemplate()` 动态更新（支持 `{serverName}` / `{channelName}` / `{teamName}` 模板变量）
+- `canPopout()` 会检查桌面端是否允许弹窗（`DesktopApp.canPopout()`），浏览器端始终返回 true
+
 ### 2. 调度层（`utils/popouts/popout_windows.ts`）→ 保留
 
 | 函数 | 作用 | 生成的 URL |
@@ -68,7 +110,7 @@ Mattermost 内置了一套 Popout 系统，可以将频道、线程、搜索结�
 
 - `help_button.tsx` — 编辑器帮助按钮仍可打开帮助小窗
 
-### 死文件（无引用，未删除）
+### 同步删除的死文件
 
 - `components/channel_header_menu/menu_items/open_in_new_window.tsx`
 - `components/popout_button.tsx`
