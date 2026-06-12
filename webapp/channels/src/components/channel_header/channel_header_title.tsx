@@ -18,7 +18,6 @@ import {getArchiveIconComponent} from 'utils/channel_utils';
 import {Constants} from 'utils/constants';
 
 import ChannelHeaderTitleDirect from './channel_header_title_direct';
-import ChannelHeaderTitleFavorite from './channel_header_title_favorite';
 import ChannelHeaderTitleGroup from './channel_header_title_group';
 
 import ChannelHeaderMenu from '../channel_header_menu/channel_header_menu';
@@ -79,7 +78,6 @@ const ChannelHeaderTitle = ({
                 id='channelHeaderDropdownButton'
                 className='channel-header__bot'
             >
-                <ChannelHeaderTitleFavorite/>
                 <ProfilePicture
                     src={Client4.getProfilePictureUrl(dmUser.id, dmUser.last_picture_update)}
                     size='sm'
@@ -100,7 +98,6 @@ const ChannelHeaderTitle = ({
 
     return (
         <div className='channel-header__top'>
-            <ChannelHeaderTitleFavorite/>
             {isDirect && dmUser && ( // Check if it's a DM and dmUser is provided
                 <ProfilePicture
                     src={Client4.getProfilePictureUrl(dmUser.id, dmUser.last_picture_update)}
