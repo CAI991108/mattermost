@@ -7,8 +7,6 @@ import {useSelector} from 'react-redux';
 
 import {
     MarkAsUnreadIcon,
-    StarIcon,
-    StarOutlineIcon,
     BellOutlineIcon,
     BellOffOutlineIcon,
     LinkVariantIcon,
@@ -16,8 +14,6 @@ import {
     DotsVerticalIcon,
     ExitToAppIcon,
 } from '@mattermost/compass-icons/components';
-import {WithTooltip} from '@mattermost/shared/components/tooltip';
-
 import {isChannelInManagedCategory} from 'mattermost-redux/selectors/entities/channel_categories';
 
 import ChannelInviteModal from 'components/channel_invite_modal';
@@ -38,8 +34,6 @@ const SidebarChannelMenu = ({
     channel,
     channelLink,
     currentUserId,
-    favoriteChannel,
-    isFavorite,
     isMuted,
     isUnread,
     managePrivateChannelMembers,
@@ -49,7 +43,6 @@ const SidebarChannelMenu = ({
     muteChannel,
     onMenuToggle,
     openModal,
-    unfavoriteChannel,
     unmuteChannel,
     channelLeaveHandler,
 }: Props) => {
@@ -98,60 +91,6 @@ const SidebarChannelMenu = ({
             />
         );
     }
-
-    let favoriteItem: JSX.Element;
-    if (isFavorite) {
-        function handleUnfavoriteChannel() {
-            unfavoriteChannel(channel.id);
-        }
-
-        favoriteItem = (
-            <Menu.Item
-                id={`unfavorite-${channel.id}`}
-                onClick={handleUnfavoriteChannel}
-                leadingElement={<StarIcon size={18}/>}
-                labels={(
-                    <FormattedMessage
-                        id='sidebar_left.sidebar_channel_menu.unfavoriteChannel'
-                        defaultMessage='Unfavorite'
-                    />
-                )}
-                disabled={isInManagedCategory}
-            />
-        );
-    } else {
-        function handleFavoriteChannel() {
-            favoriteChannel(channel.id);
-        }
-
-        favoriteItem = (
-            <Menu.Item
-                id={`favorite-${channel.id}`}
-                onClick={handleFavoriteChannel}
-                leadingElement={<StarOutlineIcon size={18}/>}
-                labels={(
-                    <FormattedMessage
-                        id='sidebar_left.sidebar_channel_menu.favoriteChannel'
-                        defaultMessage='Favorite'
-                    />
-                )}
-                disabled={isInManagedCategory}
-            />
-        );
-    }
-
-    const favoriteUnfavoriteMenuItem = isInManagedCategory ? (
-        <WithTooltip
-            title={
-                <FormattedMessage
-                    id='channelHeader.managedCategoryFavoriteDisabled'
-                    defaultMessage='Channels in managed categories cannot be favorited.'
-                />
-            }
-        >
-            <div>{favoriteItem}</div>
-        </WithTooltip>
-    ) : favoriteItem;
 
     let muteUnmuteChannelMenuItem: JSX.Element | null = null;
     if (isMuted) {
@@ -321,7 +260,6 @@ const SidebarChannelMenu = ({
             }}
         >
             {markAsReadUnreadMenuItem}
-            {favoriteUnfavoriteMenuItem}
             {muteUnmuteChannelMenuItem}
             <Menu.Separator/>
             <ChannelMoveToSubmenu channel={channel}/>

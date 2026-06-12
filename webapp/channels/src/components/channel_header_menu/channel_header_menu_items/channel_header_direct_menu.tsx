@@ -24,7 +24,6 @@ import MenuItemChannelSettings from '../menu_items/channel_settings_menu';
 import CloseMessage from '../menu_items/close_message';
 import EditConversationHeader from '../menu_items/edit_conversation_header';
 import MenuItemPluginItems from '../menu_items/plugins_submenu';
-import MenuItemToggleFavoriteChannel from '../menu_items/toggle_favorite_channel';
 import MenuItemToggleInfo from '../menu_items/toggle_info';
 import MenuItemToggleMuteChannel from '../menu_items/toggle_mute_channel';
 import MenuItemViewPinnedPosts from '../menu_items/view_pinned_posts';
@@ -34,13 +33,12 @@ interface Props extends Menu.FirstMenuItemProps {
     user: UserProfile;
     isMuted: boolean;
     isMobile: boolean;
-    isFavorite: boolean;
     pluginItems: ReactNode[];
     isChannelBookmarksEnabled: boolean;
     isChannelAutotranslated: boolean;
 }
 
-const ChannelHeaderDirectMenu = ({channel, user, isMuted, isMobile, isFavorite, pluginItems, isChannelBookmarksEnabled, isChannelAutotranslated, ...rest}: Props) => {
+const ChannelHeaderDirectMenu = ({channel, user, isMuted, isMobile, pluginItems, isChannelBookmarksEnabled, isChannelAutotranslated, ...rest}: Props) => {
     const canAccessChannelSettingsForChannel = useSelector((state: GlobalState) => canAccessChannelSettings(state, channel.id));
 
     return (
@@ -56,10 +54,6 @@ const ChannelHeaderDirectMenu = ({channel, user, isMuted, isMobile, isFavorite, 
             />
             {isMobile && (
                 <>
-                    <MenuItemToggleFavoriteChannel
-                        channelID={channel.id}
-                        isFavorite={isFavorite}
-                    />
                     <MenuItemViewPinnedPosts
                         channelID={channel.id}
                     />

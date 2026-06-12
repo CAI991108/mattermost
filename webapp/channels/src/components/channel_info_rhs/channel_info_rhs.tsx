@@ -82,7 +82,6 @@ export interface Props {
     currentUser: UserProfile;
     currentTeam: Team;
     isArchived: boolean;
-    isFavorite: boolean;
     isMuted: boolean;
     isInvitingPeople: boolean;
     isMobile: boolean;
@@ -93,8 +92,6 @@ export interface Props {
     channelMembers: UserProfile[];
     actions: {
         closeRightHandSide: () => void;
-        unfavoriteChannel: (channelId: string) => void;
-        favoriteChannel: (channelId: string) => void;
         unmuteChannel: (userId: string, channelId: string) => void;
         muteChannel: (userId: string, channelId: string) => void;
         openModal: <P>(modalData: ModalData<P>) => void;
@@ -109,7 +106,6 @@ const ChannelInfoRhs = ({
     channel,
     channelStats,
     isArchived,
-    isFavorite,
     isMuted,
     isInvitingPeople,
     isMobile,
@@ -124,14 +120,6 @@ const ChannelInfoRhs = ({
 }: Props) => {
     const currentUserId = currentUser.id;
     const channelURL = getSiteURL() + '/' + currentTeam.name + '/channels/' + channel.name;
-
-    const toggleFavorite = () => {
-        if (isFavorite) {
-            actions.unfavoriteChannel(channel.id);
-            return;
-        }
-        actions.favoriteChannel(channel.id);
-    };
 
     const toggleMute = () => {
         if (isMuted) {
@@ -243,13 +231,12 @@ const ChannelInfoRhs = ({
                     <TopButtons
                         channelType={channel.type}
                         channelURL={channelURL}
-                        isFavorite={isFavorite}
                         isMuted={isMuted}
                         isInvitingPeople={isInvitingPeople}
                         isArchived={isArchived}
                         isInManagedCategory={isInManagedCategory}
                         canAddPeople={!isArchived && canManageMembers}
-                        actions={{toggleFavorite, toggleMute, addPeople}}
+                        actions={{toggleMute, addPeople}}
                     />
                     <AboutArea
                         channel={channel}

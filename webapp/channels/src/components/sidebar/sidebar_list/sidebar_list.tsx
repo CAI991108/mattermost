@@ -500,7 +500,7 @@ export class SidebarList extends React.PureComponent<Props, State> {
             }
 
             const managedCategories = categories.filter((c) => c.type === CategoryTypes.MANAGED);
-            const nonManagedCategories = categories.filter((c) => c.type !== CategoryTypes.MANAGED);
+            const nonManagedCategories = categories.filter((c) => c.type !== CategoryTypes.MANAGED && c.type !== CategoryTypes.FAVORITES);
 
             const renderedManagedCategories = managedCategories.map(this.renderCategory);
             const renderedNonManagedCategories = nonManagedCategories.map(this.renderCategory);

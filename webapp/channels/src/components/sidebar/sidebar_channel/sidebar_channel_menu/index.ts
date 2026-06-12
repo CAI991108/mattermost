@@ -6,9 +6,8 @@ import type {ConnectedProps} from 'react-redux';
 
 import type {Channel} from '@mattermost/types/channels';
 
-import {favoriteChannel, unfavoriteChannel, readMultipleChannels} from 'mattermost-redux/actions/channels';
+import {readMultipleChannels} from 'mattermost-redux/actions/channels';
 import Permissions from 'mattermost-redux/constants/permissions';
-import {isFavoriteChannel} from 'mattermost-redux/selectors/entities/channels';
 import {getMyChannelMemberships, getCurrentUserId} from 'mattermost-redux/selectors/entities/common';
 import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
 import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
@@ -46,7 +45,6 @@ function mapStateToProps(state: GlobalState, ownProps: OwnProps) {
 
     return {
         currentUserId: getCurrentUserId(state),
-        isFavorite: isFavoriteChannel(state, ownProps.channel.id),
         isMuted: isChannelMuted(member),
         channelLink: `${getSiteURL()}${ownProps.channelLink}`,
         managePublicChannelMembers,
@@ -57,8 +55,6 @@ function mapStateToProps(state: GlobalState, ownProps: OwnProps) {
 const mapDispatchToProps = {
     readMultipleChannels,
     markMostRecentPostInChannelAsUnread,
-    favoriteChannel,
-    unfavoriteChannel,
     muteChannel,
     unmuteChannel,
     openModal,

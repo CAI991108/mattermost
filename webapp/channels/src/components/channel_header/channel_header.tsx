@@ -3,7 +3,7 @@
 
 import classNames from 'classnames';
 import React from 'react';
-import type {MouseEvent, ReactNode, RefObject} from 'react';
+import type {MouseEvent, ReactNode} from 'react';
 import {FormattedMessage, injectIntl} from 'react-intl';
 import type {WrappedComponentProps} from 'react-intl';
 
@@ -35,11 +35,8 @@ import type {PropsFromRedux} from './index';
 export type Props = WrappedComponentProps & PropsFromRedux;
 
 class ChannelHeader extends React.PureComponent<Props> {
-    toggleFavoriteRef: RefObject<HTMLButtonElement>;
-
     constructor(props: Props) {
         super(props);
-        this.toggleFavoriteRef = React.createRef();
     }
 
     componentDidMount() {
