@@ -5,10 +5,9 @@ import {connect} from 'react-redux';
 import {bindActionCreators} from 'redux';
 import type {Dispatch} from 'redux';
 
-import {favoriteChannel, unfavoriteChannel} from 'mattermost-redux/actions/channels';
 import {getTotalUsersStats} from 'mattermost-redux/actions/users';
 import {isChannelInManagedCategory} from 'mattermost-redux/selectors/entities/channel_categories';
-import {getCurrentChannel, getDirectTeammate, getMyCurrentChannelMembership, isCurrentChannelFavorite} from 'mattermost-redux/selectors/entities/channels';
+import {getCurrentChannel, getDirectTeammate, getMyCurrentChannelMembership} from 'mattermost-redux/selectors/entities/channels';
 import {getConfig} from 'mattermost-redux/selectors/entities/general';
 import {get} from 'mattermost-redux/selectors/entities/preferences';
 import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
@@ -47,7 +46,6 @@ function mapStateToProps(state: GlobalState) {
         channelProfiles: getProfilesInCurrentChannel(state),
         enableUserCreation,
         isReadOnly,
-        isFavorite: isCurrentChannelFavorite(state),
         isInManagedCategory: channel ? isChannelInManagedCategory(state, channel.id) : false,
         teamIsGroupConstrained: Boolean(team?.group_constrained),
         creatorName: getDisplayNameByUser(state, creator),
@@ -65,8 +63,6 @@ function mapDispatchToProps(dispatch: Dispatch) {
     return {
         actions: bindActionCreators({
             getTotalUsersStats,
-            favoriteChannel,
-            unfavoriteChannel,
         }, dispatch),
     };
 }

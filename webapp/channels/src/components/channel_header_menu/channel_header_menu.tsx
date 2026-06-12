@@ -14,7 +14,6 @@ import {
     isChannelAutotranslated as isChannelAutotranslatedSelector,
     getCurrentChannel,
     isCurrentChannelDefault,
-    isCurrentChannelFavorite,
     isCurrentChannelMuted,
 } from 'mattermost-redux/selectors/entities/channels';
 import {getLicense} from 'mattermost-redux/selectors/entities/general';
@@ -55,7 +54,6 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
     const user = useSelector(getCurrentUser);
     const channel = useSelector(getCurrentChannel);
     const isDefault = useSelector(isCurrentChannelDefault);
-    const isFavorite = useSelector(isCurrentChannelFavorite);
     const isMuted = useSelector(isCurrentChannelMuted);
     const isLicensedForLDAPGroups = useSelector(getLicense).LDAPGroups === 'true';
     const pluginMenuItems = useSelector(getChannelHeaderMenuPluginComponents);
@@ -155,7 +153,6 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
                     user={user}
                     isMuted={isMuted}
                     pluginItems={pluginItems}
-                    isFavorite={isFavorite}
                     isMobile={isMobile || false}
                     isChannelBookmarksEnabled={isChannelBookmarksEnabled}
                     isChannelAutotranslated={isChannelAutotranslated}
@@ -167,7 +164,6 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
                     user={user}
                     isMuted={isMuted}
                     pluginItems={pluginItems}
-                    isFavorite={isFavorite}
                     isMobile={isMobile || false}
                     isChannelBookmarksEnabled={isChannelBookmarksEnabled}
                     isChannelAutotranslated={isChannelAutotranslated}
@@ -179,7 +175,6 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
                     user={user}
                     isMuted={isMuted}
                     pluginItems={pluginItems}
-                    isFavorite={isFavorite}
                     isMobile={isMobile || false}
                     isDefault={isDefault}
                     isReadonly={isReadonly}

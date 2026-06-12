@@ -5,10 +5,10 @@ import {connect} from 'react-redux';
 import {bindActionCreators} from 'redux';
 import type {AnyAction, Dispatch} from 'redux';
 
-import {unfavoriteChannel, favoriteChannel, getChannelStats} from 'mattermost-redux/actions/channels';
+import {getChannelStats} from 'mattermost-redux/actions/channels';
 import {Permissions} from 'mattermost-redux/constants';
 import {isChannelInManagedCategory} from 'mattermost-redux/selectors/entities/channel_categories';
-import {getCurrentChannel, isCurrentChannelFavorite, isCurrentChannelMuted, isCurrentChannelArchived, getCurrentChannelStats} from 'mattermost-redux/selectors/entities/channels';
+import {getCurrentChannel, isCurrentChannelMuted, isCurrentChannelArchived, getCurrentChannelStats} from 'mattermost-redux/selectors/entities/channels';
 import {getCurrentUser} from 'mattermost-redux/selectors/entities/common';
 import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
 import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
@@ -42,7 +42,6 @@ function mapStateToProps(state: GlobalState) {
     const currentTeam = getCurrentTeam(state);
     const channelStats = getCurrentChannelStats(state) || EMPTY_CHANNEL_STATS;
     const isArchived = isCurrentChannelArchived(state);
-    const isFavorite = isCurrentChannelFavorite(state);
     const isMuted = isCurrentChannelMuted(state);
     const isInvitingPeople = isModalOpen(state, ModalIdentifiers.CHANNEL_INVITE) || isModalOpen(state, ModalIdentifiers.CREATE_DM_CHANNEL);
     const isMobile = getIsMobileView(state);
@@ -60,7 +59,6 @@ function mapStateToProps(state: GlobalState) {
         currentUser,
         currentTeam,
         isArchived,
-        isFavorite,
         isMuted,
         isInvitingPeople,
         isMobile,
@@ -88,8 +86,6 @@ function mapDispatchToProps(dispatch: Dispatch<AnyAction>) {
     return {
         actions: bindActionCreators({
             closeRightHandSide,
-            unfavoriteChannel,
-            favoriteChannel,
             unmuteChannel,
             muteChannel,
             openModal,
