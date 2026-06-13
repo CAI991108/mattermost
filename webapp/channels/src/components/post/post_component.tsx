@@ -67,7 +67,6 @@ export type Props = {
     currentUserId: string;
     compactDisplay?: boolean;
     colorizeUsernames?: boolean;
-    isFlagged: boolean;
     previewCollapsed?: string;
     previewEnabled?: boolean;
     isEmbedVisible?: boolean;
@@ -120,7 +119,6 @@ export type Props = {
     isMobileView: boolean;
     canReply?: boolean;
     replyCount?: number;
-    isFlaggedPosts?: boolean;
     isPinnedPosts?: boolean;
     clickToReply?: boolean;
     isCommentMention?: boolean;
@@ -327,7 +325,7 @@ function PostComponent(props: Props) {
             'cursor--pointer': alt && !props.channelIsArchived,
             'post--hide-controls': post.failed || post.state === Posts.POST_DELETED,
             'post--comment same--root': fromAutoResponder,
-            'post--pinned-or-flagged': (post.is_pinned || props.isFlagged) && props.location === Locations.CENTER,
+            'post--pinned-or-flagged': post.is_pinned && props.location === Locations.CENTER,
             'mention-comment': props.isCommentMention,
             'post--thread': isRHS,
             'post--modal': isModal,
@@ -628,7 +626,7 @@ function PostComponent(props: Props) {
     const channelDisplayName = getChannelName();
 
     // Don't show reactions for unrevealed BoR posts - users can't react to concealed content
-    const showReactions = (props.location !== Locations.SEARCH || props.isPinnedPosts || props.isFlaggedPosts) &&
+    const showReactions = (props.location !== Locations.SEARCH || props.isPinnedPosts) &&
         !props.shouldDisplayBurnOnReadConcealed;
 
     const getTestId = () => {
@@ -743,12 +741,12 @@ function PostComponent(props: Props) {
                 {props.isChannelAutotranslated && isTranslating && (
                     <div className='post-message__shimmer'/>
                 )}
-                {(Boolean(isSearchResultItem) || (props.location !== Locations.CENTER && props.isFlagged)) &&
+                {(Boolean(isSearchResultItem)) &&
                     <div
                         className='search-channel__name__container'
                         aria-hidden='true'
                     >
-                        {(Boolean(isSearchResultItem) || props.isFlaggedPosts) &&
+                        {Boolean(isSearchResultItem) &&
                         <span className='search-channel__name'>
                             {channelDisplayName}
                         </span>
@@ -769,7 +767,7 @@ function PostComponent(props: Props) {
                             </span>
                         </WithTooltip>
                         }
-                        {(Boolean(isSearchResultItem) || props.isFlaggedPosts) && Boolean(props.teamDisplayName) &&
+                        {Boolean(isSearchResultItem) && Boolean(props.teamDisplayName) &&
                         <span className='search-team__name'>
                             {props.teamDisplayName}
                         </span>
@@ -777,10 +775,8 @@ function PostComponent(props: Props) {
                     </div>
                 }
                 <PostPreHeader
-                    isFlagged={props.isFlagged}
                     isPinned={post.is_pinned}
                     skipPinned={props.location === Locations.SEARCH && props.isPinnedPosts}
-                    skipFlagged={props.location === Locations.SEARCH && props.isFlaggedPosts}
                     channelId={post.channel_id}
                 />
                 <div

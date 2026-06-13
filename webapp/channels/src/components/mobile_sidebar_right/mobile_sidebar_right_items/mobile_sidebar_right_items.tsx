@@ -52,12 +52,6 @@ export class MobileSidebarRightItems extends React.PureComponent<Props> {
         }
     };
 
-    onShowFlaggedPostItemClick = (e: Event): void => {
-        e.preventDefault();
-        this.props.actions.showFlaggedPosts();
-        this.props.actions.closeRhsMenu();
-    };
-
     onLogoutItemClick = (): void => {
         emitUserLoggedOutEvent();
     };
@@ -171,17 +165,6 @@ export class MobileSidebarRightItems extends React.PureComponent<Props> {
                             />
                         }
                         text={formatMessage({id: 'sidebar_right_menu.recentMentions', defaultMessage: 'Recent Mentions'})}
-                    />
-                    <Menu.ItemAction
-                        id='flaggedPosts'
-                        onClick={this.onShowFlaggedPostItemClick}
-                        icon={
-                            <i
-                                className='icon icon-bookmark'
-                                style={{color: 'var(--sidebar-text)'}}
-                            />
-                        }
-                        text={formatMessage({id: 'sidebar_right_menu.flagged', defaultMessage: 'Saved messages'})}
                     />
                 </Menu.Group>
                 <Menu.Group>
