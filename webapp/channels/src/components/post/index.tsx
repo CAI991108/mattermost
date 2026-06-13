@@ -14,7 +14,7 @@ import {General, Preferences as ReduxPreferences} from 'mattermost-redux/constan
 import {getDirectTeammate, isMyChannelAutotranslated} from 'mattermost-redux/selectors/entities/channels';
 import {getConfig, isPermissionPoliciesEnabled} from 'mattermost-redux/selectors/entities/general';
 import {getCurrentUserLocale} from 'mattermost-redux/selectors/entities/i18n';
-import {getPost, makeGetCommentCountForPost, makeIsPostCommentMention, isPostAcknowledgementsEnabled, isPostPriorityEnabled, isPostFlagged} from 'mattermost-redux/selectors/entities/posts';
+import {getPost, makeGetCommentCountForPost, makeIsPostCommentMention, isPostAcknowledgementsEnabled, isPostPriorityEnabled} from 'mattermost-redux/selectors/entities/posts';
 import type {UserActivityPost} from 'mattermost-redux/selectors/entities/posts';
 import {
     get,
@@ -205,7 +205,6 @@ function makeMapStateToProps() {
             channelIsShared: channel?.shared,
             isConsecutivePost: isConsecutivePost(state, ownProps, locale),
             previousPostIsComment,
-            isFlagged: isPostFlagged(state, post.id),
             compactDisplay: get(state, Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.MESSAGE_DISPLAY, Preferences.MESSAGE_DISPLAY_DEFAULT) === Preferences.MESSAGE_DISPLAY_COMPACT,
             colorizeUsernames: get(state, Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.COLORIZE_USERNAMES, Preferences.COLORIZE_USERNAMES_DEFAULT) === 'true',
             shouldShowActionsMenu: shouldShowActionsMenu(state, post),
@@ -230,7 +229,6 @@ function makeMapStateToProps() {
             teamDisplayName,
             displayName: getDisplayNameByUser(state, directTeammate),
             teamName,
-            isFlaggedPosts: rhsState === RHSStates.FLAG,
             isPinnedPosts: rhsState === RHSStates.PIN,
             clickToReply: get(state, Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.CLICK_TO_REPLY, Preferences.CLICK_TO_REPLY_DEFAULT) === 'true',
             isCommentMention: isPostCommentMention(state, post.id),

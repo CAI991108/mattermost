@@ -23,7 +23,7 @@ import {getCurrentTimezone} from 'mattermost-redux/selectors/entities/timezone';
 import {getCurrentUser, getStatusForUserId} from 'mattermost-redux/selectors/entities/users';
 
 import {openModal} from 'actions/views/modals';
-import {showMentions, showFlaggedPosts, closeRightHandSide, closeMenu as closeRhsMenu} from 'actions/views/rhs';
+import {showMentions, closeRightHandSide, closeMenu as closeRhsMenu} from 'actions/views/rhs';
 import {getRhsState} from 'selectors/rhs';
 import {makeGetCustomStatus, isCustomStatusExpired, isCustomStatusEnabled} from 'selectors/views/custom_status';
 
@@ -94,7 +94,6 @@ function mapDispatchToProps(dispatch: Dispatch) {
     return {
         actions: bindActionCreators({
             showMentions,
-            showFlaggedPosts,
             closeRightHandSide,
             closeRhsMenu,
             openModal,

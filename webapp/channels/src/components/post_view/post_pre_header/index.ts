@@ -5,13 +5,12 @@ import {connect} from 'react-redux';
 import {bindActionCreators} from 'redux';
 import type {Dispatch} from 'redux';
 
-import {showFlaggedPosts, showPinnedPosts} from 'actions/views/rhs';
+import {showPinnedPosts} from 'actions/views/rhs';
 
 import PostPreHeader from './post_pre_header';
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({
     actions: bindActionCreators({
-        showFlaggedPosts,
         showPinnedPosts,
     }, dispatch),
 });

@@ -16,7 +16,6 @@ import ActionsMenu from 'components/actions_menu';
 import CommentIcon from 'components/common/comment_icon';
 import {usePluginVisibilityInSharedChannel} from 'components/common/hooks/usePluginVisibilityInSharedChannel';
 import DotMenu from 'components/dot_menu';
-import PostFlagIcon from 'components/post_view/post_flag_icon';
 import PostReaction from 'components/post_view/post_reaction';
 import PostRecentReactions from 'components/post_view/post_recent_reactions';
 
@@ -28,7 +27,6 @@ import type {PostActionComponent} from 'types/store/plugins';
 type Props = {
     post: Post;
     teamId: string;
-    isFlagged: boolean;
     removePost: (post: Post) => void;
     enableEmojiPicker?: boolean;
     isReadOnly?: boolean;
@@ -180,20 +178,6 @@ const PostOptions = (props: Props): JSX.Element => {
         );
     }
 
-    // Don't show save button for unrevealed BoR posts
-    let flagIcon: ReactNode = null;
-    if (!isMobileView && (!isEphemeral && !post.failed && !systemMessage) && !props.shouldDisplayBurnOnReadConcealed) {
-        flagIcon = (
-            <li>
-                <PostFlagIcon
-                    location={props.location}
-                    postId={post.id}
-                    isFlagged={props.isFlagged}
-                />
-            </li>
-        );
-    }
-
     // Action menus
     const showActionsMenuIcon = props.shouldShowActionsMenu && (isMobileView || hoverLocal);
     const actionsMenu = showActionsMenuIcon && (
@@ -232,7 +216,6 @@ const PostOptions = (props: Props): JSX.Element => {
             <DotMenu
                 post={props.post}
                 location={props.location}
-                isFlagged={props.isFlagged}
                 handleDropdownOpened={handleDotMenuOpened}
                 handleCommentClick={props.handleCommentClick}
                 handleAddReactionClick={toggleEmojiPicker}
@@ -264,7 +247,6 @@ const PostOptions = (props: Props): JSX.Element => {
         options = (
             <ul className='col__controls post-menu'>
                 {dotMenu}
-                {flagIcon}
                 {props.canReply && !hasCRTFooter &&
                 <li>
                     <CommentIcon
@@ -300,7 +282,6 @@ const PostOptions = (props: Props): JSX.Element => {
                 {!collapsedThreadsEnabled && !showRecentlyUsedReactions && dotMenu}
                 {showRecentReactions}
                 {postReaction}
-                {flagIcon}
                 {pluginItems}
                 {actionsMenu}
                 {commentIcon}
