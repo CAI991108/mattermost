@@ -43,7 +43,6 @@ class RhsHeaderPost extends React.PureComponent<Props> {
 
         switch (this.props.previousRhsState) {
         case RHSStates.SEARCH:
-        case RHSStates.MENTION:
         case RHSStates.FLAG:
         case RHSStates.PIN:
             this.props.goBack();
@@ -86,7 +85,6 @@ class RhsHeaderPost extends React.PureComponent<Props> {
 
         switch (this.props.previousRhsState) {
         case RHSStates.SEARCH:
-        case RHSStates.MENTION:
             backToResultsTooltip = (
                 <FormattedMessage
                     id='rhs_header.backToResultsTooltip'

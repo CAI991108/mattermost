@@ -6,7 +6,6 @@ import {bindActionCreators} from 'redux';
 import type {AnyAction, Dispatch} from 'redux';
 
 import {
-    showMentions,
     showSearchResults,
     showPinnedPosts,
     closeRightHandSide,
@@ -27,7 +26,6 @@ function mapStateToProps(state: GlobalState) {
 function mapDispatchToProps(dispatch: Dispatch<AnyAction>) {
     return {
         actions: bindActionCreators({
-            showMentions,
             showSearchResults,
             showPinnedPosts,
             closeRightHandSide,

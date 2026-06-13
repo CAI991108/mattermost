@@ -41,17 +41,6 @@ export class MobileSidebarRightItems extends React.PureComponent<Props> {
         pluginMenuItems: [],
     };
 
-    onRecentMentionItemClick = (e: Event): void => {
-        e.preventDefault();
-
-        if (this.props.isMentionSearch) {
-            this.props.actions.closeRightHandSide();
-        } else {
-            this.props.actions.closeRhsMenu();
-            this.props.actions.showMentions();
-        }
-    };
-
     onLogoutItemClick = (): void => {
         emitUserLoggedOutEvent();
     };
@@ -153,19 +142,6 @@ export class MobileSidebarRightItems extends React.PureComponent<Props> {
                             openCustomStatusModal={this.openCustomStatusModal}
                         />
                     )}
-                </Menu.Group>
-                <Menu.Group>
-                    <Menu.ItemAction
-                        id='recentMentions'
-                        onClick={this.onRecentMentionItemClick}
-                        icon={
-                            <i
-                                className='icon icon-at'
-                                style={{color: 'var(--sidebar-text)'}}
-                            />
-                        }
-                        text={formatMessage({id: 'sidebar_right_menu.recentMentions', defaultMessage: 'Recent Mentions'})}
-                    />
                 </Menu.Group>
                 <Menu.Group>
                     <Menu.ItemToggleModalRedux
