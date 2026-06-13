@@ -19,7 +19,6 @@ type Props = {
     previousRhsState?: RhsState;
     isExpanded: boolean;
     actions: {
-        showMentions: () => void;
         showSearchResults: () => void;
         showPinnedPosts: () => void;
         closeRightHandSide: () => void;
@@ -38,9 +37,6 @@ class RhsCardHeader extends React.PureComponent<Props> {
         case RHSStates.SEARCH:
             this.props.actions.showSearchResults();
             break;
-        case RHSStates.MENTION:
-            this.props.actions.showMentions();
-            break;
         case RHSStates.PIN:
             this.props.actions.showPinnedPosts();
             break;
@@ -55,7 +51,6 @@ class RhsCardHeader extends React.PureComponent<Props> {
 
         switch (this.props.previousRhsState) {
         case RHSStates.SEARCH:
-        case RHSStates.MENTION:
             title = (
                 <FormattedMessage
                     id='rhs_header.backToResultsTooltip'

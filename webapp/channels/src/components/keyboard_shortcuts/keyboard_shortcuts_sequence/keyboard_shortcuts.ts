@@ -193,16 +193,7 @@ export const KEYBOARD_SHORTCUTS = {
             defaultMessage: 'Settings:\t⌘|Shift|A',
         },
     }),
-    navMentions: defineMessages({
-        default: {
-            id: 'shortcuts.nav.recent_mentions',
-            defaultMessage: 'Recent mentions:\tCtrl|Shift|M',
-        },
-        mac: {
-            id: 'shortcuts.nav.recent_mentions.mac',
-            defaultMessage: 'Recent mentions:\t⌘|Shift|M',
-        },
-    }),
+    // navMentions: removed — Recent Mentions entry point has been removed from the UI
     navFocusCenter: defineMessages({
         default: {
             id: 'shortcuts.nav.focus_center',

@@ -9,7 +9,7 @@ import {getChannelByName} from 'mattermost-redux/selectors/entities/channels';
 import {getIsCrossTeamSearchEnabled} from 'mattermost-redux/selectors/entities/general';
 import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
 
-import {showChannelFiles, showFlaggedPosts, showMentions, showPinnedPosts, showSearchResults, updateRhsState, updateSearchTeam, updateSearchTerms, updateSearchType} from 'actions/views/rhs';
+import {showChannelFiles, showFlaggedPosts, showPinnedPosts, showSearchResults, updateRhsState, updateSearchTeam, updateSearchTerms, updateSearchType} from 'actions/views/rhs';
 import {getIsRhsExpanded, getRhsState} from 'selectors/rhs';
 
 import useSearchResultsActions from 'components/common/hooks/use_search_results_actions';
@@ -59,7 +59,6 @@ export default function RhsSearchPopout() {
 
     const channelId = channel?.id;
     const channelDisplayName = channel?.display_name ?? '';
-    const isMentionSearch = rhsState === RHSStates.MENTION;
     const isFlaggedPosts = rhsState === RHSStates.FLAG;
     const isPinnedPosts = rhsState === RHSStates.PIN;
     const isChannelFiles = rhsState === RHSStates.CHANNEL_FILES;
@@ -80,13 +79,6 @@ export default function RhsSearchPopout() {
                 return;
             }
             break;
-        case RHSStates.MENTION:
-            if (query.searchTerms.trim()) {
-                dispatch(showSearchResults(true));
-            } else {
-                dispatch(showMentions());
-            }
-            return;
         case RHSStates.FLAG:
             dispatch(showFlaggedPosts());
             return;
@@ -122,7 +114,7 @@ export default function RhsSearchPopout() {
 
     return (
         <SearchResults
-            isMentionSearch={isMentionSearch}
+            isMentionSearch={false}
             isFlaggedPosts={isFlaggedPosts}
             isPinnedPosts={isPinnedPosts}
             isChannelFiles={isChannelFiles}
