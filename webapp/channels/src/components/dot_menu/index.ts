@@ -27,8 +27,6 @@ import {isSystemMessage} from 'mattermost-redux/utils/post_utils';
 
 import {burnPostNow} from 'actions/burn_on_read_deletion';
 import {
-    flagPost,
-    unflagPost,
     pinPost,
     unpinPost,
     setEditingPost,
@@ -149,8 +147,6 @@ function makeMapStateToProps() {
 function mapDispatchToProps(dispatch: Dispatch) {
     return {
         actions: bindActionCreators({
-            flagPost,
-            unflagPost,
             setEditingPost,
             pinPost,
             unpinPost,

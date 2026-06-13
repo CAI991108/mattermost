@@ -8,7 +8,6 @@ import type {AnyAction, Dispatch} from 'redux';
 import {
     showMentions,
     showSearchResults,
-    showFlaggedPosts,
     showPinnedPosts,
     closeRightHandSide,
     toggleRhsExpanded,
@@ -30,7 +29,6 @@ function mapDispatchToProps(dispatch: Dispatch<AnyAction>) {
         actions: bindActionCreators({
             showMentions,
             showSearchResults,
-            showFlaggedPosts,
             showPinnedPosts,
             closeRightHandSide,
             toggleRhsExpanded,

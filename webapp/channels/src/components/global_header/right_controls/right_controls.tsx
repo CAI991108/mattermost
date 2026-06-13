@@ -23,7 +23,6 @@ import type {GlobalState} from 'types/store';
 
 import AtMentionsButton from './at_mentions_button/at_mentions_button';
 import PlanUpgradeButton from './plan_upgrade_button';
-import SavedPostsButton from './saved_posts_button/saved_posts_button';
 import SettingsButton from './settings_button';
 
 const RightControlsContainer = styled.div`
@@ -65,7 +64,6 @@ const RightControls = ({productId = null}: Props): JSX.Element => {
             {isChannels(productId) ? (
                 <>
                     <AtMentionsButton/>
-                    <SavedPostsButton/>
                 </>
             ) : (
                 <Pluggable

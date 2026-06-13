@@ -10,12 +10,8 @@ import type {UserThread} from '@mattermost/types/threads';
 
 import {setThreadFollow, updateThreadRead, markLastPostInThreadAsUnread} from 'mattermost-redux/actions/threads';
 import {getChannel} from 'mattermost-redux/selectors/entities/channels';
-import {getPost, isPostFlagged} from 'mattermost-redux/selectors/entities/posts';
+import {getPost} from 'mattermost-redux/selectors/entities/posts';
 
-import {
-    flagPost as savePost,
-    unflagPost as unsavePost,
-} from 'actions/post_actions';
 import {manuallyMarkThreadAsUnread} from 'actions/views/threads';
 
 import * as Menu from 'components/menu';
@@ -55,7 +51,6 @@ function ThreadMenu({
         goToInChannel,
     } = useThreadRouting();
 
-    const isSaved = useSelector((state: GlobalState) => isPostFlagged(state, threadId));
     const post = useSelector((state: GlobalState) => getPost(state, threadId));
     const channel = useSelector((state: GlobalState) => getChannel(state, post.channel_id));
     const readAloud = useReadout();
@@ -175,31 +170,6 @@ function ThreadMenu({
                     />
                 )}
                 onClick={handleReadUnread}
-            />
-            <Menu.Item
-                labels={isSaved ? (
-                    <FormattedMessage
-                        id='threading.threadMenu.unsave'
-                        defaultMessage='Unsave'
-                    />
-                ) : (
-                    <FormattedMessage
-                        id='threading.threadMenu.save'
-                        defaultMessage='Save'
-                    />
-                )}
-                onClick={useCallback((e: React.MouseEvent | React.KeyboardEvent) => {
-                    e.stopPropagation();
-
-                    dispatch(isSaved ? unsavePost(threadId) : savePost(threadId));
-                    readAloud(isSaved ? formatMessage({
-                        id: 'threading.threadMenu.unsaved',
-                        defaultMessage: 'Unsaved',
-                    }) : formatMessage({
-                        id: 'threading.threadMenu.saved',
-                        defaultMessage: 'Saved',
-                    }));
-                }, [threadId, isSaved])}
             />
             <Menu.Item
                 labels={
