@@ -8,7 +8,6 @@ import {useSelector} from 'react-redux';
 import {
     PlusIcon,
     AccountPlusOutlineIcon,
-    FolderPlusOutlineIcon,
     AccountMultiplePlusOutlineIcon,
     GlobeIcon,
     AccountOutlineIcon,
@@ -34,7 +33,6 @@ type Props = {
     canCreateCustomGroups: boolean;
     onCreateNewUserGroupClick: () => void;
     unreadFilterEnabled: boolean;
-    onCreateNewCategoryClick: () => void;
     onInvitePeopleClick: () => void;
 };
 
@@ -116,24 +114,6 @@ export default function SidebarBrowserOrAddChannelMenu(props: Props) {
         );
     }
 
-    let createNewCategoryMenuItem: JSX.Element | null = null;
-    if (!props.unreadFilterEnabled) {
-        createNewCategoryMenuItem = (
-            <Menu.Item
-                id='createCategoryMenuItem'
-                onClick={props.onCreateNewCategoryClick}
-                leadingElement={<FolderPlusOutlineIcon size={18}/>}
-                labels={(
-                    <FormattedMessage
-                        id='sidebarLeft.browserOrCreateChannelMenu.createCategoryMenuItem.primaryLabel'
-                        defaultMessage='Create new category'
-                    />
-                )}
-                aria-haspopup='true'
-            />
-        );
-    }
-
     const invitePeopleMenuItem = (
         <Menu.Item
             id='invitePeopleMenuItem'
@@ -201,10 +181,6 @@ export default function SidebarBrowserOrAddChannelMenu(props: Props) {
             {createDirectMessageMenuItem}
             {createUserGroupMenuItem}
             {pluggableMenuItems}
-            {Boolean(createNewCategoryMenuItem) &&
-                <Menu.Separator/>
-            }
-            {createNewCategoryMenuItem}
             <Menu.Separator/>
             {invitePeopleMenuItem}
         </Menu.Container>

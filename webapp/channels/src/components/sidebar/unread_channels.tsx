@@ -11,7 +11,6 @@ import {getUnreadChannels} from 'selectors/views/channel_sidebar';
 
 import * as Menu from 'components/menu';
 
-import CreateNewCategoryMenuItem from './sidebar_category/sidebar_category_menu/create_new_category_menu_item';
 import MarkAsReadMenuItem from './sidebar_category/sidebar_category_menu/mark_as_read_menu_item';
 import SidebarCategoryGenericMenu from './sidebar_category/sidebar_category_menu/sidebar_category_generic_menu';
 import {SidebarCategoryHeaderStatic} from './sidebar_category_header';
@@ -52,8 +51,6 @@ export default function UnreadChannels({
                         handleViewCategory={handleViewCategory}
                         numChannels={unreadChannels.length}
                     />
-                    <Menu.Separator/>
-                    <CreateNewCategoryMenuItem id={'unreads'}/>
                 </SidebarCategoryGenericMenu>
             </SidebarCategoryHeaderStatic>
             <div className='SidebarChannelGroup_content'>

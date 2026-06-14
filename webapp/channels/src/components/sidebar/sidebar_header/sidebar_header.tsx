@@ -16,7 +16,6 @@ export type Props = {
     showMoreChannelsModal: () => void;
     showCreateUserGroupModal: () => void;
     invitePeopleModal: () => void;
-    showCreateCategoryModal: () => void;
     canCreateChannel: boolean;
     canJoinPublicChannel: boolean;
     handleOpenDirectMessagesModal: () => void;
@@ -44,7 +43,6 @@ const SidebarHeader = (props: Props) => {
                     canCreateCustomGroups={props.canCreateCustomGroups}
                     onCreateNewUserGroupClick={props.showCreateUserGroupModal}
                     unreadFilterEnabled={props.unreadFilterEnabled}
-                    onCreateNewCategoryClick={props.showCreateCategoryModal}
                     onInvitePeopleClick={props.invitePeopleModal}
                 />
             )}
