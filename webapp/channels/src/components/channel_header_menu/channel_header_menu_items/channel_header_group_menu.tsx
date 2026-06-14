@@ -18,7 +18,6 @@ import {isGuest} from 'mattermost-redux/utils/user_utils';
 
 import {canAccessChannelSettings} from 'selectors/views/channel_settings';
 
-import ChannelMoveToSubMenu from 'components/channel_move_to_sub_menu';
 import * as Menu from 'components/menu';
 import ChannelPermissionGate from 'components/permissions_gates/channel_permission_gate';
 
@@ -154,7 +153,6 @@ const ChannelHeaderGroupMenu = ({channel, user, isMuted, isMobile, pluginItems, 
                     <Menu.Separator/>
                 </ChannelPermissionGate>
             )}
-            <ChannelMoveToSubMenu channel={channel}/>
             {!isMobile && (
                 <MenuItemPluginItems pluginItems={pluginItems}/>
             )}
