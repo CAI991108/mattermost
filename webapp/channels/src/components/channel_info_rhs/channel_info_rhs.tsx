@@ -80,7 +80,7 @@ export interface Props {
     channel: Channel;
     channelStats: ChannelStats;
     currentUser: UserProfile;
-    currentTeam: Team;
+    currentTeam?: Team;
     isArchived: boolean;
     isMuted: boolean;
     isInvitingPeople: boolean;
@@ -119,7 +119,7 @@ const ChannelInfoRhs = ({
     actions,
 }: Props) => {
     const currentUserId = currentUser.id;
-    const channelURL = getSiteURL() + '/' + currentTeam.name + '/channels/' + channel.name;
+    const channelURL = currentTeam ? getSiteURL() + '/' + currentTeam.name + '/channels/' + channel.name : '';
 
     const toggleMute = () => {
         if (isMuted) {
@@ -160,7 +160,7 @@ const ChannelInfoRhs = ({
     const editChannelName = () => actions.openModal({
         modalId: ModalIdentifiers.RENAME_CHANNEL,
         dialogType: RenameChannelModal,
-        dialogProps: {channel, teamName: currentTeam.name},
+        dialogProps: {channel, teamName: currentTeam?.name || ''},
     });
 
     const openNotificationSettings = () => actions.openModal({

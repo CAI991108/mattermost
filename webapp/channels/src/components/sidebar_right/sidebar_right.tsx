@@ -263,7 +263,9 @@ export default class SidebarRight extends React.PureComponent<Props, State> {
             return null;
         }
 
-        const teamNeeded = true;
+        // LZX: 全局私信路由不依赖 team，上下文里可能没有 team。
+        // DM/GM 的 RHS 信息/置顶/文件只需要 current channel。
+        const teamNeeded = !(channel?.type === 'D' || channel?.type === 'G');
         let selectedChannelNeeded;
         let currentChannelNeeded;
         let content = null;

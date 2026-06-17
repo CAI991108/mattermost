@@ -19,6 +19,8 @@ import ProfilePopover from 'components/profile_popover';
 import SharedChannelIndicator from 'components/shared_channel_indicator';
 import GuestTag from 'components/widgets/tag/guest_tag';
 
+import Constants from 'utils/constants';
+
 import type {ChannelMember as ChannelMemberType} from './member_list';
 
 interface Props {
@@ -44,6 +46,40 @@ const Member = ({channel, member, index, totalUsers, editing, actions}: Props) =
     }, [member.user.remote_id]);
 
     const userProfileSrc = Client4.getProfilePictureUrl(member.user.id, member.user.last_picture_update);
+    const canOpenDirectMessageFromMemberInfo = channel.type === Constants.DM_CHANNEL && !editing;
+    const dmUnreadCount = member.dmUnreadCount || 0;
+
+    const memberInfo = (
+        <>
+            <span className='channel-members-rhs__display-name'>
+                {member.displayName}
+                {isGuest(member.user.roles) && <GuestTag/>}
+                {member.user.remote_id && (
+                    <span className='channel-members-rhs__shared-icon'>
+                        <SharedChannelIndicator
+                            withTooltip={true}
+                            remoteNames={member.remoteDisplayName ? [member.remoteDisplayName] : undefined}
+                        />
+                    </span>
+                )}
+            </span>
+            {member.displayName === member.user.username ? null : <span className='channel-members-rhs__username'>{'@'}{member.user.username}</span>}
+            <CustomStatusEmoji
+                userID={member.user.id}
+                showTooltip={true}
+                emojiSize={16}
+                spanStyle={{
+                    display: 'flex',
+                    flex: '0 0 auto',
+                    alignItems: 'center',
+                }}
+                emojiStyle={{
+                    marginLeft: '8px',
+                    alignItems: 'center',
+                }}
+            />
+        </>
+    );
 
     return (
         <div
@@ -52,54 +88,62 @@ const Member = ({channel, member, index, totalUsers, editing, actions}: Props) =
             data-testid={`memberline-${member.user.id}`}
         >
             <span className='ProfileSpan'>
-                <div className='channel-members-rhs__avatar'>
-                    <ProfilePicture
-                        size='sm'
-                        status={member.status}
-                        isBot={member.user.is_bot}
-                        userId={member.user.id}
-                        username={member.displayName}
-                        src={userProfileSrc}
-                    />
-                </div>
-                <ProfilePopover
-                    triggerComponentClass='profileSpan_userInfo'
-                    userId={member.user.id}
-                    src={userProfileSrc}
-                    hideStatus={member.user.is_bot}
-                >
-                    <span className='channel-members-rhs__display-name'>
-                        {member.displayName}
-                        {isGuest(member.user.roles) && <GuestTag/>}
-                        {member.user.remote_id &&
-                        (
-                            <span className='channel-members-rhs__shared-icon'>
-                                <SharedChannelIndicator
-                                    withTooltip={true}
-                                    remoteNames={member.remoteDisplayName ? [member.remoteDisplayName] : undefined}
+                {canOpenDirectMessageFromMemberInfo ? (
+                    <>
+                        <ProfilePopover
+                            triggerComponentClass='channel-members-rhs__avatar-popover'
+                            userId={member.user.id}
+                            src={userProfileSrc}
+                            hideStatus={member.user.is_bot}
+                        >
+                            <div className='channel-members-rhs__avatar'>
+                                <ProfilePicture
+                                    size='sm'
+                                    status={member.status}
+                                    isBot={member.user.is_bot}
+                                    userId={member.user.id}
+                                    username={member.displayName}
+                                    src={userProfileSrc}
                                 />
-                            </span>
-                        )}
-                    </span>
-                    {
-                        member.displayName === member.user.username ? null : <span className='channel-members-rhs__username'>{'@'}{member.user.username}</span>
-                    }
-                    <CustomStatusEmoji
-                        userID={member.user.id}
-                        showTooltip={true}
-                        emojiSize={16}
-                        spanStyle={{
-                            display: 'flex',
-                            flex: '0 0 auto',
-                            alignItems: 'center',
-                        }}
-                        emojiStyle={{
-                            marginLeft: '8px',
-                            alignItems: 'center',
-                        }}
-                    />
-                </ProfilePopover>
+                            </div>
+                        </ProfilePopover>
+                        <button
+                            type='button'
+                            className='channel-members-rhs__member-info-button'
+                            onClick={() => actions.openDirectMessage(member.user)}
+                        >
+                            {memberInfo}
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <div className='channel-members-rhs__avatar'>
+                            <ProfilePicture
+                                size='sm'
+                                status={member.status}
+                                isBot={member.user.is_bot}
+                                userId={member.user.id}
+                                username={member.displayName}
+                                src={userProfileSrc}
+                            />
+                        </div>
+                        <ProfilePopover
+                            triggerComponentClass='profileSpan_userInfo'
+                            userId={member.user.id}
+                            src={userProfileSrc}
+                            hideStatus={member.user.is_bot}
+                        >
+                            {memberInfo}
+                        </ProfilePopover>
+                    </>
+                )}
             </span>
+
+            {dmUnreadCount > 0 && (
+                <span className='channel-members-rhs__dm-unread-badge'>
+                    {dmUnreadCount > 99 ? '99+' : dmUnreadCount}
+                </span>
+            )}
 
             <div
                 className={classNames('channel-members-rhs__role-chooser', {editing})}

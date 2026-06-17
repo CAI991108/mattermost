@@ -48,6 +48,12 @@ const mapStateToProps = (state: GlobalState, ownProps: OwnProps) => {
         channelName = getRedirectChannelNameForTeam(state, team!.id);
     }
 
+    // LZX: 历史版本可能把 DM channel.name 写入团队 last channel。
+    // DM channel.name 形如 userId__userId，不应作为团队频道恢复目标。
+    if (channelName?.includes('__')) {
+        channelName = getRedirectChannelNameForTeam(state, team!.id);
+    }
+
     let lastChannelPath;
     if (isCollapsedThreadsEnabled(state) && (previousTeamLastViewedType === PreviousViewedTypes.THREADS || lastViewedType === PreviousViewedTypes.THREADS)) {
         lastChannelPath = `${ownProps.match.url}/threads`;

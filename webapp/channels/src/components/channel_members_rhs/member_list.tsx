@@ -18,6 +18,8 @@ export interface ChannelMember {
     status?: string;
     displayName: string;
     remoteDisplayName?: string;
+    dmUnreadCount?: number;
+    dmLastPostAt?: number;
 }
 
 export enum ListItemType {
