@@ -227,11 +227,8 @@ export default class MoreDirectChannels extends React.PureComponent<Props, State
             }
         };
 
-        if (userIds.length === 1) {
-            actions.openDirectChannelToUserId(userIds[0]).then(done);
-        } else {
-            actions.openGroupChannelToUserIds(userIds).then(done);
-        }
+        // LZX: 只允许1对1私信，禁止多人群聊
+        actions.openDirectChannelToUserId(userIds[0]).then(done);
     };
 
     addValue = (value: OptionValue) => {

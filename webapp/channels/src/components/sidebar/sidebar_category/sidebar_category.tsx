@@ -37,7 +37,7 @@ type Props = {
     categoryIndex: number;
     channelIds: string[];
     setChannelRef: (channelId: string, ref: HTMLLIElement) => void;
-    handleOpenMoreDirectChannelsModal: (e: Event) => void;
+    // LZX: handleOpenMoreDirectChannelsModal 已移除，DIRECT_MESSAGES 分类不再渲染
     isNewCategory: boolean;
     draggingState: DraggingState;
     currentUserId: string;

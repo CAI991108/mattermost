@@ -21,7 +21,7 @@ import ChannelNavigator from './channel_navigator';
 import SidebarList from './sidebar_list';
 
 const MobileSidebarHeader = makeAsyncComponent('MobileSidebarHeader', lazy(() => import('./mobile_sidebar_header')));
-const MoreDirectChannels = makeAsyncComponent('MoreDirectChannels', lazy(() => import('components/more_direct_channels')));
+// LZX: MoreDirectChannels modal 已移除，私信入口改为 DirectMessagesLink 侧边栏静态入口
 const BrowseChannels = makeAsyncComponent('BrowseChannels', lazy(() => import('components/browse_channels')));
 const CreateUserGroupsModal = makeAsyncComponent('CreateUserGroupsModal', lazy(() => import('components/create_user_groups_modal')));
 const InvitationModal = makeAsyncComponent('InvitationModal', lazy(() => import('components/invitation_modal')));
@@ -51,7 +51,6 @@ type Props = {
 };
 
 type State = {
-    showDirectChannelsModal: boolean;
     isDragging: boolean;
 };
 
@@ -59,7 +58,6 @@ export default class Sidebar extends React.PureComponent<Props, State> {
     constructor(props: Props) {
         super(props);
         this.state = {
-            showDirectChannelsModal: false,
             isDragging: false,
         };
     }
@@ -126,14 +124,6 @@ export default class Sidebar extends React.PureComponent<Props, State> {
         }
     };
 
-    showMoreDirectChannelsModal = () => {
-        this.setState({showDirectChannelsModal: true});
-    };
-
-    hideMoreDirectChannelsModal = () => {
-        this.setState({showDirectChannelsModal: false});
-    };
-
     showMoreChannelsModal = () => {
         this.props.actions.openModal({
             modalId: ModalIdentifiers.MORE_CHANNELS,
@@ -164,16 +154,6 @@ export default class Sidebar extends React.PureComponent<Props, State> {
         });
     };
 
-    handleOpenMoreDirectChannelsModal = (e?: Event) => {
-        e?.preventDefault();
-        if (this.state.showDirectChannelsModal) {
-            this.hideMoreDirectChannelsModal();
-        } else {
-            this.showMoreDirectChannelsModal();
-            this.closeEditRHS();
-        }
-    };
-
     onDragStart = () => {
         this.setState({isDragging: true});
     };
@@ -183,22 +163,8 @@ export default class Sidebar extends React.PureComponent<Props, State> {
     };
 
     renderModals = () => {
-        let moreDirectChannelsModal;
-        if (this.state.showDirectChannelsModal) {
-            moreDirectChannelsModal = (
-                <MoreDirectChannels
-                    onModalDismissed={this.hideMoreDirectChannelsModal}
-                    isExistingChannel={false}
-                    focusOriginElement='newDirectMessageButton'
-                />
-            );
-        }
-
-        return (
-            <>
-                {moreDirectChannelsModal}
-            </>
-        );
+        // LZX: MoreDirectChannels modal 已移除，renderModals 保留框架
+        return <></>;
     };
 
     closeEditRHS = () => {
@@ -230,7 +196,6 @@ export default class Sidebar extends React.PureComponent<Props, State> {
                         invitePeopleModal={this.invitePeopleModal}
                         canCreateChannel={this.props.canCreatePrivateChannel || this.props.canCreatePublicChannel}
                         canJoinPublicChannel={this.props.canJoinPublicChannel}
-                        handleOpenDirectMessagesModal={this.handleOpenMoreDirectChannelsModal}
                         unreadFilterEnabled={this.props.unreadFilterEnabled}
                         canCreateCustomGroups={this.props.canCreateCustomGroups}
                     />
@@ -248,7 +213,6 @@ export default class Sidebar extends React.PureComponent<Props, State> {
                     <Pluggable pluggableName='LeftSidebarHeader'/>
                 </div>
                 <SidebarList
-                    handleOpenMoreDirectChannelsModal={this.handleOpenMoreDirectChannelsModal}
                     onDragStart={this.onDragStart}
                     onDragEnd={this.onDragEnd}
                 />

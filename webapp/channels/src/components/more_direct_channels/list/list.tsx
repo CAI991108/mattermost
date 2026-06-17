@@ -18,7 +18,8 @@ import ListItem from '../list_item';
 import {optionValue} from '../types';
 import type {Option, OptionValue} from '../types';
 
-const MAX_SELECTABLE_VALUES = Constants.MAX_USERS_IN_GM - 1;
+// LZX: 禁止多人群聊，只允许1对1私信
+const MAX_SELECTABLE_VALUES = 1;
 export const USERS_PER_PAGE = 50;
 
 type Props = {

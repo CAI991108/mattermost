@@ -41,6 +41,7 @@ export interface Props {
     searchTerms: string;
     canGoBack: boolean;
     teamUrl: string;
+    teamId: string;
     channelMembers: ChannelMember[];
     canManageMembers: boolean;
     editing: boolean;
@@ -56,6 +57,8 @@ export interface Props {
         setEditChannelMembers: (active: boolean) => void;
         searchProfilesAndChannelMembers: (term: string, options: any) => Promise<{data: UserProfile[]}>;
         fetchRemoteClusterInfo: (remoteId: string, includeDeleted?: boolean, forceRefresh?: boolean) => void;
+        // LZX: DM 场景下加载全团队成员
+        getProfilesInTeam: (teamId: string, page: number, perPage?: number) => Promise<any>;
     };
 }
 
@@ -66,6 +69,7 @@ export default function ChannelMembersRHS({
     membersCount,
     canGoBack,
     teamUrl,
+    teamId,
     channelMembers,
     canManageMembers,
     editing = false,
@@ -172,12 +176,17 @@ export default function ChannelMembersRHS({
     }, [channelMembers]);
 
     useEffect(() => {
+        // LZX: DM 场景不关闭 RHS，直接加载全团队成员（由 mapStateToProps 中 getTeamProfiles 提供数据）
+        // 对于 DM 频道，只需重置搜索词，团队成员数据已经在 store 中（DataPrefetch 提前加载）
+        // 若非 DM 频道，走原有的频道成员加载逻辑
         if (channel.type === Constants.DM_CHANNEL) {
-            let rhsAction = actions.closeRightHandSide;
-            if (canGoBack) {
-                rhsAction = actions.goBack;
+            setPage(0);
+            setIsNextPageLoading(false);
+            actions.setChannelMembersRhsSearchTerm('');
+            // 触发加载全团队成员。DM channel 通常没有 team_id，所以使用当前团队 id。
+            if (teamId) {
+                actions.getProfilesInTeam(teamId, 0, USERS_PER_PAGE);
             }
-            rhsAction();
             return;
         }
 
@@ -186,15 +195,15 @@ export default function ChannelMembersRHS({
         actions.setChannelMembersRhsSearchTerm('');
         actions.loadProfilesAndReloadChannelMembers(0, USERS_PER_PAGE, channel.id, ProfilesInChannelSortBy.Admin);
         actions.loadMyChannelMemberAndRole(channel.id);
-    }, [channel.id, channel.type]);
+    }, [channel.id, channel.type, teamId]);
 
     const setSearchTerms = async (terms: string) => {
         actions.setChannelMembersRhsSearchTerm(terms);
     };
 
     const doSearch = useCallback(debounce(async (terms: string) => {
-        await actions.searchProfilesAndChannelMembers(terms, {in_team_id: channel.team_id, in_channel_id: channel.id});
-    }, Constants.SEARCH_TIMEOUT_MILLISECONDS), [actions.searchProfilesAndChannelMembers]);
+        await actions.searchProfilesAndChannelMembers(terms, {in_team_id: teamId || channel.team_id, in_channel_id: channel.id});
+    }, Constants.SEARCH_TIMEOUT_MILLISECONDS), [actions.searchProfilesAndChannelMembers, channel.id, channel.team_id, teamId]);
 
     useEffect(() => {
         if (searchTerms) {
@@ -225,8 +234,10 @@ export default function ChannelMembersRHS({
         // ... and then redirect to it
         history.push(teamUrl + '/messages/@' + user.username);
 
-        await actions.closeRightHandSide();
-    }, [actions.openDirectChannelToUserId, history, teamUrl, actions.closeRightHandSide]);
+        if (channel.type !== Constants.DM_CHANNEL) {
+            await actions.closeRightHandSide();
+        }
+    }, [actions.openDirectChannelToUserId, history, teamUrl, channel.type, actions.closeRightHandSide]);
 
     const loadMore = useCallback(async () => {
         setIsNextPageLoading(true);
