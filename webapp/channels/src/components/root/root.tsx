@@ -68,6 +68,7 @@ const Mfa = makeAsyncComponent('Mfa', lazy(() => import('components/mfa/mfa_cont
 const PreparingWorkspace = makeAsyncComponent('PreparingWorkspace', lazy(() => import('components/preparing_workspace')));
 const LaunchingWorkspace = makeAsyncComponent('LaunchingWorkspace', lazy(() => import('components/preparing_workspace/launching_workspace')));
 const TeamController = makeAsyncComponent('TeamController', lazy(() => import('components/team_controller')));
+const DirectMessagesController = makeAsyncComponent('DirectMessagesController', lazy(() => import('components/direct_messages_controller')));
 const AnnouncementBarController = makeAsyncComponent('AnnouncementBarController', lazy(() => import('components/announcement_bar')));
 const SystemNotice = makeAsyncComponent('SystemNotice', lazy(() => import('components/system_notice')));
 const CloudEffects = makeAsyncComponent('CloudEffects', lazy(() => import('components/cloud_effects')));
@@ -487,6 +488,10 @@ export default class Root extends React.PureComponent<Props, State> {
                                         )}
                                     />
                                 ))}
+                                <LoggedInRoute
+                                    path={'/direct_messages/:identifier?'}
+                                    component={DirectMessagesController}
+                                />
                                 <LoggedInRoute
                                     path={`/:team(${TEAM_NAME_PATH_PATTERN})`}
                                     component={TeamController}

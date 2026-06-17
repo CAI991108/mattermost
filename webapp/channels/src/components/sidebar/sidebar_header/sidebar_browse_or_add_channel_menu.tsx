@@ -10,7 +10,6 @@ import {
     AccountPlusOutlineIcon,
     AccountMultiplePlusOutlineIcon,
     GlobeIcon,
-    AccountOutlineIcon,
 } from '@mattermost/compass-icons/components';
 
 import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
@@ -29,7 +28,6 @@ type Props = {
     onCreateNewChannelClick: () => void;
     canJoinPublicChannel: boolean;
     onBrowseChannelClick: () => void;
-    onOpenDirectMessageClick: () => void;
     canCreateCustomGroups: boolean;
     onCreateNewUserGroupClick: () => void;
     unreadFilterEnabled: boolean;
@@ -81,21 +79,7 @@ export default function SidebarBrowserOrAddChannelMenu(props: Props) {
         );
     }
 
-    const createDirectMessageMenuItem = (
-        <Menu.Item
-            id='openDirectMessageMenuItem'
-            onClick={props.onOpenDirectMessageClick}
-            leadingElement={<AccountOutlineIcon size={18}/>}
-            labels={(
-                <FormattedMessage
-                    id='sidebarLeft.browserOrCreateChannelMenu.openDirectMessageMenuItem.primaryLabel'
-                    defaultMessage='Open a direct message'
-                />
-            )}
-            aria-haspopup='true'
-        />
-    );
-
+    // LZX: 移除「Open a direct message」菜单项，私信入口已改为左侧边栏「私信」静态入口
     let createUserGroupMenuItem: JSX.Element | null = null;
     if (props.canCreateCustomGroups) {
         createUserGroupMenuItem = (
@@ -178,7 +162,6 @@ export default function SidebarBrowserOrAddChannelMenu(props: Props) {
         >
             {createNewChannelMenuItem}
             {browseChannelsMenuItem}
-            {createDirectMessageMenuItem}
             {createUserGroupMenuItem}
             {pluggableMenuItems}
             <Menu.Separator/>

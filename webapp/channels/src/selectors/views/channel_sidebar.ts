@@ -6,6 +6,8 @@ import {CategorySorting} from '@mattermost/types/channel_categories';
 import type {Channel} from '@mattermost/types/channels';
 import type {RelationOneToOne} from '@mattermost/types/utilities';
 
+import {General} from 'mattermost-redux/constants';
+
 import {createSelector} from 'mattermost-redux/selectors/create_selector';
 import {
     makeGetCategoriesForTeam,
@@ -129,6 +131,11 @@ export const getUnreadChannels = (() => {
                 const channel = allChannels[channelId];
 
                 if (channel) {
+                    // LZX: 私信已有单独入口和 RHS 成员未读提醒，未读列表不再展示 DM/GM
+                    if (channel.type === General.DM_CHANNEL || channel.type === General.GM_CHANNEL) {
+                        continue;
+                    }
+
                     // Only include an archived channel if it's the current channel
                     if (channel.delete_at > 0 && channel.id !== currentChannelId) {
                         continue;
@@ -144,8 +151,9 @@ export const getUnreadChannels = (() => {
                 // The current channel is already in unreadChannels if it was previously unread but we need to add it
                 // if it wasn't previously unread
                 if (currentChannelId && unreadChannels.findIndex((channel) => channel.id === currentChannelId) === -1) {
-                    if (allChannels[currentChannelId]) {
-                        unreadChannels.push(allChannels[currentChannelId]);
+                    const currentChannel = allChannels[currentChannelId];
+                    if (currentChannel && currentChannel.type !== General.DM_CHANNEL && currentChannel.type !== General.GM_CHANNEL) {
+                        unreadChannels.push(currentChannel);
                     }
                 }
             }

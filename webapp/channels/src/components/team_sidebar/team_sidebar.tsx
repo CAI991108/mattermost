@@ -16,6 +16,7 @@ import Permissions from 'mattermost-redux/constants/permissions';
 import Scrollbars from 'components/common/scrollbars';
 import SystemPermissionGate from 'components/permissions_gates/system_permission_gate';
 import TeamButton from 'components/team_sidebar/components/team_button';
+import DmSidebarButton from 'components/team_sidebar/components/dm_sidebar_button';
 
 import WebSocketClient from 'client/web_websocket_client';
 import Pluggable from 'plugins/pluggable';
@@ -178,10 +179,9 @@ export class TeamSidebar extends React.PureComponent<Props, State> {
     render() {
         const {intl} = this.props;
         const root: Element | null = document.querySelector('#root');
-        if (this.props.myTeams.length <= 1) {
-            root!.classList.remove('multi-teams');
-            return null;
-        }
+
+        // LZX: 始终显示 TeamSidebar，即使只有一个团队
+        // 因为全局私信入口固定在此，单团队用户也需要访问
         root!.classList.add('multi-teams');
 
         const plugins = [];
@@ -192,13 +192,15 @@ export class TeamSidebar extends React.PureComponent<Props, State> {
             return null;
         }
 
+        const isDirectMessagesRoute = this.props.location.pathname.startsWith('/direct_messages');
+
         const teams = sortedTeams.map((team: Team, index: number) => {
             return (
                 <TeamButton
                     key={'switch_team_' + team.name}
                     url={`/${team.name}`}
                     tip={team.display_name}
-                    active={team.id === this.props.currentTeamId}
+                    active={!isDirectMessagesRoute && team.id === this.props.currentTeamId}
                     displayName={team.display_name}
                     order={index + 1}
                     showOrder={this.state.showOrder}
@@ -295,6 +297,8 @@ export class TeamSidebar extends React.PureComponent<Props, State> {
                         className='team-wrapper'
                         id='teamSidebarWrapper'
                     >
+                        {/* LZX: 全局私信入口，与团队按钮同组展示，仅用横线分隔 */}
+                        <DmSidebarButton unreadCount={this.props.totalUnreadDMs}/>
                         <DragDropContext
                             onDragEnd={this.onDragEnd}
                         >

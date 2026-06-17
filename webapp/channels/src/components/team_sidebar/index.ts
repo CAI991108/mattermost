@@ -22,6 +22,7 @@ import {
 import {switchTeam, updateTeamsOrderForUser} from 'actions/team_actions';
 import {getCurrentLocale} from 'selectors/i18n';
 import {getIsLhsOpen} from 'selectors/lhs';
+import {getTotalUnreadDMs} from 'selectors/direct_messages';
 
 import {Preferences} from 'utils/constants';
 
@@ -53,6 +54,7 @@ function mapStateToProps(state: GlobalState) {
         mentionsInTeamMap,
         teamHasUrgentMap,
         enableWebSocketEventScope,
+        totalUnreadDMs: getTotalUnreadDMs(state),
     };
 }
 

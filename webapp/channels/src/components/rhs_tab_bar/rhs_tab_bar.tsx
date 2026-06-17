@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import classNames from 'classnames';
-import React, {useCallback} from 'react';
+import React, {useCallback, useEffect} from 'react';
 import {useIntl} from 'react-intl';
 import {useDispatch, useSelector} from 'react-redux';
 
@@ -64,6 +64,19 @@ const RhsTabBar = () => {
     const rhsState = useSelector(getRhsState);
     const channel = useSelector(getCurrentChannel);
 
+    // LZX: DM 频道隐藏成员 Tab，左侧联系人列表已承担通讯录职责
+    const isDmChannel = channel?.type === 'D' || channel?.type === 'G';
+    const visibleTabs = isDmChannel
+        ? TABS.filter((tab) => tab.rhsState !== RHSStates.CHANNEL_MEMBERS)
+        : TABS;
+
+    // LZX: 如果当前是成员 Tab 但进入了 DM，自动切换到信息 Tab
+    useEffect(() => {
+        if (isDmChannel && rhsState === RHSStates.CHANNEL_MEMBERS && channel) {
+            dispatch(showChannelInfo(channel.id));
+        }
+    }, [isDmChannel, rhsState, channel, dispatch]);
+
     const handleTabClick = useCallback((tab: TabItem) => {
         if (!channel) {
             return;
@@ -86,7 +99,7 @@ const RhsTabBar = () => {
 
     return (
         <div className='rhs-tab-bar'>
-            {TABS.map((tab) => {
+            {visibleTabs.map((tab) => {
                 const isActive = rhsState === tab.rhsState;
                 const label = formatMessage({id: tab.labelId, defaultMessage: tab.defaultLabel});
                 return (
