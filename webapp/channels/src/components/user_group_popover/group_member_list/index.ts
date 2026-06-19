@@ -11,7 +11,6 @@ import type {UserProfile} from '@mattermost/types/users';
 import {getProfilesInGroup as getUsersInGroup} from 'mattermost-redux/actions/users';
 import {createSelector} from 'mattermost-redux/selectors/create_selector';
 import {getTeammateNameDisplaySetting} from 'mattermost-redux/selectors/entities/preferences';
-import {getCurrentRelativeTeamUrl} from 'mattermost-redux/selectors/entities/teams';
 import {getProfilesInGroupWithoutSorting, searchProfilesInGroupWithoutSorting} from 'mattermost-redux/selectors/entities/users';
 import {displayUsername} from 'mattermost-redux/utils/user_utils';
 
@@ -73,7 +72,6 @@ function mapStateToProps(state: GlobalState, ownProps: OwnProps) {
     return {
         members,
         searchTerm,
-        teamUrl: getCurrentRelativeTeamUrl(state),
     };
 }
 

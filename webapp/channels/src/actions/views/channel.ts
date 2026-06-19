@@ -126,7 +126,7 @@ export function switchToChannel(channel: Channel & {userId?: string}): ActionFun
             if (direct.error) {
                 return {error: true};
             }
-            getHistory().push(`${teamUrl}/messages/@${channel.name}`);
+            getHistory().push(`/direct_messages/@${channel.name}`);
         } else if (channel.type === Constants.GM_CHANNEL) {
             const gmChannel = getChannel(state, channel.id);
             if (!gmChannel?.name) {

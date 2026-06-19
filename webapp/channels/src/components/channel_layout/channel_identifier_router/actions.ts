@@ -221,6 +221,9 @@ export function goToChannelByChannelName(match: Match, history: History): Action
     };
 }
 
+// LZX: Legacy team-scoped DM routes (`/:team/messages/...`) are kept only for
+// existing router compatibility. New active DM entry points should navigate to
+// the global `/direct_messages/@username` route instead.
 function goToDirectChannelByUsername(match: Match, history: History): ActionFuncAsync {
     return async (dispatch, getState) => {
         const state = getState();

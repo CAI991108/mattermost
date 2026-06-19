@@ -28,7 +28,7 @@ import {getMyChannelMemberships} from 'mattermost-redux/selectors/entities/commo
 import {getTeammateNameDisplaySetting, isCollapsedThreadsEnabled} from 'mattermost-redux/selectors/entities/preferences';
 import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
 import {getRemoteDisplayName} from 'mattermost-redux/selectors/entities/shared_channels';
-import {getCurrentRelativeTeamUrl, getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
+import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
 import {
     getActiveProfilesInCurrentChannelWithoutSorting,
     getCurrentUserId,
@@ -164,13 +164,13 @@ function mapStateToProps(state: GlobalState) {
             membersCount,
             canManageMembers: false,
             canGoBack: false,
-            teamUrl: '',
             teamId: '',
         } as unknown as Props;
     }
 
     // LZX: DM 场景，使用全团队成员
     const isDmChannel = channel.type === Constants.DM_CHANNEL;
+    const isGmChannel = channel.type === Constants.GM_CHANNEL;
 
     const isArchived = isCurrentChannelArchived(state);
     const isPrivate = channel.type === Constants.PRIVATE_CHANNEL;
@@ -243,7 +243,6 @@ function mapStateToProps(state: GlobalState) {
         channelMembers = searchProfiles(state, searchTerms.trim());
     }
 
-    const teamUrl = getCurrentRelativeTeamUrl(state);
     const prevRhsState = getPreviousRhsState(state);
     const hasInfoPrevState = prevRhsState === RHSStates.CHANNEL_INFO ||
         prevRhsState === RHSStates.CHANNEL_FILES ||
@@ -260,10 +259,9 @@ function mapStateToProps(state: GlobalState) {
         // DM 场景显示全团队成员数量；管理按钮由 canManageMembers 单独控制
         membersCount: isDmChannel ? channelMembers.length : membersCount,
         searchTerms,
-        teamUrl,
         teamId: currentTeam?.id || '',
         canGoBack,
-        canManageMembers: isDmChannel ? false : canManageMembers,
+        canManageMembers: isDmChannel || isGmChannel ? false : canManageMembers,
         channelMembers,
         editing,
     } as Props;

@@ -16,7 +16,6 @@ import ChannelNotificationsModal from 'components/channel_notifications_modal';
 import Scrollbars from 'components/common/scrollbars';
 import EditChannelHeaderModal from 'components/edit_channel_header_modal';
 import EditChannelPurposeModal from 'components/edit_channel_purpose_modal';
-import MoreDirectChannels from 'components/more_direct_channels';
 import ChannelPermissionGate from 'components/permissions_gates/channel_permission_gate';
 import RenameChannelModal from 'components/rename_channel_modal';
 import UnarchiveChannelModal from 'components/unarchive_channel_modal';
@@ -130,14 +129,6 @@ const ChannelInfoRhs = ({
     };
 
     const addPeople = () => {
-        if (channel.type === Constants.GM_CHANNEL) {
-            return actions.openModal({
-                modalId: ModalIdentifiers.CREATE_DM_CHANNEL,
-                dialogType: MoreDirectChannels,
-                dialogProps: {isExistingChannel: true, focusOriginElement: 'channelInfoRHSAddPeopleButton'},
-            });
-        }
-
         return actions.openModal({
             modalId: ModalIdentifiers.CHANNEL_INVITE,
             dialogType: ChannelInviteModal,

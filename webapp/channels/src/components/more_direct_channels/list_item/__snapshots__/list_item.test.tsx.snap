@@ -1,42 +1,5 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`ListItem should match snapshot when rendering GroupChannel 1`] = `
-<div>
-  <div
-    class="more-modal__row clickable"
-  >
-    <div
-      class="more-modal__gm-icon"
-    >
-      3
-    </div>
-    <div
-      class="more-modal__details"
-    >
-      <div
-        class="more-modal__name"
-      >
-        <span>
-          @user1, @user2, @user3
-        </span>
-      </div>
-    </div>
-    <div
-      class="more-modal__actions"
-    >
-      <button
-        aria-label="Add option "
-        class="more-modal__actions--round"
-      >
-        <i
-          class="icon icon-plus"
-        />
-      </button>
-    </div>
-  </div>
-</div>
-`;
-
 exports[`ListItem should match snapshot when rendering user 1`] = `
 <div>
   <div
