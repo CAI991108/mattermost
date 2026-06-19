@@ -6,7 +6,6 @@ import React from 'react';
 import {FormattedMessage} from 'react-intl';
 
 import {GenericModal} from '@mattermost/components';
-import type {Channel} from '@mattermost/types/channels';
 import type {UserProfile} from '@mattermost/types/users';
 
 import type {ActionResult} from 'mattermost-redux/types/actions';
@@ -19,13 +18,11 @@ import Constants from 'utils/constants';
 
 import List from './list';
 import {USERS_PER_PAGE} from './list/list';
-import {isGroupChannel, optionValue} from './types';
+import {optionValue} from './types';
 import type {OptionValue} from './types';
 
 export type Props = {
     currentUserId: string;
-    currentTeamId?: string;
-    currentTeamName?: string;
     searchTerm: string;
     users: UserProfile[];
     totalCount: number;
@@ -48,14 +45,11 @@ export type Props = {
     onExited?: () => void;
     actions: {
         getProfiles: (page?: number, perPage?: number, options?: any) => Promise<ActionResult>;
-        getProfilesInTeam: (teamId: string, page: number, perPage?: number, sort?: string, options?: any) => Promise<ActionResult>;
         loadProfilesMissingStatus: (users: UserProfile[]) => void;
         getTotalUsersStats: () => void;
         loadStatusesForProfilesList: (users: UserProfile[]) => void;
         openDirectChannelToUserId: (userId: string) => Promise<ActionResult>;
-        openGroupChannelToUserIds: (userIds: string[]) => Promise<ActionResult>;
         searchProfiles: (term: string, options: any) => Promise<ActionResult<UserProfile[]>>;
-        searchGroupChannels: (term: string) => Promise<ActionResult<Channel[]>>;
         setModalSearchTerm: (term: string) => void;
         canUserDirectMessage: (userId: string, otherUserId: string) => Promise<ActionResult<{can_dm: boolean}>>;
     };
@@ -151,15 +145,10 @@ export default class MoreDirectChannels extends React.PureComponent<Props, State
             if (searchTerm === '') {
                 this.resetPaging();
             } else {
-                const teamId = this.props.restrictDirectMessage === 'any' ? '' : this.props.currentTeamId;
-
                 this.searchTimeoutId = setTimeout(
                     async () => {
                         this.setUsersLoadingState(true);
-                        const [{data: profilesData}] = await Promise.all([
-                            this.props.actions.searchProfiles(searchTerm, {team_id: teamId}),
-                            this.props.actions.searchGroupChannels(searchTerm),
-                        ]);
+                        const {data: profilesData} = await this.props.actions.searchProfiles(searchTerm, {});
                         if (profilesData) {
                             this.props.actions.loadStatusesForProfilesList(profilesData);
                         }
@@ -218,11 +207,15 @@ export default class MoreDirectChannels extends React.PureComponent<Props, State
         this.setState({saving: true});
 
         const done = (result: any) => {
-            const {data, error} = result;
+            const {error} = result;
             this.setState({saving: false});
 
             if (!error) {
-                this.exitToChannel = '/' + this.props.currentTeamName + '/channels/' + data.name;
+                // LZX: 全局私信路由，跳转到 /direct_messages/@username
+                const targetUsername = values[0]?.username;
+                if (targetUsername) {
+                    this.exitToChannel = `/direct_messages/@${targetUsername}`;
+                }
                 this.handleHide();
             }
         };
@@ -232,39 +225,18 @@ export default class MoreDirectChannels extends React.PureComponent<Props, State
     };
 
     addValue = (value: OptionValue) => {
-        if (isGroupChannel(value)) {
-            this.addUsers(value.profiles);
-        } else {
-            const values = [...this.state.values];
-            if (!values.includes(value)) {
-                values.push(value);
-            }
-            this.setState({values});
-        }
-    };
-
-    addUsers = (users: UserProfile[]) => {
         const values = [...this.state.values];
-        const existingUserIds = values.map((user) => user.id);
-        for (const user of users) {
-            if (!existingUserIds.includes(user.id)) {
-                values.push(optionValue(user));
-            }
+        if (!values.includes(value)) {
+            values.push(value);
         }
         this.setState({values});
     };
 
     getUserProfiles = (page?: number) => {
         const pageNum = page ? page + 1 : 0;
-        if (this.props.restrictDirectMessage === 'any') {
-            this.props.actions.getProfiles(pageNum, USERS_PER_PAGE * 2).then(() => {
-                this.setUsersLoadingState(false);
-            });
-        } else {
-            this.props.actions.getProfilesInTeam(this.props.currentTeamId || '', pageNum, USERS_PER_PAGE * 2).then(() => {
-                this.setUsersLoadingState(false);
-            });
-        }
+        this.props.actions.getProfiles(pageNum, USERS_PER_PAGE * 2).then(() => {
+            this.setUsersLoadingState(false);
+        });
     };
 
     handlePageChange = (page: number, prevPage: number) => {

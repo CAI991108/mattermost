@@ -65,9 +65,10 @@ const List = React.forwardRef((props: Props, ref?: React.Ref<MultiSelect<OptionV
 
     const dispatch = useDispatch();
 
-    const handleSubmitImmediatelyOn = useCallback((value: OptionValue) => {
-        return value.id === props.currentUserId || Boolean(value.delete_at);
-    }, [props.currentUserId]);
+    // LZX: 点击任何用户都立即跳转私信，不需要"转到"按钮
+    const handleSubmitImmediatelyOn = useCallback((_value: OptionValue) => {
+        return true;
+    }, []);
 
     const handleCreateChannel = (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
         e.preventDefault();
@@ -147,26 +148,10 @@ const List = React.forwardRef((props: Props, ref?: React.Ref<MultiSelect<OptionV
             handleDelete={props.handleDelete}
             handleAdd={props.addValue}
             handleSubmit={props.handleSubmit}
-            noteText={note}
-            maxValues={MAX_SELECTABLE_VALUES}
-            numRemainingText={remainingText}
-            buttonSubmitText={
-                <FormattedMessage
-                    id='multiselect.go'
-                    defaultMessage='Go'
-                />
-            }
-            buttonSubmitLoadingText={
-                <FormattedMessage
-                    id='multiselect.loading'
-                    defaultMessage='Loading...'
-                />
-            }
             submitImmediatelyOn={handleSubmitImmediatelyOn}
             saving={props.saving}
             loading={props.loading}
-            users={props.users}
-            totalCount={props.totalCount}
+            saveButtonPosition='none'
             placeholderText={intl.formatMessage({id: 'multiselect.placeholder', defaultMessage: 'Search for people'})}
         />
     );

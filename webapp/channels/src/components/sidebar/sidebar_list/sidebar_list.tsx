@@ -496,7 +496,7 @@ export class SidebarList extends React.PureComponent<Props, State> {
                 );
             }
 
-            // LZX: 过滤掉 DIRECT_MESSAGES 分类，私信改为单一入口 DirectMessagesLink
+            // LZX: DIRECT_MESSAGES is handled by the global TeamSidebar DM entry.
             const managedCategories = categories.filter((c) => c.type === CategoryTypes.MANAGED);
             const nonManagedCategories = categories.filter((c) => c.type !== CategoryTypes.MANAGED && c.type !== CategoryTypes.FAVORITES && c.type !== CategoryTypes.DIRECT_MESSAGES);
 

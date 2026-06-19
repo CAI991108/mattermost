@@ -102,7 +102,7 @@ class SidebarDirectChannel extends React.PureComponent<Props> {
             <SidebarChannelLink
                 teammateId={teammate.id}
                 channel={channel}
-                link={`/${currentTeamName}/messages/@${teammate.username}`}
+                link={`/direct_messages/@${teammate.username}`}
                 label={displayName}
                 channelLeaveHandler={this.handleLeaveChannel}
                 icon={this.getIcon()}

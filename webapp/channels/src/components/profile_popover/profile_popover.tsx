@@ -6,7 +6,7 @@ import {useDispatch, useSelector} from 'react-redux';
 
 import {getCurrentChannelId, getCurrentUserId} from 'mattermost-redux/selectors/entities/common';
 import {getLicense, getFeatureFlagValue} from 'mattermost-redux/selectors/entities/general';
-import {getCurrentRelativeTeamUrl, getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
+import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
 import {getCurrentTimezone} from 'mattermost-redux/selectors/entities/timezone';
 import {getStatusForUserId, getUser} from 'mattermost-redux/selectors/entities/users';
 
@@ -78,7 +78,6 @@ const ProfilePopover = ({
     const channelId = useSelector((state: GlobalState) => (channelIdProp || getDefaultChannelId(state)));
     const pluginItemsVisible = usePluginVisibilityInSharedChannel(channelId);
     const isMobileView = useSelector(getIsMobileView);
-    const teamUrl = useSelector(getCurrentRelativeTeamUrl);
     const modals = useSelector((state: GlobalState) => state.views.modals);
     const status = useSelector((state: GlobalState) => getStatusForUserId(state, userId) || UserStatuses.OFFLINE);
     const currentUserTimezone = useSelector(getCurrentTimezone);
@@ -137,9 +136,9 @@ const ProfilePopover = ({
             }
             setLoadingDMChannel(undefined);
             hide?.();
-            getHistory().push(`${teamUrl}/messages/@${user.username}`);
+            getHistory().push(`/direct_messages/@${user.username}`);
         }
-    }, [user, loadingDMChannel, handleCloseModals, isMobileView, hide, teamUrl, dispatch]);
+    }, [user, loadingDMChannel, handleCloseModals, isMobileView, hide, dispatch]);
 
     useEffect(() => {
         if (currentTeamId && userId) {

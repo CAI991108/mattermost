@@ -3,11 +3,9 @@
 
 import classNames from 'classnames';
 import React from 'react';
-import type {MouseEvent, KeyboardEvent} from 'react';
 import {Draggable, Droppable} from 'react-beautiful-dnd';
 import {FormattedMessage, defineMessages} from 'react-intl';
 
-import {WithTooltip} from '@mattermost/shared/components/tooltip';
 import type {ChannelCategory} from '@mattermost/types/channel_categories';
 import {CategorySorting} from '@mattermost/types/channel_categories';
 import type {PreferenceType} from '@mattermost/types/preferences';
@@ -15,20 +13,14 @@ import type {PreferenceType} from '@mattermost/types/preferences';
 import {CategoryTypes} from 'mattermost-redux/constants/channel_categories';
 import {localizeMessage} from 'mattermost-redux/utils/i18n_utils';
 
-import KeyboardShortcutSequence, {
-    KEYBOARD_SHORTCUTS,
-} from 'components/keyboard_shortcuts/keyboard_shortcuts_sequence';
-
 import Constants, {A11yCustomEventTypes, DraggingStateTypes, DraggingStates} from 'utils/constants';
 import {isKeyPressed} from 'utils/keyboard';
 
 import type {DraggingState} from 'types/store';
 
 import SidebarCategoryMenu from './sidebar_category_menu';
-import SidebarCategorySortingMenu from './sidebar_category_sorting_menu';
 
 import AddChannelsCtaButton from '../add_channels_cta_button';
-import InviteMembersButton from '../invite_members_button';
 import {SidebarCategoryHeader} from '../sidebar_category_header';
 import SidebarChannel from '../sidebar_channel';
 
@@ -37,7 +29,6 @@ type Props = {
     categoryIndex: number;
     channelIds: string[];
     setChannelRef: (channelId: string, ref: HTMLLIElement) => void;
-    // LZX: handleOpenMoreDirectChannelsModal 已移除，DIRECT_MESSAGES 分类不再渲染
     isNewCategory: boolean;
     draggingState: DraggingState;
     currentUserId: string;
@@ -147,12 +138,6 @@ export default class SidebarCategory extends React.PureComponent<Props, State> {
         }
     };
 
-    handleOpenDirectMessagesModal = (event: MouseEvent<HTMLLIElement | HTMLButtonElement> | KeyboardEvent<HTMLLIElement | HTMLButtonElement>) => {
-        event.preventDefault();
-
-        this.props.handleOpenMoreDirectChannelsModal(event.nativeEvent);
-    };
-
     isChannelDragOverManagedCategory = () => {
         const {draggingState} = this.props;
         if (!draggingState.state || !draggingState.type) {
@@ -175,9 +160,7 @@ export default class SidebarCategory extends React.PureComponent<Props, State> {
             return true;
         }
 
-        if (category.type === CategoryTypes.DIRECT_MESSAGES) {
-            return draggingState.type === DraggingStateTypes.CHANNEL;
-        } else if (category.type === CategoryTypes.CHANNELS) {
+        if (category.type === CategoryTypes.CHANNELS) {
             return draggingState.type === DraggingStateTypes.DM;
         }
 
@@ -267,7 +250,6 @@ export default class SidebarCategory extends React.PureComponent<Props, State> {
 
         let categoryMenu: JSX.Element;
         let newLabel: JSX.Element;
-        const directMessagesModalButton: JSX.Element | null = null;
         let isCollapsible = true;
         if (isNewCategory) {
             newLabel = (
@@ -280,42 +262,6 @@ export default class SidebarCategory extends React.PureComponent<Props, State> {
             );
 
             categoryMenu = <SidebarCategoryMenu category={category}/>;
-        } else if (category.type === CategoryTypes.DIRECT_MESSAGES) {
-            const addHelpLabel = localizeMessage({id: 'sidebar.createDirectMessage', defaultMessage: 'Write a direct message'});
-
-            categoryMenu = (
-                <>
-                    <SidebarCategorySortingMenu
-                        category={category}
-                        handleOpenDirectMessagesModal={this.handleOpenDirectMessagesModal}
-                    />
-                    <WithTooltip
-                        title={
-                            <>
-                                {addHelpLabel}
-                                <KeyboardShortcutSequence
-                                    shortcut={KEYBOARD_SHORTCUTS.navDMMenu}
-                                    hideDescription={true}
-                                    isInsideTooltip={true}
-                                />
-                            </>
-                        }
-                    >
-                        <button
-                            id='newDirectMessageButton'
-                            className='SidebarChannelGroupHeader_addButton'
-                            onClick={this.handleOpenDirectMessagesModal}
-                            aria-label={addHelpLabel}
-                        >
-                            <i className='icon-plus'/>
-                        </button>
-                    </WithTooltip>
-                </>
-            );
-
-            if (!channelIds || !channelIds.length) {
-                isCollapsible = false;
-            }
         } else if (category.type !== CategoryTypes.MANAGED) {
             categoryMenu = <SidebarCategoryMenu category={category}/>;
         }
@@ -365,15 +311,6 @@ export default class SidebarCategory extends React.PureComponent<Props, State> {
                 disableInteractiveElementBlocking={true}
             >
                 {(provided, snapshot) => {
-                    let inviteMembersButton = null;
-                    if (category.type === 'direct_messages' && !category.collapsed) {
-                        inviteMembersButton = (
-                            <InviteMembersButton
-                                className='followingSibling'
-                            />
-                        );
-                    }
-
                     let addChannelsCtaButton = null;
                     if (category.type === 'channels' && !category.collapsed) {
                         addChannelsCtaButton = (
@@ -418,7 +355,6 @@ export default class SidebarCategory extends React.PureComponent<Props, State> {
                                                 onClick={this.handleCollapse}
                                             >
                                                 {newLabel}
-                                                {directMessagesModalButton}
                                                 {categoryMenu}
                                             </SidebarCategoryHeader>
                                             <div
@@ -436,7 +372,6 @@ export default class SidebarCategory extends React.PureComponent<Props, State> {
                                     );
                                 }}
                             </Droppable>
-                            {inviteMembersButton}
                             {addChannelsCtaButton}
                         </div>
                     );
@@ -450,10 +385,6 @@ const categoryNames = defineMessages({
     channels: {
         id: 'sidebar.types.channels',
         defaultMessage: 'CHANNELS',
-    },
-    direct_messages: {
-        id: 'sidebar.types.direct_messages',
-        defaultMessage: 'DIRECT MESSAGES',
     },
     favorites: {
         id: 'sidebar.types.favorites',

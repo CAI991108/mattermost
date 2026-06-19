@@ -15,7 +15,6 @@ import AlertBanner from 'components/alert_banner';
 import ChannelInviteModal from 'components/channel_invite_modal';
 import useAccessControlAttributes, {EntityType} from 'components/common/hooks/useAccessControlAttributes';
 import ExternalLink from 'components/external_link';
-import MoreDirectChannels from 'components/more_direct_channels';
 import AlertTag from 'components/widgets/tag/alert_tag';
 import TagGroup from 'components/widgets/tag/tag_group';
 
@@ -40,7 +39,6 @@ export interface Props {
     membersCount: number;
     searchTerms: string;
     canGoBack: boolean;
-    teamUrl: string;
     teamId: string;
     channelMembers: ChannelMember[];
     canManageMembers: boolean;
@@ -68,7 +66,6 @@ export default function ChannelMembersRHS({
     searchTerms,
     membersCount,
     canGoBack,
-    teamUrl,
     teamId,
     channelMembers,
     canManageMembers,
@@ -212,14 +209,6 @@ export default function ChannelMembersRHS({
     }, [searchTerms]);
 
     const inviteMembers = () => {
-        if (channel.type === Constants.GM_CHANNEL) {
-            return actions.openModal({
-                modalId: ModalIdentifiers.CREATE_DM_CHANNEL,
-                dialogType: MoreDirectChannels,
-                dialogProps: {isExistingChannel: true, focusOriginElement: 'channelInfoRHSAddPeopleButton'},
-            });
-        }
-
         return actions.openModal({
             modalId: ModalIdentifiers.CHANNEL_INVITE,
             dialogType: ChannelInviteModal,
@@ -232,12 +221,12 @@ export default function ChannelMembersRHS({
         await actions.openDirectChannelToUserId(user.id);
 
         // ... and then redirect to it
-        history.push(teamUrl + '/messages/@' + user.username);
+        history.push(`/direct_messages/@${user.username}`);
 
         if (channel.type !== Constants.DM_CHANNEL) {
             await actions.closeRightHandSide();
         }
-    }, [actions.openDirectChannelToUserId, history, teamUrl, channel.type, actions.closeRightHandSide]);
+    }, [actions.openDirectChannelToUserId, history, channel.type, actions.closeRightHandSide]);
 
     const loadMore = useCallback(async () => {
         setIsNextPageLoading(true);
