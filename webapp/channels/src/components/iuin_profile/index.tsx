@@ -18,11 +18,14 @@ import {getPasswordConfig} from 'mattermost-redux/selectors/entities/general';
 import {getCurrentUser, getUserByUsername as selectUserByUsername} from 'mattermost-redux/selectors/entities/users';
 
 import {loadCustomEmojisIfNeeded} from 'actions/emoji_actions';
+import {openModal} from 'actions/views/modals';
 
+import CustomStatusModal from 'components/custom_status/custom_status_modal';
 import RenderEmoji from 'components/emoji/render_emoji';
 import ExternalLink from 'components/external_link';
 
 import {getHistory} from 'utils/browser_history';
+import {ModalIdentifiers} from 'utils/constants';
 import {isValidPassword} from 'utils/password';
 
 import type {GlobalState} from 'types/store';
@@ -729,6 +732,45 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
         }
     }, [avatarStatus?.emoji, dispatch]);
 
+    const openAvatarStatusModal = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        dispatch(openModal({
+            modalId: ModalIdentifiers.CUSTOM_STATUS,
+            dialogType: CustomStatusModal,
+        }));
+    }, [dispatch]);
+
+    const avatarStatusClassName = `iuin-profile-avatar-status${avatarStatus?.text ? ' iuin-profile-avatar-status--has-text' : ''}${canEdit ? ' iuin-profile-avatar-status--clickable' : ''}`;
+    const avatarStatusLabel = avatarStatus?.text || (canEdit ? 'Set status' : undefined);
+    const avatarStatusContent = avatarStatus && (
+        <>
+            <span
+                className='iuin-profile-avatar-status__icon'
+                aria-hidden='true'
+            >
+                {avatarStatus.image ? (
+                    <img
+                        className='iuin-profile-avatar-status__image'
+                        src={avatarStatus.image}
+                        alt=''
+                    />
+                ) : (
+                    <RenderEmoji
+                        emojiName={avatarStatus.emoji}
+                        size={20}
+                    />
+                )}
+            </span>
+            {avatarStatus.text && (
+                <span className='iuin-profile-avatar-status__text'>
+                    {avatarStatus.text}
+                </span>
+            )}
+        </>
+    );
+
     useEffect(() => {
         setOverviewGithubRenderedHtml('');
 
@@ -780,35 +822,24 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                                 event.currentTarget.style.display = 'none';
                             }}
                         />
-                        {avatarStatus && (
-                            <span
-                                className={`iuin-profile-avatar-status${avatarStatus.text ? ' iuin-profile-avatar-status--has-text' : ''}`}
-                                aria-label={avatarStatus.text ? avatarStatus.text : undefined}
+                        {avatarStatus && canEdit && (
+                            <button
+                                type='button'
+                                className={avatarStatusClassName}
+                                aria-label={avatarStatusLabel}
                                 title={avatarStatus.text || undefined}
-                                tabIndex={avatarStatus.text ? 0 : undefined}
+                                onClick={openAvatarStatusModal}
                             >
-                                <span
-                                    className='iuin-profile-avatar-status__icon'
-                                    aria-hidden='true'
-                                >
-                                    {avatarStatus.image ? (
-                                        <img
-                                            className='iuin-profile-avatar-status__image'
-                                            src={avatarStatus.image}
-                                            alt=''
-                                        />
-                                    ) : (
-                                        <RenderEmoji
-                                            emojiName={avatarStatus.emoji}
-                                            size={20}
-                                        />
-                                    )}
-                                </span>
-                                {avatarStatus.text && (
-                                    <span className='iuin-profile-avatar-status__text'>
-                                        {avatarStatus.text}
-                                    </span>
-                                )}
+                                {avatarStatusContent}
+                            </button>
+                        )}
+                        {avatarStatus && !canEdit && (
+                            <span
+                                className={avatarStatusClassName}
+                                aria-label={avatarStatusLabel}
+                                title={avatarStatus.text || undefined}
+                            >
+                                {avatarStatusContent}
                             </span>
                         )}
                     </div>
