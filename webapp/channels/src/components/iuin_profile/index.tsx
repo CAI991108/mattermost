@@ -10,13 +10,16 @@ import type {RouteComponentProps} from 'react-router-dom';
 import {Redirect} from 'react-router-dom';
 
 import type {Session} from '@mattermost/types/sessions';
-import type {UserProfile} from '@mattermost/types/users';
+import {type UserCustomStatus, type UserProfile, CustomStatusDuration} from '@mattermost/types/users';
 
 import {getUserByUsername as fetchUserByUsername, revokeSession, updateMe, updateUserPassword} from 'mattermost-redux/actions/users';
 import {Client4} from 'mattermost-redux/client';
 import {getPasswordConfig} from 'mattermost-redux/selectors/entities/general';
 import {getCurrentUser, getUserByUsername as selectUserByUsername} from 'mattermost-redux/selectors/entities/users';
 
+import {loadCustomEmojisIfNeeded} from 'actions/emoji_actions';
+
+import RenderEmoji from 'components/emoji/render_emoji';
 import ExternalLink from 'components/external_link';
 
 import {getHistory} from 'utils/browser_history';
@@ -213,6 +216,12 @@ type GitHubReadmeImport = {
     files: IuinReadmeFile[];
     githubRenderedHtml: string;
     supportingFileCount: number;
+};
+
+type ProfileAvatarStatus = {
+    emoji: string;
+    image: string;
+    text: string;
 };
 
 type ReadmeFileTreeNode = {
@@ -687,6 +696,7 @@ export default function IuinProfilePage({match, location}: Props) {
 }
 
 function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boolean}) {
+    const dispatch = useDispatch();
     const currentUser = useSelector(getCurrentUser);
     const profile = getIuinProfileData(user);
     const displayName = getDisplayName(user);
@@ -699,6 +709,7 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
     const joinedTeams = useIuinJoinedTeamLabels(user.id, Boolean(currentUser?.id));
     const avatarUrl = Client4.getProfilePictureUrl(user.id, user.last_picture_update);
     const profileInitials = getProfileInitials(displayName, user.username);
+    const avatarStatus = useMemo(() => getProfileAvatarStatus(user, profile), [profile, user]);
     const readmeWorkspace = useMemo(() => parseIuinReadmeWorkspace(profile.readmeWorkspace, profile.homepageHtml, getReadmeRootName(user)), [profile.homepageHtml, profile.readmeWorkspace, user]);
     const [overviewGithubRenderedHtml, setOverviewGithubRenderedHtml] = useState('');
     const renderedReadmeWorkspace = useMemo(() => overviewGithubRenderedHtml && !readmeWorkspace.githubRenderedHtml ? {
@@ -711,6 +722,12 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
         month: 'short',
         year: 'numeric',
     }).format(new Date(user.create_at || Date.now()));
+
+    useEffect(() => {
+        if (avatarStatus?.emoji) {
+            dispatch(loadCustomEmojisIfNeeded([avatarStatus.emoji]) as any);
+        }
+    }, [avatarStatus?.emoji, dispatch]);
 
     useEffect(() => {
         setOverviewGithubRenderedHtml('');
@@ -748,7 +765,7 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
         <main className='iuin-profile-shell iuin-profile-display'>
             <div className='iuin-profile-shell__layout'>
                 <aside className='iuin-profile-academic-sidebar iuin-profile-hui-card iuin-profile-hui-card--profile'>
-                    <div className='iuin-profile-hui-avatar iuin-profile-hui-avatar--xl'>
+                    <div className={`iuin-profile-hui-avatar iuin-profile-hui-avatar--xl${avatarStatus ? ' iuin-profile-hui-avatar--with-status' : ''}`}>
                         <span
                             className='iuin-profile-hui-avatar__fallback'
                             aria-hidden='true'
@@ -763,6 +780,37 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                                 event.currentTarget.style.display = 'none';
                             }}
                         />
+                        {avatarStatus && (
+                            <span
+                                className={`iuin-profile-avatar-status${avatarStatus.text ? ' iuin-profile-avatar-status--has-text' : ''}`}
+                                aria-label={avatarStatus.text ? avatarStatus.text : undefined}
+                                title={avatarStatus.text || undefined}
+                                tabIndex={avatarStatus.text ? 0 : undefined}
+                            >
+                                <span
+                                    className='iuin-profile-avatar-status__icon'
+                                    aria-hidden='true'
+                                >
+                                    {avatarStatus.image ? (
+                                        <img
+                                            className='iuin-profile-avatar-status__image'
+                                            src={avatarStatus.image}
+                                            alt=''
+                                        />
+                                    ) : (
+                                        <RenderEmoji
+                                            emojiName={avatarStatus.emoji}
+                                            size={20}
+                                        />
+                                    )}
+                                </span>
+                                {avatarStatus.text && (
+                                    <span className='iuin-profile-avatar-status__text'>
+                                        {avatarStatus.text}
+                                    </span>
+                                )}
+                            </span>
+                        )}
                     </div>
                     <div className='iuin-profile-academic-sidebar__identity'>
                         <h1>{displayName}</h1>
@@ -773,20 +821,6 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                             </p>
                         )}
                     </div>
-                    {(profile.researchStatus || profile.statusMedia) && (
-                        <section className='iuin-profile-academic-sidebar__module iuin-profile-academic-sidebar__module--status'>
-                            {profile.statusMedia && (
-                                <img
-                                    className='iuin-profile-academic-sidebar__status-badge'
-                                    src={profile.statusMedia}
-                                    alt=''
-                                />
-                            )}
-                            {profile.researchStatus && (
-                                <p>{profile.researchStatus}</p>
-                            )}
-                        </section>
-                    )}
                     {sectionVisibility.researchFields && (
                         <section className='iuin-profile-academic-sidebar__module'>
                             <h2>
@@ -2133,6 +2167,52 @@ function dataUrlToBlob(dataUrl: string): Blob {
     }
 
     return new Blob([bytes], {type: mime});
+}
+
+function getActiveUserCustomStatus(user: UserProfile): UserCustomStatus | null {
+    const customStatusValue = user.props?.customStatus;
+    if (!customStatusValue) {
+        return null;
+    }
+
+    try {
+        const customStatus = JSON.parse(customStatusValue) as UserCustomStatus;
+        if (!customStatus?.emoji && !customStatus?.text) {
+            return null;
+        }
+
+        if (customStatus.duration !== CustomStatusDuration.DONT_CLEAR && customStatus.expires_at) {
+            const expiresAt = Date.parse(customStatus.expires_at);
+            if (!Number.isNaN(expiresAt) && Date.now() >= expiresAt) {
+                return null;
+            }
+        }
+
+        return customStatus;
+    } catch {
+        return null;
+    }
+}
+
+function getProfileAvatarStatus(user: UserProfile, profile: IuinProfileData): ProfileAvatarStatus | null {
+    const customStatus = getActiveUserCustomStatus(user);
+    if (customStatus) {
+        return {
+            emoji: customStatus.emoji || 'speech_balloon',
+            image: '',
+            text: customStatus.text || '',
+        };
+    }
+
+    if (!profile.researchStatus && !profile.statusMedia) {
+        return null;
+    }
+
+    return {
+        emoji: profile.statusMedia ? '' : 'speech_balloon',
+        image: profile.statusMedia,
+        text: profile.researchStatus,
+    };
 }
 
 type IuinReadmeAdvancedEditorProps = {

@@ -8360,6 +8360,10 @@ body.app__body #root .main-wrapper:has(.iuin-readme-workbench:not(.iuin-readme-w
     box-shadow: 0 16px 32px rgba(37, 99, 235, 0.13);
 }
 
+.iuin-profile-hui-avatar--with-status {
+    overflow: visible;
+}
+
 .iuin-profile-hui-avatar__fallback {
     position: absolute;
     inset: 0;
@@ -8378,6 +8382,85 @@ body.app__body #root .main-wrapper:has(.iuin-readme-workbench:not(.iuin-readme-w
     border-radius: inherit;
     margin: 0;
     box-shadow: none;
+}
+
+.iuin-profile-avatar-status {
+    position: absolute;
+    z-index: 4;
+    bottom: 8px;
+    left: calc(100% - 32px);
+    display: inline-flex;
+    overflow: hidden;
+    max-width: 40px;
+    height: 40px;
+    min-width: 40px;
+    box-sizing: border-box;
+    align-items: center;
+    padding: 0;
+    border: 1px solid #d0d7de;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(27, 31, 36, 0.12), 0 8px 24px rgba(140, 149, 159, 0.18);
+    color: #24292f;
+    cursor: default;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    white-space: nowrap;
+    transition: max-width 160ms ease, padding 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+
+    &:focus {
+        outline: none;
+    }
+}
+
+.iuin-profile-avatar-status--has-text:hover,
+.iuin-profile-avatar-status--has-text:focus {
+    max-width: 240px;
+    padding: 0 14px 0 10px;
+    box-shadow: 0 1px 3px rgba(27, 31, 36, 0.14), 0 8px 28px rgba(140, 149, 159, 0.24);
+    transform: translateY(-1px);
+}
+
+.iuin-profile-avatar-status--has-text:focus-visible {
+    box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.18), 0 8px 28px rgba(140, 149, 159, 0.24);
+}
+
+.iuin-profile-avatar-status__icon {
+    display: inline-flex;
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+}
+
+.iuin-profile-avatar-status__icon .emoticon {
+    margin: 0 !important;
+}
+
+.iuin-profile-avatar-status__image {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    object-fit: cover;
+}
+
+.iuin-profile-avatar-status__text {
+    overflow: hidden;
+    max-width: 0;
+    margin-left: 0;
+    color: #24292f;
+    opacity: 0;
+    text-overflow: ellipsis;
+    transition: max-width 160ms ease, margin-left 160ms ease, opacity 120ms ease;
+}
+
+.iuin-profile-avatar-status--has-text:hover .iuin-profile-avatar-status__text,
+.iuin-profile-avatar-status--has-text:focus .iuin-profile-avatar-status__text {
+    max-width: 170px;
+    margin-left: 6px;
+    opacity: 1;
 }
 
 .iuin-profile-hui-button {
