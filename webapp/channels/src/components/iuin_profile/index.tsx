@@ -592,7 +592,7 @@ function getEditorSectionTitle(section: EditorSection) {
         return (
             <FormattedMessage
                 id='iuin_profile.readme.advanced_settings'
-                defaultMessage='Advanced settings'
+                defaultMessage='Profile customization'
             />
         );
     case 'account':
@@ -3731,12 +3731,12 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
                         className={`iuin-profile-settings-nav__item${activeSection === 'advanced' ? ' active' : ''}`}
                         onClick={() => selectEditorSection('advanced')}
                     >
-                        <i className='icon icon-cog-outline'/>
+                        <i className='icon icon-tune'/>
                         <span className='iuin-profile-settings-nav__copy'>
                             <strong>
                                 <FormattedMessage
                                     id='iuin_profile.readme.advanced_settings'
-                                    defaultMessage='Advanced settings'
+                                    defaultMessage='Profile customization'
                                 />
                             </strong>
                             <small>
@@ -4008,7 +4008,7 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
                                         <span>
                                             <FormattedMessage
                                                 id='iuin_profile.readme.advanced_settings'
-                                                defaultMessage='Advanced settings'
+                                                defaultMessage='Profile customization'
                                             />
                                         </span>
                                     </button>
