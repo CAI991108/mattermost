@@ -463,6 +463,18 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
                             >
                                 {customStatusEmoji}
                             </button>
+                            {emojiPicker}
+                        </div>
+                        <div className='StatusModal__text-wrap'>
+                            <input
+                                id='custom_status_text'
+                                className='StatusModal__text-input form-control'
+                                value={text}
+                                maxLength={CUSTOM_STATUS_TEXT_CHARACTER_LIMIT}
+                                onChange={handleTextChange}
+                                placeholder={formatMessage({id: 'custom_status.set_status_placeholder', defaultMessage: 'Set a status'})}
+                                autoFocus={true}
+                            />
                             <button
                                 type='button'
                                 className='StatusModal__emoji-upload-button'
@@ -471,7 +483,12 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
                                 aria-label={formatMessage({id: 'custom_status.image_upload', defaultMessage: 'Upload status image'})}
                                 title={formatMessage({id: 'custom_status.image_upload', defaultMessage: 'Upload status image'})}
                             >
-                                <i className='icon icon-upload-outline'/>
+                                <i
+                                    className={classNames('icon', {
+                                        'icon-upload-outline': !isUploadingImage,
+                                        'icon-loading icon-spin': isUploadingImage,
+                                    })}
+                                />
                             </button>
                             <input
                                 ref={statusImageInputRef}
@@ -479,18 +496,11 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
                                 type='file'
                                 accept='image/png,image/jpeg,image/gif,image/webp,image/*'
                                 onChange={handleStatusImageUpload}
+                                hidden={true}
+                                aria-hidden={true}
+                                tabIndex={-1}
                             />
-                            {emojiPicker}
                         </div>
-                        <input
-                            id='custom_status_text'
-                            className='StatusModal__text-input form-control'
-                            value={text}
-                            maxLength={CUSTOM_STATUS_TEXT_CHARACTER_LIMIT}
-                            onChange={handleTextChange}
-                            placeholder={formatMessage({id: 'custom_status.set_status_placeholder', defaultMessage: 'Set a status'})}
-                            autoFocus={true}
-                        />
                     </div>
                     <div className='StatusModal__remaining'>
                         <FormattedMessage

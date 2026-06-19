@@ -40,6 +40,7 @@ describe('CustomStatusModal', () => {
         expect(screen.getByText('Edit status')).toBeInTheDocument();
         expect(screen.getByLabelText("What's happening")).toBeInTheDocument();
         expect(screen.getByRole('button', {name: /Upload status image/})).toBeInTheDocument();
+        expect(document.querySelector('.StatusModal__image-input')).toHaveAttribute('hidden');
         expect(screen.getByText('80 characters remaining')).toBeInTheDocument();
         expect(screen.getByRole('button', {name: /On vacation/})).toBeInTheDocument();
         expect(screen.getByRole('button', {name: /Out sick/})).toBeInTheDocument();
