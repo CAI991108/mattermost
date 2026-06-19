@@ -408,13 +408,33 @@ export default class Root extends React.PureComponent<Props, State> {
                         path={'/_popout'}
                         component={PopoutController}
                     />
-                    <LoggedInRoute
-                        path={'/u/:username/edit'}
-                        component={IuinProfilePage}
-                    />
-                    <LoggedInRoute
-                        path={'/u/:username'}
-                        component={IuinProfilePage}
+                    <Route
+                        path={['/u/:username/edit', '/u/:username']}
+                        render={() => (
+                            <WithUserTheme>
+                                <WindowSizeObserver/>
+                                <ModalController/>
+                                <GlobalClassificationBanner position='top'/>
+                                <AnnouncementBarController/>
+                                <SystemNotice/>
+                                <GlobalHeader/>
+                                <div className='iuin-profile-route-main'>
+                                    <Switch>
+                                        <LoggedInRoute
+                                            path={'/u/:username/edit'}
+                                            component={IuinProfilePage}
+                                        />
+                                        <LoggedInRoute
+                                            path={'/u/:username'}
+                                            component={IuinProfilePage}
+                                        />
+                                    </Switch>
+                                </div>
+                                <GlobalClassificationBanner position='bottom'/>
+                                <Pluggable pluggableName='Global'/>
+                                <Readout/>
+                            </WithUserTheme>
+                        )}
                     />
                     <WithUserTheme>
                         {(this.props.showLaunchingWorkspace && !this.props.location.pathname.includes('/preparing-workspace') &&
