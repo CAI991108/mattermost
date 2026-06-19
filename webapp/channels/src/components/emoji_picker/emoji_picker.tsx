@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import throttle from 'lodash/throttle';
-import React, {useRef, useState, useEffect, useCallback, memo, useMemo} from 'react';
+import React, {type ReactNode, useRef, useState, useEffect, useCallback, memo, useMemo} from 'react';
 import {FormattedMessage} from 'react-intl';
 import type {FixedSizeList} from 'react-window';
 import type InfiniteLoader from 'react-window-infinite-loader';
@@ -42,6 +42,9 @@ export interface Props extends PropsFromRedux {
     handleFilterChange: (filter: string) => void;
     handleEmojiPickerClose: () => void;
     onAddCustomEmojiClick?: () => void;
+    customEmojiButtonDisabled?: boolean;
+    customEmojiButtonIsAction?: boolean;
+    customEmojiButtonLabel?: ReactNode;
 }
 
 const EmojiPicker = ({
@@ -50,6 +53,9 @@ const EmojiPicker = ({
     handleFilterChange,
     handleEmojiPickerClose,
     onAddCustomEmojiClick,
+    customEmojiButtonDisabled,
+    customEmojiButtonIsAction,
+    customEmojiButtonLabel,
     customEmojisEnabled = false,
     customEmojiPage = 0,
     emojiMap,
@@ -446,8 +452,11 @@ const EmojiPicker = ({
             <div className='emoji-picker__footer'>
                 {areSearchResultsEmpty ? <div/> : <EmojiPickerPreview emoji={cursor.emoji}/>}
                 <EmojiPickerCustomEmojiButton
+                    buttonIsAction={customEmojiButtonIsAction}
+                    buttonLabel={customEmojiButtonLabel}
                     currentTeamName={currentTeamName}
                     customEmojisEnabled={customEmojisEnabled}
+                    disabled={customEmojiButtonDisabled}
                     onClick={onAddCustomEmojiClickInner}
                 />
             </div>

@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useRef, useState} from 'react';
+import React, {type ReactNode, useCallback, useRef, useState} from 'react';
 import {Tab, Tabs} from 'react-bootstrap';
 import {FormattedMessage, useIntl} from 'react-intl';
 
@@ -20,6 +20,9 @@ export interface Props {
     onEmojiClick: (emoji: Emoji) => void;
     onGifClick?: (gif: string) => void;
     onAddCustomEmojiClick?: () => void;
+    customEmojiButtonDisabled?: boolean;
+    customEmojiButtonIsAction?: boolean;
+    customEmojiButtonLabel?: ReactNode;
     enableGifPicker?: boolean;
 }
 
@@ -119,6 +122,9 @@ export default function EmojiPickerTabs(props: Props) {
                 onEmojiClick={props.onEmojiClick}
                 handleFilterChange={setFilter}
                 handleEmojiPickerClose={props.onEmojiClose}
+                customEmojiButtonDisabled={props.customEmojiButtonDisabled}
+                customEmojiButtonIsAction={props.customEmojiButtonIsAction}
+                customEmojiButtonLabel={props.customEmojiButtonLabel}
                 onAddCustomEmojiClick={props.onAddCustomEmojiClick}
             />
         </div>
