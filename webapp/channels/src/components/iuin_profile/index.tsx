@@ -2140,17 +2140,15 @@ type IuinReadmeAdvancedEditorProps = {
     embedded?: boolean;
     draft?: IuinProfileData;
     setDraft?: Dispatch<SetStateAction<IuinProfileData>>;
-    onClose?: () => void;
 };
 
-function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: controlledDraft, setDraft: setControlledDraft, onClose}: IuinReadmeAdvancedEditorProps) {
+function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: controlledDraft, setDraft: setControlledDraft}: IuinReadmeAdvancedEditorProps) {
     const intl = useIntl();
     const dispatch = useDispatch();
     const uploadInputRef = useRef<HTMLInputElement | null>(null);
     const [localDraft, setLocalDraft] = useState(() => getIuinProfileData(currentUser));
     const [activePath, setActivePath] = useState(IUIN_README_MAIN_FILE);
     const [githubUrl, setGithubUrl] = useState('');
-    const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [importing, setImporting] = useState(false);
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
@@ -2230,7 +2228,6 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 readmeWorkspace: serializeIuinReadmeWorkspace(nextWorkspace),
             };
         });
-        setSaveState('idle');
         setError('');
     }, [currentUser, setReadmeDraft]);
 
@@ -2491,7 +2488,6 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         }
 
         setImporting(true);
-        setSaveState('saving');
         setError('');
         setNotice('');
 
@@ -2523,7 +2519,6 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                     id: 'iuin_profile.readme.github_import_save_error',
                     defaultMessage: 'Could not save the imported README.',
                 });
-                setSaveState('error');
                 setError(intl.formatMessage({
                     id: 'iuin_profile.readme.github_imported_save_failed',
                     defaultMessage: 'README.md was imported into the editor, but saving failed: {message}',
@@ -2531,7 +2526,6 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 return;
             }
 
-            setSaveState('saved');
             setNotice(imported.supportingFileCount > 0 ? intl.formatMessage({
                 id: 'iuin_profile.readme.github_imported_with_files',
                 defaultMessage: 'README.md imported from GitHub with {count} supporting files and saved.',
@@ -2540,7 +2534,6 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 defaultMessage: 'README.md imported from GitHub and saved.',
             }));
         } catch (err) {
-            setSaveState('error');
             setError(err instanceof Error ? err.message : intl.formatMessage({
                 id: 'iuin_profile.readme.github_import_error',
                 defaultMessage: 'Could not import the GitHub README.',
@@ -2550,51 +2543,9 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         }
     }, [currentUser, dispatch, draft, githubUrl, intl, setReadmeDraft]);
 
-    const saveReadmeWorkspace = useCallback(async () => {
-        if (saveState === 'saving') {
-            return;
-        }
-
-        setSaveState('saving');
-        setError('');
-        setNotice('');
-
-        try {
-            const result = await dispatch(updateMe(getProfilePatch(currentUser, draft)) as any) as any;
-            if (result.error) {
-                setSaveState('error');
-                setError(result.error.message || intl.formatMessage({
-                    id: 'iuin_profile.editor.save_error',
-                    defaultMessage: 'Could not save profile.',
-                }));
-                return;
-            }
-
-            setSaveState('saved');
-            setNotice(intl.formatMessage({
-                id: 'iuin_profile.readme.saved',
-                defaultMessage: 'README workspace saved.',
-            }));
-        } catch (err) {
-            setSaveState('error');
-            setError(err instanceof Error ? err.message : intl.formatMessage({
-                id: 'iuin_profile.editor.save_error',
-                defaultMessage: 'Could not save profile.',
-            }));
-        }
-    }, [currentUser, dispatch, draft, intl, saveState]);
-
     const isSelectedEditable = Boolean(selectedFile && selectedFile.type !== 'asset' && selectedFile.type !== 'folder');
     const WorkbenchElement = embedded ? 'section' : 'main';
     const workbenchClassName = `iuin-readme-workbench${embedded ? ' iuin-readme-workbench--embedded' : ''}`;
-    const handleClose = () => {
-        if (onClose) {
-            onClose();
-            return;
-        }
-
-        getHistory().push(getEditorSectionUrl(currentUser.username, 'homepage'));
-    };
 
     return (
         <WorkbenchElement className={workbenchClassName}>
@@ -2607,48 +2558,6 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 onChange={handleReadmeUpload}
                 hidden={true}
             />
-            <header className='iuin-readme-workbench__menubar'>
-                <div className='iuin-readme-workbench__brand'>
-                    <span className='iuin-readme-workbench__brand-mark'>I</span>
-                    <span className='iuin-readme-workbench__product-label'>README Designer</span>
-                </div>
-                <div className='iuin-readme-workbench__top-actions'>
-                    <button
-                        type='button'
-                        className='iuin-readme-workbench__ghost-button'
-                        disabled={saveState === 'saving'}
-                        onClick={handleClose}
-                    >
-                        <span>Cancel</span>
-                    </button>
-                    <button
-                        type='button'
-                        className={`iuin-readme-workbench__save-button${saveState === 'saving' ? ' is-saving' : ''}${saveState === 'saved' ? ' is-saved' : ''}`}
-                        onClick={saveReadmeWorkspace}
-                        disabled={saveState === 'saving'}
-                        aria-busy={saveState === 'saving'}
-                    >
-                        <span>
-                            {saveState === 'saving' ? (
-                                <FormattedMessage
-                                    id='iuin_profile.editor.saving'
-                                    defaultMessage='Saving...'
-                                />
-                            ) : saveState === 'saved' ? (
-                                <FormattedMessage
-                                    id='iuin_profile.editor.saved'
-                                    defaultMessage='Saved'
-                                />
-                            ) : (
-                                <FormattedMessage
-                                    id='iuin_profile.editor.save'
-                                    defaultMessage='Save homepage'
-                                />
-                            )}
-                        </span>
-                    </button>
-                </div>
-            </header>
 
             <div className='iuin-readme-workbench__body'>
                 <aside className='iuin-readme-workbench__sidebar'>
@@ -4476,7 +4385,6 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
                             embedded={true}
                             draft={draft}
                             setDraft={setAdvancedDraft}
-                            onClose={() => selectEditorSection('homepage')}
                         />
                     </div>
                 )}
