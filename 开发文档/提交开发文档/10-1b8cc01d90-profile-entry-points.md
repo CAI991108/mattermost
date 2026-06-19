@@ -25,7 +25,7 @@
 - 在 root 路由中注册 IUIN profile 页面。
 - 调整 profile popover 中的自我/他人用户行，使其能跳转到 IUIN profile。
 - 在 account menu 中加入个人主页入口。
-- 调整账号名和 profile menu item，使显示信息与 IUIN profile mini card 更一致。
+- 调整账号名和 profile menu item，使入口文案与 IUIN profile 页面一致。
 
 ## 验证建议
 

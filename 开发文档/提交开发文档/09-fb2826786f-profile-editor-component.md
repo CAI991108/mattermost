@@ -4,7 +4,7 @@
 
 - Commit: `fb2826786f`
 - 类型: 主要功能组件
-- 范围: IUIN profile 页面、编辑器、README designer、mini card
+- 范围: IUIN profile 页面、编辑器和 README designer
 
 ## 开发目标
 
@@ -13,7 +13,6 @@
 ## 改动范围
 
 - `webapp/channels/src/components/iuin_profile/index.tsx`
-- `webapp/channels/src/components/iuin_profile/iuin_profile_mini_card.tsx`
 
 ## 实现说明
 
@@ -22,7 +21,7 @@
 - 添加 README Designer，支持代码/预览、文件树、GitHub README 导入、文件上传和下载。
 - 添加 Experience、Education、Paper、Awards 四类 academic section 的编辑和展示。
 - 支持 preview 与主页展示逻辑同步，使编辑页预览更接近真实主页。
-- 添加 mini card，供 popover/account menu 等入口复用。
+- 个人主页入口由 popover 和 account menu 的按钮触发，不在 popover 内容区直接渲染主页卡片。
 
 ## 验证建议
 
