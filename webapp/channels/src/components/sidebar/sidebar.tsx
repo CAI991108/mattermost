@@ -21,7 +21,6 @@ import ChannelNavigator from './channel_navigator';
 import SidebarList from './sidebar_list';
 
 const MobileSidebarHeader = makeAsyncComponent('MobileSidebarHeader', lazy(() => import('./mobile_sidebar_header')));
-// LZX: MoreDirectChannels modal 已移除，私信入口改为 DirectMessagesLink 侧边栏静态入口
 const BrowseChannels = makeAsyncComponent('BrowseChannels', lazy(() => import('components/browse_channels')));
 const CreateUserGroupsModal = makeAsyncComponent('CreateUserGroupsModal', lazy(() => import('components/create_user_groups_modal')));
 const InvitationModal = makeAsyncComponent('InvitationModal', lazy(() => import('components/invitation_modal')));

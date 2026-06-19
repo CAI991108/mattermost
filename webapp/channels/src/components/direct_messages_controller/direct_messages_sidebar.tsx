@@ -1,19 +1,23 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useEffect} from 'react';
+import React, {useEffect, useCallback, useMemo, useState} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
 import {useRouteMatch} from 'react-router-dom';
 
-import {getProfiles} from 'mattermost-redux/actions/users';
+import {getProfiles, getTotalUsersStats} from 'mattermost-redux/actions/users';
 import {getTeammateNameDisplaySetting} from 'mattermost-redux/selectors/entities/preferences';
-import {getCurrentUserId, getCurrentUser, getProfiles as selectProfiles, getUserStatuses} from 'mattermost-redux/selectors/entities/users';
+import {getCurrentUserId, getCurrentUser, getProfiles as selectProfiles, getUserStatuses, getTotalUsersStats as getTotalUsersStatsSelector} from 'mattermost-redux/selectors/entities/users';
+
 import {displayUsername} from 'mattermost-redux/utils/user_utils';
 
+import {openModal} from 'actions/views/modals';
 import {getDmUnreadByUserId} from 'selectors/direct_messages';
 import type {DmUnreadInfo} from 'selectors/direct_messages';
-
+import {ModalIdentifiers} from 'utils/constants';
 import {getHistory} from 'utils/browser_history';
+
+import MoreDirectChannels from 'components/more_direct_channels';
 
 import DmContactItem from './dm_contact_item';
 
@@ -22,66 +26,47 @@ import type {GlobalState} from 'types/store';
 
 import './direct_messages_sidebar.scss';
 
+const DM_USERS_PAGE_SIZE = 200;
+
 type SortedUser = {
     user: UserProfile;
     dmInfo: DmUnreadInfo | null;
 };
 
-function sortUsers(
+function toSortedUsers(
     users: UserProfile[],
     dmUnreadByUserId: Record<string, DmUnreadInfo>,
-    nameDisplaySetting: string,
 ): SortedUser[] {
+    return users.map((user) => ({
+        user,
+        dmInfo: dmUnreadByUserId[user.id] ?? null,
+    }));
+}
+
+function sortRecentUsers(users: SortedUser[]): SortedUser[] {
     return users
-        .map((user) => ({
-            user,
-            dmInfo: dmUnreadByUserId[user.id] ?? null,
-        }))
-        .sort((a, b) => {
-            const aUnread = a.dmInfo?.unread ?? 0;
-            const bUnread = b.dmInfo?.unread ?? 0;
-            const aHistory = a.dmInfo?.hasHistory ?? false;
-            const bHistory = b.dmInfo?.hasHistory ?? false;
-            const aLastPost = a.dmInfo?.lastPostAt ?? 0;
-            const bLastPost = b.dmInfo?.lastPostAt ?? 0;
+        .filter(({dmInfo}) => dmInfo?.hasHistory)
+        .sort((a, b) => (b.dmInfo?.lastPostAt ?? 0) - (a.dmInfo?.lastPostAt ?? 0))
+        .slice(0, 20);
+}
 
-            // 1. Unread first, by last_post_at desc
-            if (aUnread > 0 && bUnread === 0) {
-                return -1;
-            }
-            if (bUnread > 0 && aUnread === 0) {
-                return 1;
-            }
-            if (aUnread > 0 && bUnread > 0) {
-                return bLastPost - aLastPost;
-            }
-
-            // 2. Has history, by last_post_at desc
-            if (aHistory && !bHistory) {
-                return -1;
-            }
-            if (bHistory && !aHistory) {
-                return 1;
-            }
-            if (aHistory && bHistory) {
-                return bLastPost - aLastPost;
-            }
-
-            // 3. No history, alphabetical by displayName
-            const aName = displayUsername(a.user, nameDisplaySetting);
-            const bName = displayUsername(b.user, nameDisplaySetting);
-            return aName.localeCompare(bName);
-        });
+function sortAllUsersByDisplayName(users: SortedUser[], nameDisplaySetting: string): SortedUser[] {
+    return [...users].sort((a, b) => {
+        const aName = displayUsername(a.user, nameDisplaySetting);
+        const bName = displayUsername(b.user, nameDisplaySetting);
+        return aName.localeCompare(bName);
+    });
 }
 
 export default function DirectMessagesSidebar() {
     const dispatch = useDispatch();
     const match = useRouteMatch<{identifier?: string}>('/direct_messages/:identifier?');
     const identifierParam = match?.params.identifier ?? null;
-    // identifier is @username format, extract username for active highlight
+    // identifier supports @username and plain userId fallback.
     const activeUsername = identifierParam?.startsWith('@')
         ? identifierParam.slice(1).toLowerCase()
         : null;
+    const activeUserId = identifierParam && !identifierParam.startsWith('@') ? identifierParam : null;
 
     const currentUserId = useSelector(getCurrentUserId);
     const selfUser = useSelector(getCurrentUser);  // getCurrentUser 专门获取当前登录用户
@@ -89,10 +74,23 @@ export default function DirectMessagesSidebar() {
     const statuses = useSelector(getUserStatuses);
     const dmUnreadByUserId = useSelector(getDmUnreadByUserId);
     const nameDisplaySetting = useSelector(getTeammateNameDisplaySetting);
+    const totalUsersCount = useSelector((state: GlobalState) => getTotalUsersStatsSelector(state)?.total_users_count ?? 0);
 
     useEffect(() => {
-        dispatch(getProfiles(0, 200) as any);
+        dispatch(getTotalUsersStats() as any);
+        dispatch(getProfiles(0, DM_USERS_PAGE_SIZE) as any);
     }, [dispatch]);
+
+    useEffect(() => {
+        if (totalUsersCount <= DM_USERS_PAGE_SIZE) {
+            return;
+        }
+
+        const pageCount = Math.ceil(totalUsersCount / DM_USERS_PAGE_SIZE);
+        for (let page = 1; page < pageCount; page++) {
+            dispatch(getProfiles(page, DM_USERS_PAGE_SIZE) as any);
+        }
+    }, [dispatch, totalUsersCount]);
 
     // Exclude deleted users; self is included and participates in normal sorting
     const otherUsers = Object.values(allProfiles).filter(
@@ -104,29 +102,100 @@ export default function DirectMessagesSidebar() {
         ? [...otherUsers, selfUser]
         : otherUsers;
 
-    const sorted = sortUsers(allUsers, dmUnreadByUserId, nameDisplaySetting);
+    const [isRecentOpen, setIsRecentOpen] = useState(true);
+    const [isAllMembersOpen, setIsAllMembersOpen] = useState(false);
+
+    const sortedUsers = useMemo(() => toSortedUsers(allUsers, dmUnreadByUserId), [allUsers, dmUnreadByUserId]);
+    const recentUsers = useMemo(() => sortRecentUsers(sortedUsers), [sortedUsers]);
+    const displayedRecentUsers = useMemo(() => {
+        const activeUser = sortedUsers.find(({user}) => (
+            (activeUsername && user.username.toLowerCase() === activeUsername) ||
+            (activeUserId && user.id === activeUserId)
+        ));
+        if (!activeUser || recentUsers.some(({user}) => user.id === activeUser.user.id)) {
+            return recentUsers;
+        }
+        return [activeUser, ...recentUsers];
+    }, [activeUsername, activeUserId, recentUsers, sortedUsers]);
+
+    const allMembers = useMemo(() => sortAllUsersByDisplayName(sortedUsers, nameDisplaySetting), [sortedUsers, nameDisplaySetting]);
 
     const handleClick = (username: string) => {
         getHistory().push(`/direct_messages/@${username}`);
     };
 
+    const handleOpenSearch = useCallback(() => {
+        dispatch(openModal({
+            modalId: ModalIdentifiers.CREATE_DM_CHANNEL,
+            dialogType: MoreDirectChannels,
+            dialogProps: {
+                isExistingChannel: false,
+                focusOriginElement: 'dm-sidebar-search-btn',
+            },
+        }));
+    }, [dispatch]);
+
     return (
         <div className='dm-sidebar'>
             <div className='dm-sidebar__header'>
-                {'私信'}
+                <span className='dm-sidebar__header-text'>{'私信'}</span>
             </div>
+            <button
+                id='dm-sidebar-search-btn'
+                className='dm-sidebar__search-trigger'
+                onClick={handleOpenSearch}
+                aria-label='查找成员'
+                type='button'
+            >
+                <i className='icon icon-magnify dm-sidebar__search-icon'/>
+                <span className='dm-sidebar__search-placeholder'>{'查找成员'}</span>
+            </button>
             <div className='dm-sidebar__list'>
-                {sorted.map(({user, dmInfo}) => (
-                    <DmContactItem
-                        key={user.id}
-                        user={user}
-                        status={statuses[user.id]}
-                        unreadCount={dmInfo?.unread ?? 0}
-                        isActive={user.username.toLowerCase() === activeUsername}
-                        nameDisplaySetting={nameDisplaySetting}
-                        onClick={handleClick}
-                    />
-                ))}
+                <div className='dm-sidebar__section'>
+                    <button
+                        type='button'
+                        className='dm-sidebar__section-header'
+                        onClick={() => setIsRecentOpen(!isRecentOpen)}
+                        aria-expanded={isRecentOpen}
+                    >
+                        <i className={`icon ${isRecentOpen ? 'icon-chevron-down' : 'icon-chevron-right'} dm-sidebar__section-icon`}/>
+                        <span className='dm-sidebar__section-title'>{'最近聊天'}</span>
+                    </button>
+                    {isRecentOpen && displayedRecentUsers.map(({user, dmInfo}) => (
+                        <DmContactItem
+                            key={`recent-${user.id}`}
+                            user={user}
+                            status={statuses[user.id]}
+                            unreadCount={dmInfo?.unread ?? 0}
+                            isActive={(activeUsername && user.username.toLowerCase() === activeUsername) || user.id === activeUserId}
+                            nameDisplaySetting={nameDisplaySetting}
+                            onClick={handleClick}
+                        />
+                    ))}
+                </div>
+
+                <div className='dm-sidebar__section'>
+                    <button
+                        type='button'
+                        className='dm-sidebar__section-header'
+                        onClick={() => setIsAllMembersOpen(!isAllMembersOpen)}
+                        aria-expanded={isAllMembersOpen}
+                    >
+                        <i className={`icon ${isAllMembersOpen ? 'icon-chevron-down' : 'icon-chevron-right'} dm-sidebar__section-icon`}/>
+                        <span className='dm-sidebar__section-title'>{'全部成员'}</span>
+                    </button>
+                    {isAllMembersOpen && allMembers.map(({user, dmInfo}) => (
+                        <DmContactItem
+                            key={`all-${user.id}`}
+                            user={user}
+                            status={statuses[user.id]}
+                            unreadCount={dmInfo?.unread ?? 0}
+                            isActive={(activeUsername && user.username.toLowerCase() === activeUsername) || user.id === activeUserId}
+                            nameDisplaySetting={nameDisplaySetting}
+                            onClick={handleClick}
+                        />
+                    ))}
+                </div>
             </div>
         </div>
     );

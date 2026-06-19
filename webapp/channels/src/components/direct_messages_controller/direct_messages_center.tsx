@@ -48,9 +48,11 @@ export default function DirectMessagesCenter(props: Props) {
 
     useEffect(() => {
         if (!identifier) {
-            // Use username for @username URL format; fall back to userId if user not loaded yet
-            const target = defaultTargetUser?.username ?? defaultTargetUserId;
-            getHistory().replace(`/direct_messages/@${target}`);
+            if (defaultTargetUser?.username) {
+                getHistory().replace(`/direct_messages/@${defaultTargetUser.username}`);
+            } else if (defaultTargetUserId) {
+                getHistory().replace(`/direct_messages/${defaultTargetUserId}`);
+            }
             return;
         }
 

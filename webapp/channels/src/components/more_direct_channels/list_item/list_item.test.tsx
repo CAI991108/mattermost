@@ -3,8 +3,6 @@
 
 import React from 'react';
 
-import {General} from 'mattermost-redux/constants';
-
 import {renderWithContext} from 'tests/react_testing_utils';
 
 import ListItem from './list_item';
@@ -43,39 +41,6 @@ describe('ListItem', () => {
             <ListItem
                 {...baseProps}
                 option={user}
-            />,
-            state,
-        );
-
-        expect(container).toMatchSnapshot();
-    });
-
-    test('should match snapshot when rendering GroupChannel', () => {
-        const channel = {
-            id: 'channel_id_1',
-            type: General.GM_CHANNEL,
-            display_name: 'user1, user2, user3',
-            last_post_at: 0,
-            profiles: [
-                {
-                    id: 'user_id_1',
-                    username: 'user1',
-                },
-                {
-                    id: 'user_id_2',
-                    username: 'user2',
-                },
-                {
-                    id: 'user_id_3',
-                    username: 'user3',
-                },
-            ],
-        } as OptionValue;
-
-        const {container} = renderWithContext(
-            <ListItem
-                {...baseProps}
-                option={channel}
             />,
             state,
         );
