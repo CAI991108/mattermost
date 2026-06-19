@@ -311,7 +311,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                 <FormattedMessage
                     id='get_app.launching'
                     tagName='h1'
-                    defaultMessage='欢迎来到人工智能学院平台'
+                    defaultMessage='欢迎来到人工智能学院'
                 />
             </div>
         );
