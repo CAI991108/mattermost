@@ -16,6 +16,8 @@ import {canUserDirectMessage} from 'actions/user_actions';
 import ProfilePopoverAddToChannel from 'components/profile_popover/profile_popover_add_to_channel';
 import ProfilePopoverCallButtonWrapper from 'components/profile_popover/profile_popover_call_button_wrapper';
 
+import {getHistory} from 'utils/browser_history';
+
 type Props = {
     user: UserProfile;
     fullname: string;
@@ -42,6 +44,13 @@ const ProfilePopoverOtherUserRow = ({
 
     const [canMessage, setCanMessage] = useState<boolean | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+
+    const handleViewHomepage = () => {
+        hide?.();
+        handleCloseModals();
+        getHistory().push(`/u/${user.username}`);
+        returnFocus();
+    };
 
     const isSharedChannelsDMsEnabled = useSelector((state: GlobalState) => {
         return getFeatureFlagValue(state, 'EnableSharedChannelsDMs') === 'true';
@@ -91,6 +100,25 @@ const ProfilePopoverOtherUserRow = ({
 
     return (
         <div className='user-popover__bottom-row-container'>
+            <Button
+                type='button'
+                emphasis='secondary'
+                size='sm'
+                onClick={handleViewHomepage}
+                aria-label={intl.formatMessage({
+                    id: 'iuin_profile.account.viewUserHomepage',
+                    defaultMessage: 'View {user} homepage',
+                }, {user: user.username})}
+            >
+                <i
+                    className='icon icon-home-outline'
+                    aria-hidden='true'
+                />
+                <FormattedMessage
+                    id='iuin_profile.account.homepage'
+                    defaultMessage='Homepage'
+                />
+            </Button>
             {shouldShowButton && (
                 <>
                     {isLoading ? (

@@ -3,20 +3,16 @@
 
 import React, {useCallback} from 'react';
 import {FormattedMessage, useIntl} from 'react-intl';
-import {useDispatch} from 'react-redux';
 
 import {Button} from '@mattermost/shared/components/button';
 import {WithTooltip} from '@mattermost/shared/components/tooltip';
 
-import {openModal} from 'actions/views/modals';
-
-import UserSettingsModal from 'components/user_settings/modal';
-
-import {ModalIdentifiers} from 'utils/constants';
+import {getHistory} from 'utils/browser_history';
 
 type Props = {
     userId: string;
     currentUserId: string;
+    username: string;
     haveOverrideProp: boolean;
     hide?: () => void;
     returnFocus: () => void;
@@ -27,6 +23,7 @@ type Props = {
 const ProfilePopoverSelfUserRow = ({
     userId,
     currentUserId,
+    username,
     haveOverrideProp,
     hide,
     returnFocus,
@@ -34,17 +31,13 @@ const ProfilePopoverSelfUserRow = ({
     handleShowDirectChannel,
 }: Props) => {
     const {formatMessage} = useIntl();
-    const dispatch = useDispatch();
 
-    const handleEditAccountSettings = useCallback(() => {
+    const handleViewHomepage = useCallback(() => {
         hide?.();
-        dispatch(openModal({
-            modalId: ModalIdentifiers.USER_SETTINGS,
-            dialogType: UserSettingsModal,
-            dialogProps: {isContentProductSettings: false, onExited: returnFocus},
-        }));
         handleCloseModals();
-    }, [hide, returnFocus, handleCloseModals]);
+        getHistory().push(`/u/${username}`);
+        returnFocus();
+    }, [hide, returnFocus, handleCloseModals, username]);
 
     if (userId !== currentUserId || haveOverrideProp) {
         return null;
@@ -58,15 +51,15 @@ const ProfilePopoverSelfUserRow = ({
                 type='button'
                 emphasis='primary'
                 size='sm'
-                onClick={handleEditAccountSettings}
+                onClick={handleViewHomepage}
             >
                 <i
-                    className='icon icon-account-outline'
+                    className='icon icon-home-outline'
                     aria-hidden='true'
                 />
                 <FormattedMessage
-                    id='user_profile.account.editProfile'
-                    defaultMessage='Edit Profile'
+                    id='iuin_profile.account.enterHomepage'
+                    defaultMessage='Enter homepage'
                 />
             </Button>
             <WithTooltip

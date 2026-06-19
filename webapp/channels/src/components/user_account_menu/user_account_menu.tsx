@@ -128,6 +128,7 @@ export default function UserAccountMenu(props: Props) {
             <Menu.Separator/>
             <UserAccountProfileMenuItem
                 userId={props.userId}
+                username={props.username}
             />
             <Menu.Separator/>
             <UserAccountLogoutMenuItem/>

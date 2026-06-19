@@ -5,24 +5,22 @@ import React from 'react';
 import {FormattedMessage} from 'react-intl';
 import {useDispatch, useSelector} from 'react-redux';
 
-import {AccountOutlineIcon} from '@mattermost/compass-icons/components';
+import {HomeVariantOutlineIcon} from '@mattermost/compass-icons/components';
 import type {UserProfile} from '@mattermost/types/users';
 
 import {savePreferences} from 'mattermost-redux/actions/preferences';
 import {getInt} from 'mattermost-redux/selectors/entities/preferences';
 
-import {openModal} from 'actions/views/modals';
-
 import * as Menu from 'components/menu';
 import {OnboardingTaskCategory, OnboardingTasksName, TaskNameMapToSteps, CompleteYourProfileTour} from 'components/onboarding_tasks';
-import UserSettingsModal from 'components/user_settings/modal';
 
-import {ModalIdentifiers} from 'utils/constants';
+import {getHistory} from 'utils/browser_history';
 
 import type {GlobalState} from 'types/store';
 
 interface Props {
     userId: UserProfile['id'];
+    username?: UserProfile['username'];
 }
 
 export default function UserAccountProfileMenuItem(props: Props) {
@@ -44,14 +42,9 @@ export default function UserAccountProfileMenuItem(props: Props) {
     }
 
     function handleClick() {
-        dispatch(openModal({
-            modalId: ModalIdentifiers.USER_SETTINGS,
-            dialogType: UserSettingsModal,
-            dialogProps: {
-                isContentProductSettings: false,
-                focusOriginElement: 'userAccountMenuButton',
-            },
-        }));
+        if (props.username) {
+            getHistory().push(`/u/${props.username}`);
+        }
 
         if (isCompleteYourProfileTaskPending) {
             handleTourClick();
@@ -61,15 +54,15 @@ export default function UserAccountProfileMenuItem(props: Props) {
     return (
         <Menu.Item
             leadingElement={
-                <AccountOutlineIcon
+                <HomeVariantOutlineIcon
                     size={18}
                     aria-hidden='true'
                 />
             }
             labels={
                 <FormattedMessage
-                    id='userAccountMenu.profileMenuItem.label'
-                    defaultMessage='Profile'
+                    id='iuin_profile.account_menu.enter_homepage'
+                    defaultMessage='Enter homepage'
                 />
             }
             trailingElements={isCompleteYourProfileTaskPending && (

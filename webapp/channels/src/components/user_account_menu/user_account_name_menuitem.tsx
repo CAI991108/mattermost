@@ -2,33 +2,26 @@
 // See LICENSE.txt for license information.
 
 import React from 'react';
-import {useDispatch, useSelector} from 'react-redux';
+import {useSelector} from 'react-redux';
 
 import {getCurrentUser} from 'mattermost-redux/selectors/entities/users';
 
-import {openModal} from 'actions/views/modals';
-
 import * as Menu from 'components/menu';
-import UserSettingsModal from 'components/user_settings/modal';
 import Avatar from 'components/widgets/users/avatar/avatar';
 
-import {ModalIdentifiers} from 'utils/constants';
+import {getHistory} from 'utils/browser_history';
 
 interface Props extends Menu.FirstMenuItemProps {
     profilePicture?: string;
 }
 
 export default function UserAccountNameMenuItem({profilePicture, ...rest}: Props) {
-    const dispatch = useDispatch();
-
     const currentUser = useSelector(getCurrentUser);
 
     function handleClick() {
-        dispatch(openModal({
-            modalId: ModalIdentifiers.USER_SETTINGS,
-            dialogType: UserSettingsModal,
-            dialogProps: {isContentProductSettings: false},
-        }));
+        if (currentUser?.username) {
+            getHistory().push(`/u/${currentUser.username}`);
+        }
     }
 
     function getLabel() {
