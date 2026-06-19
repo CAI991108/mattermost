@@ -79,6 +79,7 @@ const AppBar = makeAsyncComponent('AppBar', lazy(() => import('components/app_ba
 const ComponentLibrary = makeAsyncComponent('ComponentLibrary', lazy(() => import('components/component_library')));
 const PopoutController = makeAsyncComponent('PopoutController', lazy(() => import('components/popout_controller')));
 const Help = makeAsyncComponent('Help', lazy(() => import('components/help')));
+const IuinProfilePage = makeAsyncComponent('IuinProfilePage', lazy(() => import('components/iuin_profile')));
 
 const Pluggable = makeAsyncPluggableComponent();
 
@@ -489,6 +490,14 @@ export default class Root extends React.PureComponent<Props, State> {
                                 <LoggedInRoute
                                     path={'/direct_messages/:identifier?'}
                                     component={DirectMessagesController}
+                                />
+                                <LoggedInRoute
+                                    path={'/u/:username/edit'}
+                                    component={IuinProfilePage}
+                                />
+                                <LoggedInRoute
+                                    path={'/u/:username'}
+                                    component={IuinProfilePage}
                                 />
                                 <LoggedInRoute
                                     path={`/:team(${TEAM_NAME_PATH_PATTERN})`}

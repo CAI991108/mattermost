@@ -7,7 +7,6 @@ import {useDispatch, useSelector} from 'react-redux';
 import {getCurrentChannelId, getCurrentUserId} from 'mattermost-redux/selectors/entities/common';
 import {getLicense, getFeatureFlagValue} from 'mattermost-redux/selectors/entities/general';
 import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
-import {getCurrentTimezone} from 'mattermost-redux/selectors/entities/timezone';
 import {getStatusForUserId, getUser} from 'mattermost-redux/selectors/entities/users';
 
 import {openDirectChannelToUserId} from 'actions/channel_actions';
@@ -18,6 +17,7 @@ import {getSelectedPost} from 'selectors/rhs';
 import {getIsMobileView} from 'selectors/views/browser';
 
 import {usePluginVisibilityInSharedChannel} from 'components/common/hooks/usePluginVisibilityInSharedChannel';
+import IuinProfileMiniCard from 'components/iuin_profile/iuin_profile_mini_card';
 
 import Pluggable from 'plugins/pluggable';
 import {getHistory} from 'utils/browser_history';
@@ -30,14 +30,12 @@ import type {GlobalState} from 'types/store';
 
 import ProfilePopoverAvatar from './profile_popover_avatar';
 import ProfilePopoverCustomAttributes from './profile_popover_custom_attributes';
-import ProfilePopoverCustomStatus from './profile_popover_custom_status';
 import ProfilePopoverEmail from './profile_popover_email';
 import ProfilePopoverLastActive from './profile_popover_last_active';
 import ProfilePopoverName from './profile_popover_name';
 import ProfilePopoverOtherUserRow from './profile_popover_other_user_row';
 import ProfilePopoverOverrideDisclaimer from './profile_popover_override_disclaimer';
 import ProfilePopoverSelfUserRow from './profile_popover_self_user_row';
-import ProfilePopoverTimezone from './profile_popover_timezone';
 import ProfilePopoverTitle from './profile_popover_title';
 
 import './profile_popover.scss';
@@ -80,7 +78,6 @@ const ProfilePopover = ({
     const isMobileView = useSelector(getIsMobileView);
     const modals = useSelector((state: GlobalState) => state.views.modals);
     const status = useSelector((state: GlobalState) => getStatusForUserId(state, userId) || UserStatuses.OFFLINE);
-    const currentUserTimezone = useSelector(getCurrentTimezone);
     const currentUserId = useSelector(getCurrentUserId);
     const license = useSelector((state: GlobalState) => getLicense(state));
     const isEnterprise = isEnterpriseLicense(license);
@@ -205,20 +202,7 @@ const ProfilePopover = ({
                         hideStatus={hideStatus}
                     />
                 )}
-                <ProfilePopoverTimezone
-                    currentUserTimezone={currentUserTimezone}
-                    profileUserTimezone={user.timezone}
-                    haveOverrideProp={haveOverrideProp}
-                />
-                <ProfilePopoverCustomStatus
-                    currentUserId={currentUserId}
-                    currentUserTimezone={currentUserTimezone}
-                    haveOverrideProp={haveOverrideProp}
-                    hideStatus={hideStatus}
-                    user={user}
-                    returnFocus={handleReturnFocus}
-                    hide={hide}
-                />
+                <IuinProfileMiniCard user={user}/>
             </div>
             <div className='user-profile-popover-bottom-row'>
                 <hr className='user-popover__bottom-row-hr'/>
@@ -233,6 +217,7 @@ const ProfilePopover = ({
                     haveOverrideProp={haveOverrideProp}
                     returnFocus={handleReturnFocus}
                     userId={user.id}
+                    username={user.username}
                     hide={hide}
                 />
                 <ProfilePopoverOtherUserRow
