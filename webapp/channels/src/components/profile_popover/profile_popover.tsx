@@ -17,8 +17,6 @@ import {getSelectedPost} from 'selectors/rhs';
 import {getIsMobileView} from 'selectors/views/browser';
 
 import {usePluginVisibilityInSharedChannel} from 'components/common/hooks/usePluginVisibilityInSharedChannel';
-import IuinProfileMiniCard from 'components/iuin_profile/iuin_profile_mini_card';
-
 import Pluggable from 'plugins/pluggable';
 import {getHistory} from 'utils/browser_history';
 import {A11yCustomEventTypes, UserStatuses} from 'utils/constants';
@@ -202,7 +200,6 @@ const ProfilePopover = ({
                         hideStatus={hideStatus}
                     />
                 )}
-                <IuinProfileMiniCard user={user}/>
             </div>
             <div className='user-profile-popover-bottom-row'>
                 <hr className='user-popover__bottom-row-hr'/>

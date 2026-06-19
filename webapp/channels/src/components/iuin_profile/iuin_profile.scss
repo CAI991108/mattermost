@@ -79,7 +79,6 @@
 }
 
 .iuin-profile-sidebar__chips,
-.iuin-profile-mini-card__chips,
 .iuin-profile-channels div {
     display: flex;
     flex-wrap: wrap;
@@ -1204,86 +1203,6 @@
     outline: none;
 }
 
-.iuin-profile-mini-card {
-    display: flex;
-    flex-direction: column;
-    padding: 0 16px 12px;
-    gap: 8px;
-}
-
-.iuin-profile-mini-card__title,
-.iuin-profile-mini-card__subtitle {
-    color: rgba(var(--center-channel-color-rgb), 0.62);
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 16px;
-    text-transform: uppercase;
-}
-
-.iuin-profile-mini-card--empty {
-    p {
-        margin: 0;
-        color: rgba(var(--center-channel-color-rgb), 0.64);
-        font-size: 13px;
-    }
-}
-
-.iuin-profile-mini-card__media {
-    width: 100%;
-    max-height: 120px;
-    border-radius: 8px;
-    object-fit: cover;
-}
-
-.iuin-profile-mini-card__status {
-    margin: 0;
-    color: rgba(var(--center-channel-color-rgb), 0.82);
-    font-size: 14px;
-    line-height: 20px;
-}
-
-.iuin-profile-mini-card__section {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.iuin-profile-mini-card__empty {
-    margin: 0;
-    color: rgba(var(--center-channel-color-rgb), 0.54);
-    font-size: 13px;
-    line-height: 18px;
-}
-
-.iuin-profile-mini-card__chips {
-    span {
-        padding: 3px 7px;
-        border-radius: 999px;
-        background: rgba(36, 111, 229, 0.1);
-        color: #246fe5;
-        font-size: 11px;
-        font-weight: 700;
-    }
-}
-
-.iuin-profile-mini-card__channels,
-.iuin-profile-mini-card__teams {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-
-    span {
-        padding: 4px 7px;
-        border: 1px solid rgba(31, 111, 86, 0.14);
-        border-radius: 6px;
-        background: rgba(31, 111, 86, 0.08);
-        color: #1f6f56;
-        font-size: 12px;
-        font-weight: 700;
-        line-height: 16px;
-    }
-}
-
 @media screen and (max-width: 900px) {
     .iuin-profile-shell {
         width: 100%;
@@ -1381,8 +1300,7 @@
 
 /* IUIN Onyx profile skin */
 .iuin-profile-shell,
-.iuin-profile-page--editor,
-.iuin-profile-mini-card {
+.iuin-profile-page--editor {
     --iuin-onyx-bg: #101216;
     --iuin-onyx-bg-deep: #0b0d10;
     --iuin-onyx-panel: #171b20;
@@ -1477,16 +1395,11 @@
 .iuin-profile-editor__settings-grid label,
 .iuin-profile-editor__muted,
 .iuin-profile-editor__security-summary span,
-.iuin-profile-editor__session-row span,
-.iuin-profile-mini-card__status,
-.iuin-profile-mini-card--empty p {
+.iuin-profile-editor__session-row span {
     color: var(--iuin-onyx-muted);
 }
 
-.iuin-profile-academic-sidebar__empty,
-.iuin-profile-mini-card__empty,
-.iuin-profile-mini-card__title,
-.iuin-profile-mini-card__subtitle {
+.iuin-profile-academic-sidebar__empty {
     color: var(--iuin-onyx-faint) !important;
 }
 
@@ -1499,8 +1412,7 @@
     border-color: var(--iuin-onyx-border);
 }
 
-.iuin-profile-academic-sidebar__chips span,
-.iuin-profile-mini-card__chips span {
+.iuin-profile-academic-sidebar__chips span {
     border: 1px solid rgba(138, 180, 248, 0.2);
     background: rgba(138, 180, 248, 0.12);
     color: var(--iuin-onyx-blue);
@@ -1508,8 +1420,6 @@
 
 .iuin-profile-academic-sidebar__channel-cards span,
 .iuin-profile-academic-sidebar__team-cards span,
-.iuin-profile-mini-card__channels span,
-.iuin-profile-mini-card__teams span,
 .iuin-profile-editor__joined-channels span {
     border-color: rgba(125, 211, 199, 0.22);
     background: rgba(125, 211, 199, 0.11);
@@ -1517,7 +1427,6 @@
 }
 
 .iuin-profile-academic-sidebar__media,
-.iuin-profile-mini-card__media,
 .iuin-profile-rendered img {
     border: 1px solid var(--iuin-onyx-border);
     background: var(--iuin-onyx-bg-deep);
@@ -1707,8 +1616,7 @@
 
 /* IUIN light profile redesign */
 .iuin-profile-shell,
-.iuin-profile-page--editor,
-.iuin-profile-mini-card {
+.iuin-profile-page--editor {
     --iuin-profile-bg: #f5f7fb;
     --iuin-profile-bg-band: #eef3f8;
     --iuin-profile-surface: #fff;
@@ -1818,9 +1726,7 @@
 
 .iuin-profile-main__eyebrow,
 .iuin-profile-academic-sidebar__module h2,
-.iuin-profile-academic-sidebar__bio h2,
-.iuin-profile-mini-card__title,
-.iuin-profile-mini-card__subtitle {
+.iuin-profile-academic-sidebar__bio h2 {
     color: var(--iuin-profile-faint) !important;
     font-size: 11px;
     letter-spacing: 0;
@@ -1838,14 +1744,11 @@
 .iuin-profile-editor__settings-grid label,
 .iuin-profile-editor__muted,
 .iuin-profile-editor__security-summary span,
-.iuin-profile-editor__session-row span,
-.iuin-profile-mini-card__status,
-.iuin-profile-mini-card--empty p {
+.iuin-profile-editor__session-row span {
     color: var(--iuin-profile-muted);
 }
 
-.iuin-profile-academic-sidebar__empty,
-.iuin-profile-mini-card__empty {
+.iuin-profile-academic-sidebar__empty {
     color: var(--iuin-profile-faint) !important;
 }
 
@@ -2017,8 +1920,7 @@
     }
 }
 
-.iuin-profile-academic-sidebar__chips span,
-.iuin-profile-mini-card__chips span {
+.iuin-profile-academic-sidebar__chips span {
     border: 1px solid rgba(36, 94, 232, 0.15);
     background: var(--iuin-profile-accent-soft);
     color: var(--iuin-profile-accent-strong);
@@ -2026,8 +1928,6 @@
 
 .iuin-profile-academic-sidebar__channel-cards span,
 .iuin-profile-academic-sidebar__team-cards span,
-.iuin-profile-mini-card__channels span,
-.iuin-profile-mini-card__teams span,
 .iuin-profile-editor__joined-channels span {
     border-color: rgba(31, 122, 93, 0.16);
     background: var(--iuin-profile-success-soft);
@@ -2035,7 +1935,6 @@
 }
 
 .iuin-profile-academic-sidebar__media,
-.iuin-profile-mini-card__media,
 .iuin-profile-rendered img {
     border: 1px solid var(--iuin-profile-border);
     background: var(--iuin-profile-surface-muted);
@@ -2282,12 +2181,6 @@
     box-shadow: none;
 }
 
-.iuin-profile-mini-card {
-    border: 1px solid var(--iuin-profile-border);
-    border-radius: 8px;
-    background: var(--iuin-profile-surface);
-}
-
 @media screen and (max-width: 1100px) {
     .iuin-profile-shell__layout {
         display: grid;
@@ -2396,8 +2289,7 @@
 
 /* IUIN Academic CV profile */
 .iuin-profile-shell,
-.iuin-profile-page--editor,
-.iuin-profile-mini-card {
+.iuin-profile-page--editor {
     --iuin-acv-bg: #f8f9ff;
     --iuin-acv-ink: #1c2236;
     --iuin-acv-muted: #5e6778;
@@ -2719,8 +2611,7 @@
 
 .iuin-profile-card,
 .iuin-profile-settings-nav,
-.iuin-profile-editor__header,
-.iuin-profile-mini-card {
+.iuin-profile-editor__header {
     border-color: rgba(67, 73, 96, 0.1);
     background: rgba(255, 255, 255, 0.82);
     box-shadow: var(--iuin-acv-shadow-soft);
