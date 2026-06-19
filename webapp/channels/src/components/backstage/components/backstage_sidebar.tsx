@@ -16,37 +16,15 @@ import BackstageSection from './backstage_section';
 
 type Props = {
     team: Team;
-    enableCustomEmoji: boolean;
     enableIncomingWebhooks: boolean;
     enableOutgoingWebhooks: boolean;
     enableCommands: boolean;
     enableOAuthServiceProvider: boolean;
     enableOutgoingOAuthConnections: boolean;
-    canCreateOrDeleteCustomEmoji: boolean;
     canManageIntegrations: boolean;
 }
 
 export default class BackstageSidebar extends React.PureComponent<Props> {
-    renderCustomEmoji() {
-        if (!this.props.enableCustomEmoji || !this.props.canCreateOrDeleteCustomEmoji) {
-            return null;
-        }
-
-        return (
-            <BackstageCategory
-                name='emoji'
-                parentLink={'/' + this.props.team.name}
-                icon='fa-smile-o'
-                title={
-                    <FormattedMessage
-                        id='backstage_sidebar.emoji'
-                        defaultMessage='Custom Emoji'
-                    />
-                }
-            />
-        );
-    }
-
     renderIntegrations() {
         if (!this.props.canManageIntegrations) {
             return null;
@@ -203,7 +181,6 @@ export default class BackstageSidebar extends React.PureComponent<Props> {
         return (
             <div className='backstage-sidebar'>
                 <ul>
-                    {this.renderCustomEmoji()}
                     {this.renderIntegrations()}
                 </ul>
             </div>

@@ -8,7 +8,6 @@ import type {Dispatch} from 'redux';
 
 import {getCustomEmojis, searchCustomEmojis} from 'mattermost-redux/actions/emojis';
 import {getCustomEmojisEnabled} from 'mattermost-redux/selectors/entities/emojis';
-import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
 
 import {incrementEmojiPickerPage, setUserSkinTone} from 'actions/emoji_actions';
 import {getEmojiMap, getRecentEmojisNames, getUserSkinTone} from 'selectors/emojis';
@@ -24,7 +23,6 @@ function mapStateToProps(state: GlobalState) {
         emojiMap: getEmojiMap(state),
         recentEmojis: getRecentEmojisNames(state),
         userSkinTone: getUserSkinTone(state),
-        currentTeamName: getCurrentTeam(state)?.name ?? '',
     };
 }
 

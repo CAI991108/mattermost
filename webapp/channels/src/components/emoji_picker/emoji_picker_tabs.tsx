@@ -21,7 +21,6 @@ export interface Props {
     onGifClick?: (gif: string) => void;
     onAddCustomEmojiClick?: () => void;
     customEmojiButtonDisabled?: boolean;
-    customEmojiButtonIsAction?: boolean;
     customEmojiButtonLabel?: ReactNode;
     enableGifPicker?: boolean;
 }
@@ -123,7 +122,6 @@ export default function EmojiPickerTabs(props: Props) {
                 handleFilterChange={setFilter}
                 handleEmojiPickerClose={props.onEmojiClose}
                 customEmojiButtonDisabled={props.customEmojiButtonDisabled}
-                customEmojiButtonIsAction={props.customEmojiButtonIsAction}
                 customEmojiButtonLabel={props.customEmojiButtonLabel}
                 onAddCustomEmojiClick={props.onAddCustomEmojiClick}
             />
