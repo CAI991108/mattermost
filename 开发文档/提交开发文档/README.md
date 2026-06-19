@@ -1,6 +1,6 @@
 # IUIN Mattermost 提交开发文档索引
 
-本文档夹整理 `origin/master..HEAD` 的 11 个本地提交，每个提交对应一份开发文档。文档按提交顺序编号，便于代码审查、回退和后续交接。
+本文档夹整理 IUIN Mattermost 本地功能提交的开发文档。文档按提交顺序编号，便于代码审查、回退和后续交接。
 
 ## 提交清单
 
@@ -15,6 +15,16 @@
 9. [feat: add IUIN profile editor component](./09-fb2826786f-profile-editor-component.md)
 10. [feat: wire IUIN profile entry points](./10-1b8cc01d90-profile-entry-points.md)
 11. [style: add IUIN profile editor styling](./11-62c86b4910-profile-editor-styling.md)
+12. [fix: render IUIN profile outside channel shell](./12-4d0024c763-profile-route-shell.md)
+13. [style: rename profile customization section](./13-f575ad2f47-profile-customization-label.md)
+14. [fix: keep global header on IUIN profile pages](./14-9cfc73dcb0-profile-global-header.md)
+15. [fix: polish custom status image upload](./15-2b561fc298-custom-status-image-upload-polish.md)
+16. [fix: remove readme workbench title bar](./16-2e7aee323e-remove-readme-title-bar.md)
+17. [feat: add GitHub-style avatar status badge](./17-12937954dd-avatar-status-badge.md)
+18. [fix: move status emoji upload into picker footer](./18-fc80a5b103-status-emoji-upload-picker-footer.md)
+19. [fix: remove legacy custom emoji backstage entry](./19-fbedfaf6e6-remove-legacy-custom-emoji-backstage.md)
+20. [feat: open custom status from profile badge](./20-49a2d02083-profile-status-badge-click.md)
+21. [style: smooth profile status badge motion](./21-1f932c1e87-profile-status-badge-motion.md)
 
 ## 使用方式
 
