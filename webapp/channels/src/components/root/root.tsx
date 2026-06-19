@@ -408,6 +408,14 @@ export default class Root extends React.PureComponent<Props, State> {
                         path={'/_popout'}
                         component={PopoutController}
                     />
+                    <LoggedInRoute
+                        path={'/u/:username/edit'}
+                        component={IuinProfilePage}
+                    />
+                    <LoggedInRoute
+                        path={'/u/:username'}
+                        component={IuinProfilePage}
+                    />
                     <WithUserTheme>
                         {(this.props.showLaunchingWorkspace && !this.props.location.pathname.includes('/preparing-workspace') &&
                             <LaunchingWorkspace
@@ -490,14 +498,6 @@ export default class Root extends React.PureComponent<Props, State> {
                                 <LoggedInRoute
                                     path={'/direct_messages/:identifier?'}
                                     component={DirectMessagesController}
-                                />
-                                <LoggedInRoute
-                                    path={'/u/:username/edit'}
-                                    component={IuinProfilePage}
-                                />
-                                <LoggedInRoute
-                                    path={'/u/:username'}
-                                    component={IuinProfilePage}
                                 />
                                 <LoggedInRoute
                                     path={`/:team(${TEAM_NAME_PATH_PATTERN})`}
