@@ -149,11 +149,9 @@
         position: relative;
         z-index: 5;
         flex: 0 0 auto;
-        gap: 4px;
     }
 
-    &__emoji-button,
-    &__emoji-upload-button {
+    &__emoji-button {
         display: flex;
         width: 32px;
         height: 32px;
@@ -192,15 +190,56 @@
         }
     }
 
+    &__text-wrap {
+        position: relative;
+        display: flex;
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
     &__emoji-upload-button {
+        display: flex;
+        position: absolute;
+        top: 50%;
+        right: 4px;
+        width: 24px;
+        height: 24px;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: #57606a;
+        transform: translateY(-50%);
+
+        &:hover {
+            background: #f3f4f6;
+            color: #24292f;
+        }
+
+        &:active {
+            background: rgba(9, 105, 218, 0.12);
+            color: #0969da;
+        }
+
+        &:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
+        }
+
+        &:disabled {
+            cursor: default;
+            opacity: 0.65;
+        }
+
         .icon {
-            font-size: 18px;
+            font-size: 16px;
             line-height: 1;
         }
     }
 
     &__image-input {
-        display: none;
+        display: none !important;
     }
 
     &__text-input,
@@ -223,7 +262,8 @@
 
     &__text-input {
         flex: 1 1 auto;
-        padding: 5px 12px;
+        min-width: 0;
+        padding: 5px 40px 5px 12px;
     }
 
     &__select {
@@ -238,11 +278,11 @@
     }
 
     &__remaining {
-        margin: 4px 0 8px 76px;
+        margin: 4px 0 8px 40px;
     }
 
     &__upload-error {
-        margin: -4px 0 8px 76px;
+        margin: -4px 0 8px 40px;
         color: #cf222e;
         font-size: 12px;
         line-height: 18px;
@@ -253,7 +293,7 @@
         flex-wrap: wrap;
         align-items: center;
         gap: 6px;
-        margin-left: 76px;
+        margin-left: 40px;
     }
 
     &__suggestion-chip {
