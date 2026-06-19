@@ -15,7 +15,7 @@ import {
     useInteractions,
     useRole,
 } from '@floating-ui/react';
-import React, {useCallback} from 'react';
+import React, {type ReactNode, useCallback} from 'react';
 import {useSelector} from 'react-redux';
 
 import type {Emoji} from '@mattermost/types/emojis';
@@ -34,6 +34,9 @@ type UseEmojiPickerOptions = {
 
     enableGifPicker?: boolean;
     onAddCustomEmojiClick?: () => void;
+    customEmojiButtonDisabled?: boolean;
+    customEmojiButtonIsAction?: boolean;
+    customEmojiButtonLabel?: ReactNode;
     onEmojiClick: (emoji: Emoji) => void;
     onGifClick?: (gif: string) => void;
 
@@ -55,6 +58,9 @@ export default function useEmojiPicker({
 
     enableGifPicker,
     onAddCustomEmojiClick,
+    customEmojiButtonDisabled,
+    customEmojiButtonIsAction,
+    customEmojiButtonLabel,
     onEmojiClick,
     onGifClick,
 
@@ -103,6 +109,9 @@ export default function useEmojiPicker({
         <EmojiPickerTabs
             enableGifPicker={enableGifPicker}
             onAddCustomEmojiClick={onAddCustomEmojiClick}
+            customEmojiButtonDisabled={customEmojiButtonDisabled}
+            customEmojiButtonIsAction={customEmojiButtonIsAction}
+            customEmojiButtonLabel={customEmojiButtonLabel}
             onEmojiClose={hideEmojiPicker}
             onEmojiClick={onEmojiClick}
             onGifClick={onGifClick}

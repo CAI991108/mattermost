@@ -358,6 +358,24 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
         showEmojiPicker,
         setShowEmojiPicker,
 
+        customEmojiButtonDisabled: isUploadingImage,
+        customEmojiButtonIsAction: true,
+        customEmojiButtonLabel: (
+            <>
+                <i
+                    className={classNames('icon', {
+                        'icon-upload-outline': !isUploadingImage,
+                        'icon-loading icon-spin': isUploadingImage,
+                    })}
+                    aria-hidden='true'
+                />
+                <FormattedMessage
+                    id='custom_status.upload_emoji'
+                    defaultMessage='Upload Emoji'
+                />
+            </>
+        ),
+        onAddCustomEmojiClick: handleStatusImageButtonClick,
         onEmojiClick: handleEmojiClick,
     });
 
@@ -475,21 +493,6 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
                                 placeholder={formatMessage({id: 'custom_status.set_status_placeholder', defaultMessage: 'Set a status'})}
                                 autoFocus={true}
                             />
-                            <button
-                                type='button'
-                                className='StatusModal__emoji-upload-button'
-                                onClick={handleStatusImageButtonClick}
-                                disabled={isUploadingImage}
-                                aria-label={formatMessage({id: 'custom_status.image_upload', defaultMessage: 'Upload status image'})}
-                                title={formatMessage({id: 'custom_status.image_upload', defaultMessage: 'Upload status image'})}
-                            >
-                                <i
-                                    className={classNames('icon', {
-                                        'icon-upload-outline': !isUploadingImage,
-                                        'icon-loading icon-spin': isUploadingImage,
-                                    })}
-                                />
-                            </button>
                             <input
                                 ref={statusImageInputRef}
                                 className='StatusModal__image-input'
