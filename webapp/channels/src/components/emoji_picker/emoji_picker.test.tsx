@@ -29,7 +29,6 @@ describe('components/emoji_picker/EmojiPicker', () => {
         emojiMap: new EmojiMap(new Map()),
         recentEmojis: [],
         userSkinTone: 'default',
-        currentTeamName: 'testTeam',
         actions: {
             getCustomEmojis: jest.fn(),
             incrementEmojiPickerPage: jest.fn(),

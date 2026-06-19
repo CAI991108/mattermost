@@ -20,12 +20,10 @@ describe('components/backstage/components/BackstageSidebar', () => {
             id: 'team-id',
             name: 'team_name',
         }),
-        enableCustomEmoji: false,
         enableIncomingWebhooks: false,
         enableOutgoingWebhooks: false,
         enableCommands: false,
         enableOAuthServiceProvider: false,
-        canCreateOrDeleteCustomEmoji: false,
         canManageIntegrations: false,
         enableOutgoingOAuthConnections: false,
     };
@@ -40,28 +38,13 @@ describe('components/backstage/components/BackstageSidebar', () => {
     };
 
     describe('custom emoji', () => {
-        const testCases = [
-            {enableCustomEmoji: false, canCreateOrDeleteCustomEmoji: false, expectedResult: false},
-            {enableCustomEmoji: false, canCreateOrDeleteCustomEmoji: true, expectedResult: false},
-            {enableCustomEmoji: true, canCreateOrDeleteCustomEmoji: false, expectedResult: false},
-            {enableCustomEmoji: true, canCreateOrDeleteCustomEmoji: true, expectedResult: true},
-        ];
-
-        testCases.forEach((testCase) => {
-            it(`when custom emoji is ${testCase.enableCustomEmoji} and can create/delete is ${testCase.canCreateOrDeleteCustomEmoji}`, () => {
-                const props = {
-                    ...defaultProps,
-                    enableCustomEmoji: testCase.enableCustomEmoji,
-                    canCreateOrDeleteCustomEmoji: testCase.canCreateOrDeleteCustomEmoji,
-                };
-                renderAtIntegrationsPath(props);
-
-                if (testCase.expectedResult) {
-                    expect(screen.getByText('Custom Emoji')).toBeInTheDocument();
-                } else {
-                    expect(screen.queryByText('Custom Emoji')).not.toBeInTheDocument();
-                }
+        it('does not render the legacy custom emoji management entry', () => {
+            renderAtIntegrationsPath({
+                ...defaultProps,
+                canManageIntegrations: true,
             });
+
+            expect(screen.queryByText('Custom Emoji')).not.toBeInTheDocument();
         });
     });
 

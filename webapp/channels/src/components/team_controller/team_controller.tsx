@@ -3,7 +3,7 @@
 
 import React, {lazy, memo, useEffect, useRef, useState} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
-import {Route, Switch, useHistory, useParams} from 'react-router-dom';
+import {Redirect, Route, Switch, useHistory, useParams} from 'react-router-dom';
 
 import type {ServerError} from '@mattermost/types/errors';
 import type {Team} from '@mattermost/types/teams';
@@ -223,7 +223,9 @@ function TeamController(props: Props) {
             />
             <Route
                 path={`/:team(${TEAM_NAME_PATH_PATTERN})/emoji`}
-                component={BackstageController}
+                render={({match}) => (
+                    <Redirect to={`/${match.params.team}/integrations`}/>
+                )}
             />
             {props.plugins?.map((plugin) => (
                 <Route

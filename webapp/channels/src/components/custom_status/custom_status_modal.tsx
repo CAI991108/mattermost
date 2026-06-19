@@ -359,7 +359,6 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
         setShowEmojiPicker,
 
         customEmojiButtonDisabled: isUploadingImage,
-        customEmojiButtonIsAction: true,
         customEmojiButtonLabel: (
             <>
                 <i

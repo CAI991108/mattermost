@@ -35,7 +35,6 @@ type UseEmojiPickerOptions = {
     enableGifPicker?: boolean;
     onAddCustomEmojiClick?: () => void;
     customEmojiButtonDisabled?: boolean;
-    customEmojiButtonIsAction?: boolean;
     customEmojiButtonLabel?: ReactNode;
     onEmojiClick: (emoji: Emoji) => void;
     onGifClick?: (gif: string) => void;
@@ -59,7 +58,6 @@ export default function useEmojiPicker({
     enableGifPicker,
     onAddCustomEmojiClick,
     customEmojiButtonDisabled,
-    customEmojiButtonIsAction,
     customEmojiButtonLabel,
     onEmojiClick,
     onGifClick,
@@ -110,7 +108,6 @@ export default function useEmojiPicker({
             enableGifPicker={enableGifPicker}
             onAddCustomEmojiClick={onAddCustomEmojiClick}
             customEmojiButtonDisabled={customEmojiButtonDisabled}
-            customEmojiButtonIsAction={customEmojiButtonIsAction}
             customEmojiButtonLabel={customEmojiButtonLabel}
             onEmojiClose={hideEmojiPicker}
             onEmojiClick={onEmojiClick}
