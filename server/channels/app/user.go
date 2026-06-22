@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	ImageProfilePixelDimension = 128
+	ImageProfilePixelDimension = 512
 )
 
 func (a *App) CreateUserWithToken(rctx request.CTX, user *model.User, token *model.Token) (*model.User, *model.AppError) {
@@ -1057,8 +1057,7 @@ func (a *App) AdjustImage(rctx request.CTX, file io.ReadSeeker) (*bytes.Buffer, 
 	img = imaging.MakeImageUpright(img, orientation)
 
 	// Scale profile image
-	profileWidthAndHeight := 128
-	img = imaging.FillCenter(img, profileWidthAndHeight, profileWidthAndHeight)
+	img = imaging.FillCenter(img, ImageProfilePixelDimension, ImageProfilePixelDimension)
 
 	buf := new(bytes.Buffer)
 	err = a.ch.imgEncoder.EncodePNG(buf, img)
