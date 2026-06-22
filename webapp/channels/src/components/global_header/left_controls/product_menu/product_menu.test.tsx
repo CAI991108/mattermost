@@ -3,12 +3,18 @@
 
 import React from 'react';
 
-import {renderWithContext, screen} from 'tests/react_testing_utils';
-import {TopLevelProducts} from 'utils/constants';
-import * as productUtils from 'utils/products';
-import {TestHelper} from 'utils/test_helper';
+import {renderWithContext, screen, userEvent} from 'tests/react_testing_utils';
+import {getHistory} from 'utils/browser_history';
 
 import ProductMenu from './product_menu';
+
+const mockHistoryPush = jest.fn();
+
+jest.mock('utils/browser_history', () => ({
+    getHistory: jest.fn(() => ({
+        push: mockHistoryPush,
+    })),
+}));
 
 jest.mock('./product_branding', () => {
     return function MockProductBranding() {
@@ -22,32 +28,7 @@ jest.mock('./product_branding_team_edition', () => {
     };
 });
 
-jest.mock('./product_menu_list', () => {
-    return function MockProductMenuList() {
-        return <div data-testid='product-menu-list'/>;
-    };
-});
-
-jest.mock('components/onboarding_tasks', () => ({
-    OnboardingTaskCategory: 'onboardingTask',
-    OnboardingTasksName: {VISIT_SYSTEM_CONSOLE: 'visit_system_console'},
-    TaskNameMapToSteps: {visit_system_console: {FINISHED: 999}},
-    useHandleOnBoardingTaskData: () => jest.fn(),
-}));
-
-const spyProduct = jest.spyOn(productUtils, 'useCurrentProductId');
-spyProduct.mockReturnValue(null);
-
 describe('components/global/product_switcher', () => {
-    beforeEach(() => {
-        const products = [
-            TestHelper.makeProduct(TopLevelProducts.BOARDS),
-            TestHelper.makeProduct(TopLevelProducts.PLAYBOOKS),
-        ];
-        const spyProducts = jest.spyOn(productUtils, 'useProducts');
-        spyProducts.mockReturnValue(products);
-    });
-
     const baseState = {
         entities: {
             general: {
@@ -63,130 +44,32 @@ describe('components/global/product_switcher', () => {
         },
     };
 
-    it('should match snapshot', () => {
-        const {container} = renderWithContext(
+    beforeEach(() => {
+        mockHistoryPush.mockClear();
+        (getHistory as jest.Mock).mockClear();
+    });
+
+    it('should navigate to Channels when the logo card is clicked', async () => {
+        renderWithContext(
             <ProductMenu/>,
             baseState,
         );
 
-        expect(container).toMatchSnapshot();
+        await userEvent.click(screen.getByRole('button', {name: 'Go to Channels'}));
+
+        expect(mockHistoryPush).toHaveBeenCalledWith('/');
     });
 
-    it('should match snapshot without license', () => {
-        const state = {
-            ...baseState,
-            entities: {
-                ...baseState.entities,
-                general: {
-                    ...baseState.entities.general,
-                    license: {
-                        IsLicensed: 'false',
-                    },
-                },
-            },
-        };
-
-        const {container} = renderWithContext(
+    it('should not render the product switcher accordion menu', () => {
+        renderWithContext(
             <ProductMenu/>,
-            state,
+            baseState,
         );
 
-        expect(container).toMatchSnapshot();
-    });
-
-    it('should render once when there are no top level products available', () => {
-        const state = {
-            ...baseState,
-            views: {
-                ...baseState.views,
-                productMenu: {
-                    switcherOpen: true,
-                },
-            },
-        };
-
-        const {container} = renderWithContext(
-            <ProductMenu/>,
-            state,
-        );
-
-        const spyProducts = jest.spyOn(productUtils, 'useProducts');
-        spyProducts.mockReturnValue([]);
-
-        const menuItems = screen.getAllByRole('menuitem');
-        expect(menuItems.length).toBeGreaterThanOrEqual(1);
-        expect(menuItems.at(0)).toBeDefined();
-        expect(container).toMatchSnapshot();
-    });
-
-    it('should render the correct amount of times when there are products available', () => {
-        const state = {
-            ...baseState,
-            views: {
-                ...baseState.views,
-                productMenu: {
-                    switcherOpen: true,
-                },
-            },
-        };
-
-        const products = [
-            TestHelper.makeProduct(TopLevelProducts.BOARDS),
-            TestHelper.makeProduct(TopLevelProducts.PLAYBOOKS),
-        ];
-
-        const spyProducts = jest.spyOn(productUtils, 'useProducts');
-        spyProducts.mockReturnValue(products);
-
-        const {container} = renderWithContext(
-            <ProductMenu/>,
-            state,
-        );
-
-        // Channels + 2 products
-        expect(screen.getAllByRole('menuitem')).toHaveLength(3);
-        expect(container).toMatchSnapshot();
-    });
-
-    it('should have an active button state when the switcher menu is open', () => {
-        const state = {
-            ...baseState,
-            views: {
-                ...baseState.views,
-                productMenu: {
-                    switcherOpen: true,
-                },
-            },
-        };
-
-        const {container} = renderWithContext(
-            <ProductMenu/>,
-            state,
-        );
-
-        const button = screen.getByRole('button', {name: 'Product switch menu'});
-        expect(button).toHaveAttribute('aria-expanded', 'true');
-        expect(container).toMatchSnapshot();
-    });
-
-    it('should match snapshot with product switcher menu', () => {
-        const state = {
-            ...baseState,
-            views: {
-                ...baseState.views,
-                productMenu: {
-                    switcherOpen: true,
-                },
-            },
-        };
-
-        const {container} = renderWithContext(
-            <ProductMenu/>,
-            state,
-        );
-
-        expect(screen.getByTestId('product-menu-list')).toBeInTheDocument();
-        expect(container).toMatchSnapshot();
+        expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+        expect(screen.queryByText('Channels')).not.toBeInTheDocument();
+        expect(screen.queryByText('Download Apps')).not.toBeInTheDocument();
+        expect(screen.queryByText('About IUIN Platform')).not.toBeInTheDocument();
     });
 
     it('should render ProductBrandingFreeEdition for Entry license', () => {
@@ -282,28 +165,5 @@ describe('components/global/product_switcher', () => {
 
         expect(screen.getByTestId('product-branding')).toBeInTheDocument();
         expect(screen.queryByTestId('product-branding-free-edition')).not.toBeInTheDocument();
-    });
-
-    it('should match snapshot for Entry license', () => {
-        const state = {
-            ...baseState,
-            entities: {
-                ...baseState.entities,
-                general: {
-                    ...baseState.entities.general,
-                    license: {
-                        IsLicensed: 'true',
-                        SkuShortName: 'entry',
-                    },
-                },
-            },
-        };
-
-        const {container} = renderWithContext(
-            <ProductMenu/>,
-            state,
-        );
-
-        expect(container).toMatchSnapshot();
     });
 });
