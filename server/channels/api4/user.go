@@ -46,6 +46,8 @@ func (api *API) InitUser() {
 	api.BaseRoutes.User.Handle("", api.APISessionRequired(updateUser)).Methods(http.MethodPut)
 	api.BaseRoutes.User.Handle("/patch", api.APISessionRequired(patchUser)).Methods(http.MethodPut)
 	api.BaseRoutes.User.Handle("/iuin_profile/settings", api.APISessionRequired(getIuinProfileSettings)).Methods(http.MethodGet)
+	api.BaseRoutes.User.Handle("/iuin_profile/workspace", api.APISessionRequired(getIuinProfileWorkspace)).Methods(http.MethodGet)
+	api.BaseRoutes.User.Handle("/iuin_profile/workspace", api.APISessionRequired(putIuinProfileWorkspace)).Methods(http.MethodPut)
 	api.BaseRoutes.User.Handle("", api.APISessionRequired(deleteUser)).Methods(http.MethodDelete)
 	api.BaseRoutes.User.Handle("/roles", api.APISessionRequired(updateUserRoles)).Methods(http.MethodPut)
 	api.BaseRoutes.User.Handle("/active", api.APISessionRequired(updateUserActive)).Methods(http.MethodPut)

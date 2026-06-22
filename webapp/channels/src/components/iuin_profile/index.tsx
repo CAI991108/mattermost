@@ -12,9 +12,9 @@ import {Redirect} from 'react-router-dom';
 import type {Session} from '@mattermost/types/sessions';
 import {type UserCustomStatus, type UserProfile, CustomStatusDuration} from '@mattermost/types/users';
 
-import {getUserByUsername as fetchUserByUsername, revokeSession, updateMe, updateUserPassword} from 'mattermost-redux/actions/users';
+import {getUserByUsername as fetchUserByUsername, revokeSession, updateMe, updateUserPassword, uploadProfileImage} from 'mattermost-redux/actions/users';
 import {Client4} from 'mattermost-redux/client';
-import {getPasswordConfig} from 'mattermost-redux/selectors/entities/general';
+import {getConfig, getPasswordConfig} from 'mattermost-redux/selectors/entities/general';
 import {getCurrentUser, getUserByUsername as selectUserByUsername} from 'mattermost-redux/selectors/entities/users';
 
 import {loadCustomEmojisIfNeeded} from 'actions/emoji_actions';
@@ -22,10 +22,9 @@ import {openModal} from 'actions/views/modals';
 
 import CustomStatusModal from 'components/custom_status/custom_status_modal';
 import RenderEmoji from 'components/emoji/render_emoji';
-import ExternalLink from 'components/external_link';
 
 import {getHistory} from 'utils/browser_history';
-import {ModalIdentifiers} from 'utils/constants';
+import {AcceptedProfileImageTypes, ModalIdentifiers} from 'utils/constants';
 import {isValidPassword} from 'utils/password';
 
 import type {GlobalState} from 'types/store';
@@ -39,16 +38,13 @@ import {
     getReadmeFileContent,
     getReadmeRootName,
     IUIN_README_MAIN_FILE,
-    type IuinAcademicEntry,
     type IuinProfileData,
     type IuinReadmeFile,
     type IuinReadmeWorkspace,
-    parseIuinAcademicEntries,
     parseIuinReadmeWorkspace,
     removeReadmeFile,
     renderIuinReadmeMarkdown,
     sanitizeIuinProfileHtml,
-    serializeIuinAcademicEntries,
     serializeIuinReadmeWorkspace,
     setReadmeFileContent,
     splitProfileList,
@@ -65,8 +61,7 @@ type Props = RouteComponentProps<RouteParams>;
 
 type EditorTab = 'preview' | 'code';
 type EditorSection = 'homepage' | 'advanced' | 'account' | 'security';
-type AcademicSectionId = 'experience' | 'education' | 'papers' | 'awards';
-type HomepageSectionId = 'researchFields' | 'summary' | AcademicSectionId;
+type HomepageSectionId = 'researchFields' | 'summary';
 type SectionVisibility = Record<HomepageSectionId, boolean>;
 
 type AccountDraft = {
@@ -86,39 +81,33 @@ type PasswordDraft = {
     confirmPassword: string;
 };
 
+type ProfileToast = {
+    id: string;
+    type: 'error' | 'success';
+    text: string;
+};
+
 type PasswordMessage = {
     type: 'error' | 'success';
     text: string;
 };
 
-type AcademicSectionConfig = {
-    id: AcademicSectionId;
-    icon: string;
-    className: string;
-    titleId: string;
-    defaultTitle: string;
-    descriptionId: string;
-    defaultDescription: string;
-    emptyId: string;
-    defaultEmpty: string;
-    titleLabelId: string;
-    defaultTitleLabel: string;
-    subtitleLabelId: string;
-    defaultSubtitleLabel: string;
-    metaLabelId: string;
-    defaultMetaLabel: string;
-    detailLabelId: string;
-    defaultDetailLabel: string;
-    titlePlaceholder: string;
-    subtitlePlaceholder: string;
-    metaPlaceholder: string;
-    detailPlaceholder: string;
+type AvatarCropDraft = {
+    file: File;
+    src: string;
 };
 
-type AcademicEntryDialogState = {
-    sectionId: AcademicSectionId;
-    index: number | null;
-    draft: IuinAcademicEntry;
+type AvatarCropOffset = {
+    x: number;
+    y: number;
+};
+
+type AvatarCropDragState = {
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
 };
 
 type VisualWidgetDialogType = 'skill-icons' | 'shields-badge';
@@ -270,6 +259,10 @@ const VISUAL_DELETE_HANDLE_OFFSET = 2;
 const VISUAL_FLOW_BLOCK_GAP = 14;
 const VISUAL_FLOW_BLOCK_COLLISION_RANGE = 6;
 const VISUAL_PREVIEW_MIN_HEIGHT = 394;
+const AVATAR_CROP_STAGE_WIDTH = 414;
+const AVATAR_CROP_STAGE_HEIGHT = 300;
+const AVATAR_CROP_SIZE = 292;
+const AVATAR_CROP_OUTPUT_SIZE = 512;
 
 const SKILL_ICON_OPTIONS: SkillIconOption[] = [
     {id: 'py', label: 'Python'},
@@ -338,115 +331,12 @@ const CONTACT_BADGE_OPTIONS: ContactBadgeOption[] = [{
     placeholder: 'username',
 }];
 
-const HOMEPAGE_SECTION_IDS: HomepageSectionId[] = ['researchFields', 'summary', 'experience', 'education', 'papers', 'awards'];
+const HOMEPAGE_SECTION_IDS: HomepageSectionId[] = ['researchFields', 'summary'];
 
 const DEFAULT_SECTION_VISIBILITY: SectionVisibility = {
     researchFields: true,
     summary: true,
-    experience: true,
-    education: true,
-    papers: true,
-    awards: true,
 };
-
-const ACADEMIC_SECTION_CONFIGS: AcademicSectionConfig[] = [{
-    id: 'experience',
-    icon: 'icon-account-outline',
-    className: 'iuin-profile-timeline-section--experience',
-    titleId: 'iuin_profile.experience',
-    defaultTitle: 'Experience',
-    descriptionId: 'iuin_profile.editor.experience_hint_long',
-    defaultDescription: 'Positions, roles, and project work shown after your summary.',
-    emptyId: 'iuin_profile.experience_empty',
-    defaultEmpty: 'No experience entries yet.',
-    titleLabelId: 'iuin_profile.editor.experience_title_label',
-    defaultTitleLabel: 'Role or title',
-    subtitleLabelId: 'iuin_profile.editor.experience_subtitle_label',
-    defaultSubtitleLabel: 'Organization',
-    metaLabelId: 'iuin_profile.editor.experience_meta_label',
-    defaultMetaLabel: 'Date range',
-    detailLabelId: 'iuin_profile.editor.experience_detail_label',
-    defaultDetailLabel: 'Description',
-    titlePlaceholder: 'Director of Cloud Infrastructure',
-    subtitlePlaceholder: 'GenCoin',
-    metaPlaceholder: 'January 2021 - Present',
-    detailPlaceholder: 'Led cloud architecture and research platform operations.',
-}, {
-    id: 'education',
-    icon: 'icon-book-outline',
-    className: 'iuin-profile-timeline-section--education',
-    titleId: 'iuin_profile.education',
-    defaultTitle: 'Education',
-    descriptionId: 'iuin_profile.editor.education_hint_long',
-    defaultDescription: 'Degrees, schools, thesis work, and academic background.',
-    emptyId: 'iuin_profile.education_empty',
-    defaultEmpty: 'No education entries yet.',
-    titleLabelId: 'iuin_profile.editor.education_title_label',
-    defaultTitleLabel: 'Degree',
-    subtitleLabelId: 'iuin_profile.editor.education_subtitle_label',
-    defaultSubtitleLabel: 'Institution',
-    metaLabelId: 'iuin_profile.editor.education_meta_label',
-    defaultMetaLabel: 'Date range',
-    detailLabelId: 'iuin_profile.editor.education_detail_label',
-    defaultDetailLabel: 'Description',
-    titlePlaceholder: 'PhD Artificial Intelligence',
-    subtitlePlaceholder: 'Stanford University',
-    metaPlaceholder: 'January 2016 - December 2020',
-    detailPlaceholder: 'Thesis on trustworthy multimodal intelligence.',
-}, {
-    id: 'papers',
-    icon: 'icon-file-text-outline',
-    className: 'iuin-profile-timeline-section--papers',
-    titleId: 'iuin_profile.papers',
-    defaultTitle: 'Paper',
-    descriptionId: 'iuin_profile.editor.papers_hint_long',
-    defaultDescription: 'Representative publications, venues, authorship notes, and links.',
-    emptyId: 'iuin_profile.papers_empty',
-    defaultEmpty: 'No paper entries yet.',
-    titleLabelId: 'iuin_profile.editor.papers_title_label',
-    defaultTitleLabel: 'Paper title',
-    subtitleLabelId: 'iuin_profile.editor.papers_subtitle_label',
-    defaultSubtitleLabel: 'Venue or authors',
-    metaLabelId: 'iuin_profile.editor.papers_meta_label',
-    defaultMetaLabel: 'Note',
-    detailLabelId: 'iuin_profile.editor.papers_detail_label',
-    defaultDetailLabel: 'URL or detail',
-    titlePlaceholder: 'Graph Reasoning for Collaborative Intelligence',
-    subtitlePlaceholder: 'ICML 2024',
-    metaPlaceholder: 'Best paper finalist',
-    detailPlaceholder: 'https://example.com/paper',
-}, {
-    id: 'awards',
-    icon: 'icon-crown-outline',
-    className: 'iuin-profile-timeline-section--awards',
-    titleId: 'iuin_profile.awards',
-    defaultTitle: 'Awards',
-    descriptionId: 'iuin_profile.editor.awards_hint_long',
-    defaultDescription: 'Honors, grants, recognitions, and award history.',
-    emptyId: 'iuin_profile.awards_empty',
-    defaultEmpty: 'No award entries yet.',
-    titleLabelId: 'iuin_profile.editor.awards_title_label',
-    defaultTitleLabel: 'Award',
-    subtitleLabelId: 'iuin_profile.editor.awards_subtitle_label',
-    defaultSubtitleLabel: 'Issuer',
-    metaLabelId: 'iuin_profile.editor.awards_meta_label',
-    defaultMetaLabel: 'Year',
-    detailLabelId: 'iuin_profile.editor.awards_detail_label',
-    defaultDetailLabel: 'Description',
-    titlePlaceholder: 'Outstanding Research Award',
-    subtitlePlaceholder: 'School of Artificial Intelligence',
-    metaPlaceholder: '2025',
-    detailPlaceholder: 'Recognized for research contributions.',
-}];
-
-function getEmptyAcademicEntry(): IuinAcademicEntry {
-    return {
-        title: '',
-        subtitle: '',
-        meta: '',
-        link: '',
-    };
-}
 
 function parseSectionVisibility(value: string): SectionVisibility {
     const visibility = {...DEFAULT_SECTION_VISIBILITY};
@@ -516,6 +406,78 @@ async function fetchIuinProfileSettings(): Promise<IuinProfileSettingsResponse> 
     return response.json();
 }
 
+async function saveIuinReadmeWorkspaceToBackend(userId: string, workspace: IuinReadmeWorkspace): Promise<IuinReadmeWorkspace> {
+    const response = await fetch(`${Client4.getUserRoute(userId)}/iuin_profile/workspace`, Client4.getOptions({
+        method: 'PUT',
+        body: JSON.stringify(workspace),
+    }));
+
+    if (!response.ok) {
+        let message = response.statusText;
+        try {
+            const body = await response.json();
+            message = body.message || message;
+        } catch {
+            // Keep the HTTP status text when the server does not return JSON.
+        }
+
+        throw new Error(message);
+    }
+
+    return response.json();
+}
+
+async function loadIuinReadmeWorkspaceFromBackend(userId: string): Promise<IuinReadmeWorkspace> {
+    const response = await fetch(`${Client4.getUserRoute(userId)}/iuin_profile/workspace`, Client4.getOptions({
+        method: 'GET',
+    }));
+
+    if (!response.ok) {
+        let message = response.statusText;
+        try {
+            const body = await response.json();
+            message = body.message || message;
+        } catch {
+            // Keep the HTTP status text when the server does not return JSON.
+        }
+
+        throw new Error(message);
+    }
+
+    const body = await response.json();
+
+    return parseIuinReadmeWorkspace(JSON.stringify(body), '', body.rootName);
+}
+
+function IuinProfileToastStack({toasts}: {toasts: ProfileToast[]}) {
+    if (toasts.length === 0 || typeof document === 'undefined') {
+        return null;
+    }
+
+    return createPortal((
+        <div className='iuin-profile-editor__toast-stack'>
+            {toasts.map((toast) => (
+                <div
+                    key={toast.id}
+                    className={`iuin-profile-editor__toast iuin-profile-editor__toast--${toast.type}`}
+                    role={toast.type === 'error' ? 'alert' : 'status'}
+                    aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+                >
+                    <span
+                        className='iuin-profile-editor__toast-icon'
+                        aria-hidden='true'
+                    >
+                        <i className={`icon ${toast.type === 'error' ? 'icon-alert-outline' : 'icon-check'}`}/>
+                    </span>
+                    <span className='iuin-profile-editor__toast-copy'>
+                        {toast.text}
+                    </span>
+                </div>
+            ))}
+        </div>
+    ), document.body);
+}
+
 function getSessionDeviceLabel(session: Session): string {
     const browser = session.props?.browser;
     const os = session.props?.os;
@@ -544,25 +506,12 @@ function getAuthServiceLabel(authService: string): string {
     }
 }
 
-function getEditorSectionFromLocation(location: Props['location']): EditorSection {
-    if (location.pathname.endsWith('/edit/readme')) {
-        return 'advanced';
-    }
-
-    const section = new URLSearchParams(location.search).get('section');
-    if (section === 'advanced' || section === 'account' || section === 'security') {
-        return section;
-    }
-
-    return 'homepage';
+function getEditorSectionFromLocation(_location: Props['location']): EditorSection {
+    return 'advanced';
 }
 
-function getEditorSectionUrl(username: string, section: EditorSection) {
-    if (section === 'homepage') {
-        return `/u/${username}/edit`;
-    }
-
-    return `/u/${username}/edit?section=${section}`;
+function getEditorSectionUrl(username: string, _section: EditorSection) {
+    return `/u/${username}/edit`;
 }
 
 function getEditorSectionEyebrow(section: EditorSection) {
@@ -698,22 +647,126 @@ export default function IuinProfilePage({match, location}: Props) {
     );
 }
 
+function getAvatarCropBaseScale(naturalWidth: number, naturalHeight: number): number {
+    if (!naturalWidth || !naturalHeight) {
+        return 1;
+    }
+
+    return Math.max(
+        AVATAR_CROP_STAGE_WIDTH / naturalWidth,
+        AVATAR_CROP_STAGE_HEIGHT / naturalHeight,
+        AVATAR_CROP_SIZE / naturalWidth,
+        AVATAR_CROP_SIZE / naturalHeight,
+    );
+}
+
+function clampAvatarCropOffset(offsetX: number, offsetY: number, naturalWidth: number, naturalHeight: number, scale: number): AvatarCropOffset {
+    if (!naturalWidth || !naturalHeight) {
+        return {x: 0, y: 0};
+    }
+
+    const displayWidth = naturalWidth * scale;
+    const displayHeight = naturalHeight * scale;
+    const cropLeft = (AVATAR_CROP_STAGE_WIDTH - AVATAR_CROP_SIZE) / 2;
+    const cropTop = (AVATAR_CROP_STAGE_HEIGHT - AVATAR_CROP_SIZE) / 2;
+    const cropRight = cropLeft + AVATAR_CROP_SIZE;
+    const cropBottom = cropTop + AVATAR_CROP_SIZE;
+    const baseLeft = (AVATAR_CROP_STAGE_WIDTH - displayWidth) / 2;
+    const baseTop = (AVATAR_CROP_STAGE_HEIGHT - displayHeight) / 2;
+    const minX = cropRight - displayWidth - baseLeft;
+    const maxX = cropLeft - baseLeft;
+    const minY = cropBottom - displayHeight - baseTop;
+    const maxY = cropTop - baseTop;
+
+    return {
+        x: Math.min(Math.max(offsetX, minX), maxX),
+        y: Math.min(Math.max(offsetY, minY), maxY),
+    };
+}
+
+async function getCroppedAvatarFile(image: HTMLImageElement, originalFile: File, offset: AvatarCropOffset, scale: number): Promise<File> {
+    const canvas = document.createElement('canvas');
+    canvas.width = AVATAR_CROP_OUTPUT_SIZE;
+    canvas.height = AVATAR_CROP_OUTPUT_SIZE;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+        throw new Error('Could not crop profile picture.');
+    }
+
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+
+    const naturalWidth = image.naturalWidth;
+    const naturalHeight = image.naturalHeight;
+    const displayWidth = naturalWidth * scale;
+    const displayHeight = naturalHeight * scale;
+    const imageLeft = (AVATAR_CROP_STAGE_WIDTH - displayWidth) / 2 + offset.x;
+    const imageTop = (AVATAR_CROP_STAGE_HEIGHT - displayHeight) / 2 + offset.y;
+    const cropLeft = (AVATAR_CROP_STAGE_WIDTH - AVATAR_CROP_SIZE) / 2;
+    const cropTop = (AVATAR_CROP_STAGE_HEIGHT - AVATAR_CROP_SIZE) / 2;
+    const sourceX = (cropLeft - imageLeft) / scale;
+    const sourceY = (cropTop - imageTop) / scale;
+    const sourceSize = AVATAR_CROP_SIZE / scale;
+
+    context.drawImage(
+        image,
+        sourceX,
+        sourceY,
+        sourceSize,
+        sourceSize,
+        0,
+        0,
+        AVATAR_CROP_OUTPUT_SIZE,
+        AVATAR_CROP_OUTPUT_SIZE,
+    );
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((nextBlob) => {
+            if (nextBlob) {
+                resolve(nextBlob);
+                return;
+            }
+
+            reject(new Error('Could not crop profile picture.'));
+        }, 'image/png');
+    });
+
+    const baseName = originalFile.name.replace(/\.[^.]+$/, '') || 'profile-picture';
+
+    return new File([blob], `${baseName}.png`, {type: 'image/png'});
+}
+
 function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boolean}) {
     const dispatch = useDispatch();
+    const intl = useIntl();
     const currentUser = useSelector(getCurrentUser);
+    const config = useSelector(getConfig);
     const profile = getIuinProfileData(user);
     const displayName = getDisplayName(user);
-    const fields = splitProfileList(profile.researchFields);
-    const experienceEntries = useMemo(() => parseIuinAcademicEntries(profile.experience), [profile.experience]);
-    const educationEntries = useMemo(() => parseIuinAcademicEntries(profile.education), [profile.education]);
-    const paperEntries = useMemo(() => parseIuinAcademicEntries(profile.papers), [profile.papers]);
-    const awardEntries = useMemo(() => parseIuinAcademicEntries(profile.awards), [profile.awards]);
+    const profileFields = useMemo(() => splitProfileList(profile.researchFields), [profile.researchFields]);
+    const [localResearchFields, setLocalResearchFields] = useState<string[] | null>(null);
+    const [researchFieldsDialogOpen, setResearchFieldsDialogOpen] = useState(false);
+    const [researchFieldsSaveState, setResearchFieldsSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+    const [researchFieldsError, setResearchFieldsError] = useState('');
+    const [avatarUploadState, setAvatarUploadState] = useState<'idle' | 'saving' | 'error'>('idle');
+    const [avatarUploadError, setAvatarUploadError] = useState('');
+    const [avatarCropDraft, setAvatarCropDraft] = useState<AvatarCropDraft | null>(null);
+    const avatarFileInputRef = useRef<HTMLInputElement>(null);
+    const fields = localResearchFields || profileFields;
     const sectionVisibility = useMemo(() => parseSectionVisibility(profile.sectionVisibility), [profile.sectionVisibility]);
     const joinedTeams = useIuinJoinedTeamLabels(user.id, Boolean(currentUser?.id));
     const avatarUrl = Client4.getProfilePictureUrl(user.id, user.last_picture_update);
+    const maxProfileImageSize = useMemo(() => {
+        const configuredMaxFileSize = parseInt(config.MaxFileSize || '', 10);
+
+        return Number.isFinite(configuredMaxFileSize) && configuredMaxFileSize > 0 ? configuredMaxFileSize : 10 * 1024 * 1024;
+    }, [config.MaxFileSize]);
     const profileInitials = getProfileInitials(displayName, user.username);
     const avatarStatus = useMemo(() => getProfileAvatarStatus(user, profile), [profile, user]);
-    const readmeWorkspace = useMemo(() => parseIuinReadmeWorkspace(profile.readmeWorkspace, profile.homepageHtml, getReadmeRootName(user)), [profile.homepageHtml, profile.readmeWorkspace, user]);
+    const fallbackReadmeWorkspace = useMemo(() => parseIuinReadmeWorkspace(profile.readmeWorkspace, profile.homepageHtml, getReadmeRootName(user)), [profile.homepageHtml, profile.readmeWorkspace, user]);
+    const [backendReadmeWorkspace, setBackendReadmeWorkspace] = useState<IuinReadmeWorkspace | null>(null);
+    const readmeWorkspace = backendReadmeWorkspace || fallbackReadmeWorkspace;
     const [overviewGithubRenderedHtml, setOverviewGithubRenderedHtml] = useState('');
     const renderedReadmeWorkspace = useMemo(() => overviewGithubRenderedHtml && !readmeWorkspace.githubRenderedHtml ? {
         ...readmeWorkspace,
@@ -725,6 +778,42 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
         month: 'short',
         year: 'numeric',
     }).format(new Date(user.create_at || Date.now()));
+
+    useEffect(() => {
+        setLocalResearchFields(null);
+    }, [profile.researchFields, user.id]);
+
+    useEffect(() => {
+        setBackendReadmeWorkspace(null);
+
+        if (!currentUser?.id) {
+            return undefined;
+        }
+
+        let cancelled = false;
+
+        loadIuinReadmeWorkspaceFromBackend(user.id).then((workspace) => {
+            if (!cancelled) {
+                setBackendReadmeWorkspace(workspace);
+            }
+        }).catch(() => {
+            if (!cancelled) {
+                setBackendReadmeWorkspace(null);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentUser?.id, user.id]);
+
+    useEffect(() => {
+        return () => {
+            if (avatarCropDraft?.src) {
+                URL.revokeObjectURL(avatarCropDraft.src);
+            }
+        };
+    }, [avatarCropDraft?.src]);
 
     useEffect(() => {
         if (avatarStatus?.emoji) {
@@ -741,6 +830,139 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
             dialogType: CustomStatusModal,
         }));
     }, [dispatch]);
+
+    const openAvatarUploadPicker = useCallback(() => {
+        if (!canEdit || avatarUploadState === 'saving') {
+            return;
+        }
+
+        setAvatarUploadError('');
+        avatarFileInputRef.current?.click();
+    }, [avatarUploadState, canEdit]);
+
+    const handleAvatarFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+
+        if (!file || !canEdit) {
+            return;
+        }
+
+        if (!AcceptedProfileImageTypes.includes(file.type)) {
+            setAvatarUploadState('error');
+            setAvatarUploadError(intl.formatMessage({
+                id: 'user.settings.general.validImage',
+                defaultMessage: 'Only BMP, JPG or PNG images may be used for profile pictures',
+            }));
+            return;
+        }
+
+        if (file.size > maxProfileImageSize) {
+            setAvatarUploadState('error');
+            setAvatarUploadError(intl.formatMessage({
+                id: 'user.settings.general.imageTooLarge',
+                defaultMessage: 'Unable to upload profile image. File is too large.',
+            }));
+            return;
+        }
+
+        setAvatarUploadState('idle');
+        setAvatarUploadError('');
+        setAvatarCropDraft((previous) => {
+            if (previous?.src) {
+                URL.revokeObjectURL(previous.src);
+            }
+
+            return {
+                file,
+                src: URL.createObjectURL(file),
+            };
+        });
+    }, [canEdit, intl, maxProfileImageSize]);
+
+    const closeAvatarCropDialog = useCallback(() => {
+        if (avatarUploadState === 'saving') {
+            return;
+        }
+
+        setAvatarCropDraft(null);
+        setAvatarUploadError('');
+        setAvatarUploadState('idle');
+    }, [avatarUploadState]);
+
+    const uploadCroppedAvatar = useCallback(async (file: File) => {
+        if (!currentUser || !canEdit) {
+            return;
+        }
+
+        setAvatarUploadState('saving');
+        setAvatarUploadError('');
+
+        const result = await dispatch(uploadProfileImage(currentUser.id, file) as any) as any;
+        if (result.error) {
+            setAvatarUploadState('error');
+            setAvatarUploadError(result.error.message || intl.formatMessage({
+                id: 'iuin_profile.avatar_upload_error',
+                defaultMessage: 'Could not upload avatar.',
+            }));
+            return;
+        }
+
+        setAvatarUploadState('idle');
+        setAvatarCropDraft(null);
+    }, [canEdit, currentUser, dispatch, intl]);
+
+    const openResearchFieldsDialog = useCallback(() => {
+        if (!canEdit) {
+            return;
+        }
+
+        setResearchFieldsSaveState('idle');
+        setResearchFieldsError('');
+        setResearchFieldsDialogOpen(true);
+    }, [canEdit]);
+
+    const closeResearchFieldsDialog = useCallback(() => {
+        if (researchFieldsSaveState === 'saving') {
+            return;
+        }
+
+        setResearchFieldsDialogOpen(false);
+        setResearchFieldsError('');
+    }, [researchFieldsSaveState]);
+
+    const saveResearchFields = useCallback(async (nextFields: string[]) => {
+        if (!currentUser || !canEdit) {
+            return;
+        }
+
+        const normalizedFields = nextFields.map((field) => field.trim()).filter(Boolean);
+        const nextProfile = {
+            ...profile,
+            researchFields: normalizedFields.join(', '),
+            sectionVisibility: serializeSectionVisibility({
+                ...sectionVisibility,
+                researchFields: true,
+            }),
+        };
+
+        setResearchFieldsSaveState('saving');
+        setResearchFieldsError('');
+
+        const result = await dispatch(updateMe(getProfilePatch(currentUser, nextProfile)) as any) as any;
+        if (result.error) {
+            setResearchFieldsSaveState('error');
+            setResearchFieldsError(result.error.message || intl.formatMessage({
+                id: 'iuin_profile.fields_dialog.save_error',
+                defaultMessage: 'Could not save research fields.',
+            }));
+            return;
+        }
+
+        setLocalResearchFields(normalizedFields);
+        setResearchFieldsSaveState('saved');
+        setResearchFieldsDialogOpen(false);
+    }, [canEdit, currentUser, dispatch, intl, profile, sectionVisibility]);
 
     const avatarStatusClassName = `iuin-profile-avatar-status${avatarStatus?.text ? ' iuin-profile-avatar-status--has-text' : ''}${canEdit ? ' iuin-profile-avatar-status--clickable' : ''}`;
     const avatarStatusLabel = avatarStatus?.text || (canEdit ? 'Set status' : undefined);
@@ -804,10 +1026,11 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
     }, [readmeWorkspace.githubRenderedHtml, readmeWorkspace.rootName]);
 
     return (
-        <main className='iuin-profile-shell iuin-profile-display'>
-            <div className='iuin-profile-shell__layout'>
-                <aside className='iuin-profile-academic-sidebar iuin-profile-hui-card iuin-profile-hui-card--profile'>
-                    <div className={`iuin-profile-hui-avatar iuin-profile-hui-avatar--xl${avatarStatus ? ' iuin-profile-hui-avatar--with-status' : ''}`}>
+        <>
+            <main className='iuin-profile-shell iuin-profile-display'>
+                <div className='iuin-profile-shell__layout'>
+                    <aside className='iuin-profile-academic-sidebar iuin-profile-hui-card iuin-profile-hui-card--profile'>
+                    <div className={`iuin-profile-hui-avatar iuin-profile-hui-avatar--xl${avatarStatus ? ' iuin-profile-hui-avatar--with-status' : ''}${canEdit ? ' iuin-profile-hui-avatar--editable' : ''}`}>
                         <span
                             className='iuin-profile-hui-avatar__fallback'
                             aria-hidden='true'
@@ -822,6 +1045,42 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                                 event.currentTarget.style.display = 'none';
                             }}
                         />
+                        {canEdit && (
+                            <>
+                                <input
+                                    ref={avatarFileInputRef}
+                                    className='iuin-profile-avatar-upload__input'
+                                    type='file'
+                                    accept='image/bmp,image/jpeg,image/png'
+                                    onChange={handleAvatarFileChange}
+                                />
+                                <button
+                                    type='button'
+                                    className='iuin-profile-avatar-upload'
+                                    disabled={avatarUploadState === 'saving'}
+                                    aria-label={intl.formatMessage({
+                                        id: 'iuin_profile.avatar_upload',
+                                        defaultMessage: 'Upload avatar',
+                                    })}
+                                    onClick={openAvatarUploadPicker}
+                                >
+                                    <i className={`icon ${avatarUploadState === 'saving' ? 'icon-loading icon-spin' : 'icon-pencil-outline'}`}/>
+                                    <span>
+                                        {avatarUploadState === 'saving' ? (
+                                            <FormattedMessage
+                                                id='iuin_profile.avatar_uploading'
+                                                defaultMessage='Uploading'
+                                            />
+                                        ) : (
+                                            <FormattedMessage
+                                                id='iuin_profile.avatar_upload'
+                                                defaultMessage='Upload avatar'
+                                            />
+                                        )}
+                                    </span>
+                                </button>
+                            </>
+                        )}
                         {avatarStatus && canEdit && (
                             <button
                                 type='button'
@@ -843,6 +1102,11 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                             </span>
                         )}
                     </div>
+                    {canEdit && avatarUploadError && !avatarCropDraft && (
+                        <p className='iuin-profile-avatar-upload__error'>
+                            {avatarUploadError}
+                        </p>
+                    )}
                     <div className='iuin-profile-academic-sidebar__identity'>
                         <h1>{displayName}</h1>
                         <div className='iuin-profile-academic-sidebar__username'>{`@${user.username}`}</div>
@@ -852,24 +1116,48 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                             </p>
                         )}
                     </div>
-                    {sectionVisibility.researchFields && (
-                        <section className='iuin-profile-academic-sidebar__module'>
-                            <h2>
-                                <FormattedMessage
-                                    id='iuin_profile.editor.fields'
-                                    defaultMessage='Research fields'
-                                />
-                            </h2>
+                    {(sectionVisibility.researchFields || canEdit) && (
+                        <section className='iuin-profile-academic-sidebar__module iuin-profile-academic-sidebar__module--research-fields'>
+                            <div className='iuin-profile-academic-sidebar__module-heading'>
+                                <h2>
+                                    <FormattedMessage
+                                        id='iuin_profile.editor.fields'
+                                        defaultMessage='Research fields'
+                                    />
+                                </h2>
+                                {canEdit && (
+                                    <button
+                                        type='button'
+                                        className='iuin-profile-research-fields-edit'
+                                        aria-label={intl.formatMessage({
+                                            id: 'iuin_profile.fields_dialog.open',
+                                            defaultMessage: 'Edit research fields',
+                                        })}
+                                        onClick={openResearchFieldsDialog}
+                                    >
+                                        <i className='icon icon-pencil-outline'/>
+                                    </button>
+                                )}
+                            </div>
                             {fields.length > 0 ? (
                                 <div className='iuin-profile-academic-sidebar__chips'>
-                                    {fields.map((field) => (
+                                    {fields.map((field, index) => (canEdit ? (
+                                        <button
+                                            key={`${field}-${index}`}
+                                            type='button'
+                                            className='iuin-profile-hui-chip iuin-profile-hui-chip--accent iuin-profile-hui-chip--soft iuin-profile-research-field-chip'
+                                            onClick={openResearchFieldsDialog}
+                                        >
+                                            {field}
+                                        </button>
+                                    ) : (
                                         <span
-                                            key={field}
+                                            key={`${field}-${index}`}
                                             className='iuin-profile-hui-chip iuin-profile-hui-chip--accent iuin-profile-hui-chip--soft'
                                         >
                                             {field}
                                         </span>
-                                    ))}
+                                    )))}
                                 </div>
                             ) : (
                                 <p className='iuin-profile-academic-sidebar__empty'>
@@ -944,8 +1232,8 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                             />
                         </li>
                     </ul>
-                </aside>
-                <section className='iuin-profile-academic-main'>
+                    </aside>
+                    <section className='iuin-profile-academic-main'>
                     {sectionVisibility.summary && readmeHtml.trim() && (
                         <section className='iuin-profile-acv-summary iuin-profile-hui-card iuin-profile-hui-card--summary'>
                             <div className='iuin-profile-readme-card-title'>
@@ -959,181 +1247,492 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                             </div>
                         </section>
                     )}
-                    {sectionVisibility.experience && experienceEntries.length > 0 && (
-                        <IuinTimelineSection
-                            className='iuin-profile-timeline-section--experience'
-                            icon='icon-account-outline'
-                            entries={experienceEntries}
-                            title={(
-                                <FormattedMessage
-                                    id='iuin_profile.experience'
-                                    defaultMessage='Experience'
-                                />
-                            )}
-                            empty={(
-                                <FormattedMessage
-                                    id='iuin_profile.experience_empty'
-                                    defaultMessage='No experience entries yet.'
-                                />
-                            )}
-                        />
-                    )}
-                    {sectionVisibility.education && educationEntries.length > 0 && (
-                        <IuinTimelineSection
-                            className='iuin-profile-timeline-section--education'
-                            icon='icon-book-outline'
-                            entries={educationEntries}
-                            title={(
-                                <FormattedMessage
-                                    id='iuin_profile.education'
-                                    defaultMessage='Education'
-                                />
-                            )}
-                            empty={(
-                                <FormattedMessage
-                                    id='iuin_profile.education_empty'
-                                    defaultMessage='No education entries yet.'
-                                />
-                            )}
-                        />
-                    )}
-                    {sectionVisibility.papers && paperEntries.length > 0 && (
-                        <IuinTimelineSection
-                            className='iuin-profile-timeline-section--papers'
-                            icon='icon-file-text-outline'
-                            entries={paperEntries}
-                            title={(
-                                <FormattedMessage
-                                    id='iuin_profile.papers'
-                                    defaultMessage='Paper'
-                                />
-                            )}
-                            empty={(
-                                <FormattedMessage
-                                    id='iuin_profile.papers_empty'
-                                    defaultMessage='No paper entries yet.'
-                                />
-                            )}
-                        />
-                    )}
-                    {sectionVisibility.awards && awardEntries.length > 0 && (
-                        <IuinTimelineSection
-                            className='iuin-profile-timeline-section--awards'
-                            icon='icon-crown-outline'
-                            entries={awardEntries}
-                            title={(
-                                <FormattedMessage
-                                    id='iuin_profile.awards'
-                                    defaultMessage='Awards'
-                                />
-                            )}
-                            empty={(
-                                <FormattedMessage
-                                    id='iuin_profile.awards_empty'
-                                    defaultMessage='No award entries yet.'
-                                />
-                            )}
-                        />
-                    )}
-                </section>
-            </div>
-        </main>
-    );
-}
-
-function IuinTimelineSection({
-    className,
-    icon,
-    entries,
-    title,
-    empty,
-}: {
-    className: string;
-    icon: string;
-    entries: ReturnType<typeof parseIuinAcademicEntries>;
-    title: React.ReactNode;
-    empty: React.ReactNode;
-}) {
-    return (
-        <section className={`iuin-profile-timeline-section iuin-profile-hui-section ${className}`}>
-            <div className='iuin-profile-hui-section__header'>
-                <h2>{title}</h2>
-            </div>
-            {entries.length > 0 ? (
-                <div className='iuin-profile-timeline'>
-                    {entries.map((entry) => {
-                        const safeLink = getSafeAcademicLink(entry.link);
-                        const heading = getAcademicEntryHeading(entry);
-                        const entryKey = [entry.title, entry.subtitle, entry.meta, entry.link].join('-');
-                        const detail = safeLink ? '' : entry.link;
-
-                        return (
-                            <article
-                                key={entryKey}
-                                className='iuin-profile-timeline__item iuin-profile-hui-card iuin-profile-hui-card--timeline-item'
-                            >
-                                <span className='iuin-profile-timeline__marker'>
-                                    <i className={`icon ${icon}`}/>
-                                </span>
-                                <div className='iuin-profile-timeline__content iuin-profile-hui-card__content'>
-                                    <div className='iuin-profile-timeline__headline'>
-                                        <h3>
-                                            {safeLink ? (
-                                                <ExternalLink
-                                                    href={safeLink}
-                                                    location='iuin_profile_timeline_entry'
-                                                >
-                                                    {heading}
-                                                </ExternalLink>
-                                            ) : heading}
-                                        </h3>
-                                        {entry.meta && (
-                                            <span>
-                                                <i className='icon icon-calendar-outline'/>
-                                                {entry.meta}
-                                            </span>
-                                        )}
-                                    </div>
-                                    {detail && <p>{detail}</p>}
-                                </div>
-                            </article>
-                        );
-                    })}
+                    </section>
                 </div>
-            ) : (
-                <p className='iuin-profile-acv-empty'>{empty}</p>
-            )}
-        </section>
+            </main>
+            {avatarCropDraft && typeof document !== 'undefined' && createPortal((
+                <IuinAvatarCropDialog
+                    file={avatarCropDraft.file}
+                    src={avatarCropDraft.src}
+                    saving={avatarUploadState === 'saving'}
+                    error={avatarUploadError}
+                    onClose={closeAvatarCropDialog}
+                    onSave={uploadCroppedAvatar}
+                />
+            ), document.body)}
+            {researchFieldsDialogOpen && typeof document !== 'undefined' && createPortal((
+                <IuinResearchFieldsDialog
+                    fields={fields}
+                    saving={researchFieldsSaveState === 'saving'}
+                    error={researchFieldsError}
+                    onClose={closeResearchFieldsDialog}
+                    onSave={saveResearchFields}
+                />
+            ), document.body)}
+        </>
     );
 }
 
-function getAcademicEntryHeading(entry: IuinAcademicEntry): string {
-    return [entry.title, entry.subtitle].
-        map((value) => value.trim()).
-        filter(Boolean).
-        join(' | ');
-}
+function IuinAvatarCropDialog({
+    file,
+    src,
+    saving,
+    error,
+    onClose,
+    onSave,
+}: {
+    file: File;
+    src: string;
+    saving: boolean;
+    error: string;
+    onClose: () => void;
+    onSave: (file: File) => Promise<void> | void;
+}) {
+    const intl = useIntl();
+    const imageRef = useRef<HTMLImageElement>(null);
+    const [naturalSize, setNaturalSize] = useState({width: 0, height: 0});
+    const [zoom, setZoom] = useState(1);
+    const [offset, setOffset] = useState<AvatarCropOffset>({x: 0, y: 0});
+    const [dragState, setDragState] = useState<AvatarCropDragState | null>(null);
+    const [localError, setLocalError] = useState('');
+    const baseScale = useMemo(() => getAvatarCropBaseScale(naturalSize.width, naturalSize.height), [naturalSize.height, naturalSize.width]);
+    const displayScale = baseScale * zoom;
+    const displayWidth = naturalSize.width * displayScale;
+    const displayHeight = naturalSize.height * displayScale;
+    const imageLeft = (AVATAR_CROP_STAGE_WIDTH - displayWidth) / 2 + offset.x;
+    const imageTop = (AVATAR_CROP_STAGE_HEIGHT - displayHeight) / 2 + offset.y;
 
-function IuinAcademicSectionHeading({icon, title}: {icon: string; title: React.ReactNode}) {
+    const clampOffset = useCallback((nextOffsetX: number, nextOffsetY: number, nextZoom = zoom) => {
+        return clampAvatarCropOffset(nextOffsetX, nextOffsetY, naturalSize.width, naturalSize.height, baseScale * nextZoom);
+    }, [baseScale, naturalSize.height, naturalSize.width, zoom]);
+
+    const handleImageLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
+        const nextNaturalSize = {
+            width: event.currentTarget.naturalWidth,
+            height: event.currentTarget.naturalHeight,
+        };
+        const nextBaseScale = getAvatarCropBaseScale(nextNaturalSize.width, nextNaturalSize.height);
+
+        setNaturalSize(nextNaturalSize);
+        setZoom(1);
+        setOffset(clampAvatarCropOffset(0, 0, nextNaturalSize.width, nextNaturalSize.height, nextBaseScale));
+    }, []);
+
+    const startDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+        if (saving || !naturalSize.width || !naturalSize.height) {
+            return;
+        }
+
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setDragState({
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            originX: offset.x,
+            originY: offset.y,
+        });
+    }, [naturalSize.height, naturalSize.width, offset.x, offset.y, saving]);
+
+    const moveDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+        if (!dragState || dragState.pointerId !== event.pointerId) {
+            return;
+        }
+
+        const nextOffset = clampOffset(
+            dragState.originX + event.clientX - dragState.startX,
+            dragState.originY + event.clientY - dragState.startY,
+        );
+
+        setOffset(nextOffset);
+    }, [clampOffset, dragState]);
+
+    const stopDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+        if (!dragState || dragState.pointerId !== event.pointerId) {
+            return;
+        }
+
+        setDragState(null);
+    }, [dragState]);
+
+    const handleZoomChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+        const nextZoom = Number(event.target.value);
+
+        setZoom(nextZoom);
+        setOffset((previous) => clampOffset(previous.x, previous.y, nextZoom));
+    }, [clampOffset]);
+
+    const saveCroppedAvatar = useCallback(async () => {
+        if (!imageRef.current || !naturalSize.width || !naturalSize.height) {
+            return;
+        }
+
+        try {
+            setLocalError('');
+            const croppedFile = await getCroppedAvatarFile(imageRef.current, file, offset, displayScale);
+            await onSave(croppedFile);
+        } catch (cropError) {
+            setLocalError(cropError instanceof Error ? cropError.message : intl.formatMessage({
+                id: 'iuin_profile.avatar_crop_error',
+                defaultMessage: 'Could not crop profile picture.',
+            }));
+        }
+    }, [displayScale, file, intl, naturalSize.height, naturalSize.width, offset, onSave]);
+
     return (
-        <div className='iuin-profile-acv-heading iuin-profile-hui-card__header'>
-            <span className='iuin-profile-acv-heading__icon'>
-                <i className={`icon ${icon}`}/>
-            </span>
-            <h2>{title}</h2>
+        <div className='iuin-profile-avatar-crop-dialog__backdrop'>
+            <section
+                className='iuin-profile-avatar-crop-dialog'
+                role='dialog'
+                aria-modal='true'
+                aria-labelledby='iuin-profile-avatar-crop-dialog-title'
+            >
+                <div className='iuin-profile-avatar-crop-dialog__header'>
+                    <h2 id='iuin-profile-avatar-crop-dialog-title'>
+                        <FormattedMessage
+                            id='iuin_profile.avatar_crop_title'
+                            defaultMessage='Crop your new profile picture'
+                        />
+                    </h2>
+                    <button
+                        type='button'
+                        className='iuin-profile-avatar-crop-dialog__close'
+                        disabled={saving}
+                        aria-label={intl.formatMessage({
+                            id: 'iuin_profile.editor.section_dialog_close',
+                            defaultMessage: 'Close dialog',
+                        })}
+                        onClick={onClose}
+                    >
+                        <i className='icon icon-close'/>
+                    </button>
+                </div>
+                <div className='iuin-profile-avatar-crop-dialog__body'>
+                    <div
+                        className={`iuin-profile-avatar-crop-dialog__stage${dragState ? ' iuin-profile-avatar-crop-dialog__stage--dragging' : ''}`}
+                        onPointerDown={startDrag}
+                        onPointerMove={moveDrag}
+                        onPointerUp={stopDrag}
+                        onPointerCancel={stopDrag}
+                    >
+                        <img
+                            ref={imageRef}
+                            className='iuin-profile-avatar-crop-dialog__image'
+                            src={src}
+                            alt=''
+                            draggable={false}
+                            style={{
+                                width: `${displayWidth || AVATAR_CROP_STAGE_WIDTH}px`,
+                                height: `${displayHeight || AVATAR_CROP_STAGE_HEIGHT}px`,
+                                left: `${naturalSize.width ? imageLeft : 0}px`,
+                                top: `${naturalSize.height ? imageTop : 0}px`,
+                            }}
+                            onLoad={handleImageLoad}
+                        />
+                        <span
+                            className='iuin-profile-avatar-crop-dialog__mask'
+                            aria-hidden={true}
+                        />
+                    </div>
+                    <input
+                        className='iuin-profile-avatar-crop-dialog__zoom'
+                        type='range'
+                        min='1'
+                        max='3'
+                        step='0.01'
+                        value={zoom}
+                        disabled={saving || !naturalSize.width}
+                        aria-label={intl.formatMessage({
+                            id: 'iuin_profile.avatar_crop_zoom',
+                            defaultMessage: 'Zoom profile picture',
+                        })}
+                        onChange={handleZoomChange}
+                    />
+                    {(error || localError) && (
+                        <p className='iuin-profile-avatar-crop-dialog__error'>
+                            {error || localError}
+                        </p>
+                    )}
+                </div>
+                <div className='iuin-profile-avatar-crop-dialog__actions'>
+                    <button
+                        type='button'
+                        className='iuin-profile-avatar-crop-dialog__button'
+                        disabled={saving}
+                        onClick={onClose}
+                    >
+                        <FormattedMessage
+                            id='iuin_profile.editor.cancel'
+                            defaultMessage='Cancel'
+                        />
+                    </button>
+                    <button
+                        type='button'
+                        className='iuin-profile-avatar-crop-dialog__button'
+                        disabled={saving || !naturalSize.width}
+                        onClick={saveCroppedAvatar}
+                    >
+                        {saving ? (
+                            <FormattedMessage
+                                id='iuin_profile.avatar_uploading'
+                                defaultMessage='Uploading'
+                            />
+                        ) : (
+                            <FormattedMessage
+                                id='iuin_profile.avatar_crop_save'
+                                defaultMessage='Set new profile picture'
+                            />
+                        )}
+                    </button>
+                </div>
+            </section>
         </div>
     );
 }
 
-function getSafeAcademicLink(link: string): string {
-    const value = link.trim();
-    const normalized = value.toLowerCase();
+function IuinResearchFieldsDialog({
+    fields,
+    saving,
+    error,
+    onClose,
+    onSave,
+}: {
+    fields: string[];
+    saving: boolean;
+    error: string;
+    onClose: () => void;
+    onSave: (fields: string[]) => void;
+}) {
+    const intl = useIntl();
+    const [draftFields, setDraftFields] = useState(fields);
+    const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null);
+    const [researchFieldDraft, setResearchFieldDraft] = useState('');
 
-    if (normalized.startsWith('https://') || normalized.startsWith('http://') || normalized.startsWith('/') || normalized.startsWith('#')) {
-        return value;
-    }
+    useEffect(() => {
+        setDraftFields(fields);
+        setEditingFieldIndex(null);
+        setResearchFieldDraft('');
+    }, [fields]);
 
-    return '';
+    const getCommittedFields = useCallback(() => {
+        const nextFields = [...draftFields];
+        const value = researchFieldDraft.trim();
+
+        if (editingFieldIndex !== null && value) {
+            if (editingFieldIndex >= nextFields.length) {
+                nextFields.push(value);
+            } else {
+                nextFields[editingFieldIndex] = value;
+            }
+        }
+
+        return nextFields.map((field) => field.trim()).filter(Boolean);
+    }, [draftFields, editingFieldIndex, researchFieldDraft]);
+
+    const commitResearchField = useCallback(() => {
+        setDraftFields(getCommittedFields());
+        setEditingFieldIndex(null);
+        setResearchFieldDraft('');
+    }, [getCommittedFields]);
+
+    const startAddingResearchField = useCallback(() => {
+        setEditingFieldIndex(draftFields.length);
+        setResearchFieldDraft('');
+    }, [draftFields.length]);
+
+    const startEditingResearchField = useCallback((index: number) => {
+        setEditingFieldIndex(index);
+        setResearchFieldDraft(draftFields[index] || '');
+    }, [draftFields]);
+
+    const removeResearchField = useCallback((index: number) => {
+        setDraftFields((previous) => previous.filter((_, fieldIndex) => fieldIndex !== index));
+        setEditingFieldIndex((previous) => {
+            if (previous === null || previous === index) {
+                return null;
+            }
+
+            return previous > index ? previous - 1 : previous;
+        });
+    }, []);
+
+    const handleResearchFieldKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            commitResearchField();
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            setEditingFieldIndex(null);
+            setResearchFieldDraft('');
+        }
+    }, [commitResearchField]);
+
+    const handleSave = useCallback(() => {
+        onSave(getCommittedFields());
+    }, [getCommittedFields, onSave]);
+
+    return (
+        <div className='iuin-profile-entry-dialog__backdrop iuin-profile-fields-dialog__backdrop'>
+            <section
+                className='iuin-profile-entry-dialog iuin-profile-fields-dialog'
+                role='dialog'
+                aria-modal='true'
+                aria-labelledby='iuin-profile-fields-dialog-title'
+            >
+                <div className='iuin-profile-entry-dialog__header'>
+                    <div>
+                        <h2 id='iuin-profile-fields-dialog-title'>
+                            <FormattedMessage
+                                id='iuin_profile.fields_dialog.title'
+                                defaultMessage='Research fields'
+                            />
+                        </h2>
+                        <span>
+                            <FormattedMessage
+                                id='iuin_profile.fields_dialog.eyebrow'
+                                defaultMessage='Edit research field cards'
+                            />
+                        </span>
+                    </div>
+                    <button
+                        type='button'
+                        className='iuin-profile-entry-dialog__close'
+                        aria-label={intl.formatMessage({
+                            id: 'iuin_profile.editor.section_dialog_close',
+                            defaultMessage: 'Close dialog',
+                        })}
+                        disabled={saving}
+                        onClick={onClose}
+                    >
+                        <i className='icon icon-close'/>
+                    </button>
+                </div>
+                <div className='iuin-profile-fields-dialog__body'>
+                    <div className='iuin-profile-editor__field-cards iuin-profile-fields-dialog__cards'>
+                        {draftFields.map((field, index) => (
+                            editingFieldIndex === index ? (
+                                <div
+                                    key={`${field}-${index}-editing`}
+                                    className='iuin-profile-editor__field-card iuin-profile-editor__field-card--editing'
+                                >
+                                    <input
+                                        autoFocus={true}
+                                        value={researchFieldDraft}
+                                        disabled={saving}
+                                        onBlur={commitResearchField}
+                                        onChange={(event) => setResearchFieldDraft(event.target.value)}
+                                        onKeyDown={handleResearchFieldKeyDown}
+                                        placeholder={intl.formatMessage({
+                                            id: 'iuin_profile.editor.fields_card_placeholder',
+                                            defaultMessage: 'Research direction',
+                                        })}
+                                    />
+                                </div>
+                            ) : (
+                                <div
+                                    key={`${field}-${index}`}
+                                    className='iuin-profile-editor__field-card'
+                                    role='button'
+                                    tabIndex={0}
+                                    onClick={() => startEditingResearchField(index)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                            event.preventDefault();
+                                            startEditingResearchField(index);
+                                        }
+                                    }}
+                                >
+                                    <span>{field}</span>
+                                    <button
+                                        type='button'
+                                        className='iuin-profile-editor__field-remove'
+                                        aria-label={intl.formatMessage({
+                                            id: 'iuin_profile.editor.fields_remove',
+                                            defaultMessage: 'Remove research field',
+                                        })}
+                                        disabled={saving}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            removeResearchField(index);
+                                        }}
+                                    >
+                                        <span aria-hidden={true}>{'×'}</span>
+                                    </button>
+                                </div>
+                            )
+                        ))}
+                        {editingFieldIndex === draftFields.length ? (
+                            <div className='iuin-profile-editor__field-card iuin-profile-editor__field-card--editing'>
+                                <input
+                                    autoFocus={true}
+                                    value={researchFieldDraft}
+                                    disabled={saving}
+                                    onBlur={commitResearchField}
+                                    onChange={(event) => setResearchFieldDraft(event.target.value)}
+                                    onKeyDown={handleResearchFieldKeyDown}
+                                    placeholder={intl.formatMessage({
+                                        id: 'iuin_profile.editor.fields_card_placeholder',
+                                        defaultMessage: 'Research direction',
+                                    })}
+                                />
+                            </div>
+                        ) : (
+                            <button
+                                type='button'
+                                className='iuin-profile-editor__field-add iuin-profile-fields-dialog__add'
+                                aria-label={intl.formatMessage({
+                                    id: 'iuin_profile.editor.fields_add',
+                                    defaultMessage: 'Add research field',
+                                })}
+                                disabled={saving}
+                                onClick={startAddingResearchField}
+                            >
+                                <span aria-hidden={true}>{'+'}</span>
+                            </button>
+                        )}
+                    </div>
+                    {error && (
+                        <p className='iuin-profile-fields-dialog__error'>
+                            {error}
+                        </p>
+                    )}
+                </div>
+                <div className='iuin-profile-entry-dialog__actions iuin-profile-fields-dialog__actions'>
+                    <button
+                        type='button'
+                        className='iuin-profile-button iuin-profile-button--subtle'
+                        disabled={saving}
+                        onClick={onClose}
+                    >
+                        <FormattedMessage
+                            id='iuin_profile.editor.cancel'
+                            defaultMessage='Cancel'
+                        />
+                    </button>
+                    <button
+                        type='button'
+                        className='iuin-profile-button'
+                        disabled={saving}
+                        onClick={handleSave}
+                    >
+                        {saving ? (
+                            <FormattedMessage
+                                id='iuin_profile.editor.saving'
+                                defaultMessage='Saving...'
+                            />
+                        ) : (
+                            <FormattedMessage
+                                id='iuin_profile.fields_dialog.save'
+                                defaultMessage='Save fields'
+                            />
+                        )}
+                    </button>
+                </div>
+            </section>
+        </div>
+    );
 }
 
 function createVisualWidgetHtml(widgetType: VisualWidgetDialogType, innerHtml: string): string {
@@ -1661,6 +2260,66 @@ function getUniqueReadmeFolderPath(files: IuinReadmeFile[], preferredPath: strin
     return candidate;
 }
 
+function isReadmePathInsideFolder(path: string, folderPath: string): boolean {
+    const normalizedPath = normalizeReadmeRelativePath(path);
+    const normalizedFolder = normalizeReadmeRelativePath(folderPath);
+
+    return Boolean(normalizedFolder) && (normalizedPath === normalizedFolder || normalizedPath.startsWith(`${normalizedFolder}/`));
+}
+
+function getReadmePathWithRenamedFolder(path: string, previousFolderPath: string, nextFolderPath: string): string {
+    const normalizedPath = normalizeReadmeRelativePath(path);
+    const normalizedPrevious = normalizeReadmeRelativePath(previousFolderPath);
+    const normalizedNext = normalizeReadmeRelativePath(nextFolderPath);
+
+    if (normalizedPath === normalizedPrevious) {
+        return normalizedNext;
+    }
+
+    if (normalizedPath.startsWith(`${normalizedPrevious}/`)) {
+        return `${normalizedNext}${normalizedPath.slice(normalizedPrevious.length)}`;
+    }
+
+    return normalizedPath;
+}
+
+function renameReadmeFolder(workspace: IuinReadmeWorkspace, previousFolderPath: string, nextFolderPath: string): IuinReadmeWorkspace {
+    const normalizedPrevious = normalizeReadmeRelativePath(previousFolderPath);
+    const normalizedNext = normalizeReadmeRelativePath(nextFolderPath);
+    if (!normalizedPrevious || !normalizedNext || normalizedPrevious === normalizedNext) {
+        return workspace;
+    }
+
+    return {
+        ...workspace,
+        activePath: isReadmePathInsideFolder(workspace.activePath, normalizedPrevious) ? getReadmePathWithRenamedFolder(workspace.activePath, normalizedPrevious, normalizedNext) : workspace.activePath,
+        files: workspace.files.map((file) => {
+            if (!isReadmePathInsideFolder(file.path, normalizedPrevious)) {
+                return file;
+            }
+
+            return {
+                ...file,
+                path: getReadmePathWithRenamedFolder(file.path, normalizedPrevious, normalizedNext),
+                updatedAt: Date.now(),
+            };
+        }),
+    };
+}
+
+function removeReadmeFolder(workspace: IuinReadmeWorkspace, folderPath: string): IuinReadmeWorkspace {
+    const normalizedFolder = normalizeReadmeRelativePath(folderPath);
+    if (!normalizedFolder) {
+        return workspace;
+    }
+
+    return {
+        ...workspace,
+        activePath: isReadmePathInsideFolder(workspace.activePath, normalizedFolder) ? IUIN_README_MAIN_FILE : workspace.activePath,
+        files: workspace.files.filter((file) => !isReadmePathInsideFolder(file.path, normalizedFolder)),
+    };
+}
+
 function getProfileInitials(displayName: string, username: string): string {
     const source = displayName.trim() || username.trim() || 'IUIN';
     const words = source.split(/\s+/).filter(Boolean);
@@ -1685,8 +2344,13 @@ function getReadmeFileIcon(file: IuinReadmeFile): string {
     return 'icon-file-generic-outline';
 }
 
-function getUploadedReadmePath(file: File): string {
+function getUploadedReadmePath(file: File, targetDirectory = ''): string {
     const safeName = file.name.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-');
+    const normalizedDirectory = normalizeReadmeRelativePath(targetDirectory);
+    if (normalizedDirectory) {
+        return `${normalizedDirectory}/${safeName}`;
+    }
+
     return file.type.startsWith('image/') ? `assets/${safeName}` : safeName;
 }
 
@@ -2257,6 +2921,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
     const intl = useIntl();
     const dispatch = useDispatch();
     const uploadInputRef = useRef<HTMLInputElement | null>(null);
+    const uploadTargetDirectoryRef = useRef('');
     const [localDraft, setLocalDraft] = useState(() => getIuinProfileData(currentUser));
     const [activePath, setActivePath] = useState(IUIN_README_MAIN_FILE);
     const [githubUrl, setGithubUrl] = useState('');
@@ -2264,6 +2929,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set(['assets', 'images', 'docs']));
+    const [folderMenuPath, setFolderMenuPath] = useState<string | null>(null);
     const hydratedGithubPreviewRootsRef = useRef<Set<string>>(new Set());
     const draft = controlledDraft || localDraft;
     const setReadmeDraft = useCallback((nextDraft: SetStateAction<IuinProfileData>) => {
@@ -2280,8 +2946,8 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
     const readmeContent = getReadmeFileContent(workspace, IUIN_README_MAIN_FILE);
     const readmeHtml = useMemo(() => renderReadmeWorkspacePreview(readmeContent, workspace), [readmeContent, workspace]);
     const fileTree = useMemo(() => createReadmeFileTree(workspace.files), [workspace.files]);
-    const readmeToasts = useMemo<Array<{id: string; type: 'error' | 'success'; text: string}>>(() => {
-        const toasts: Array<{id: string; type: 'error' | 'success'; text: string}> = [];
+    const readmeToasts = useMemo<ProfileToast[]>(() => {
+        const toasts: ProfileToast[] = [];
 
         if (error) {
             toasts.push({
@@ -2326,6 +2992,27 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
 
         return () => window.clearTimeout(timeoutId);
     }, [readmeToasts]);
+
+    useEffect(() => {
+        if (!folderMenuPath) {
+            return undefined;
+        }
+
+        const closeMenu = () => setFolderMenuPath(null);
+        const closeMenuOnEscape = (event: globalThis.KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setFolderMenuPath(null);
+            }
+        };
+
+        window.addEventListener('click', closeMenu);
+        window.addEventListener('keydown', closeMenuOnEscape);
+
+        return () => {
+            window.removeEventListener('click', closeMenu);
+            window.removeEventListener('keydown', closeMenuOnEscape);
+        };
+    }, [folderMenuPath]);
 
     const updateWorkspace = useCallback((updater: (workspace: IuinReadmeWorkspace) => IuinReadmeWorkspace) => {
         setReadmeDraft((previous) => {
@@ -2398,24 +3085,43 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         updateWorkspace((previous) => setReadmeFileContent(previous, selectedFile.path, content, selectedFile.type));
     }, [selectedFile, updateWorkspace]);
 
-    const createReadmeFile = useCallback(() => {
-        const path = getUniqueReadmePath(workspace.files, 'untitled.md');
+    const createReadmeFileInDirectory = useCallback((directory = '') => {
+        const normalizedDirectory = normalizeReadmeRelativePath(directory);
+        const preferredPath = [normalizedDirectory, 'untitled.md'].filter(Boolean).join('/');
+        const path = getUniqueReadmePath(workspace.files, preferredPath);
         updateWorkspace((previous) => setReadmeFileContent(previous, path, '', 'markdown'));
         setActivePath(path);
+        if (normalizedDirectory) {
+            setExpandedFolders((previous) => {
+                const next = new Set(previous);
+                next.add(normalizedDirectory);
+                return next;
+            });
+        }
         setNotice(intl.formatMessage({
             id: 'iuin_profile.readme.file_created',
             defaultMessage: 'New README file created.',
         }));
+        setFolderMenuPath(null);
     }, [intl, updateWorkspace, workspace.files]);
 
-    const createReadmeFolder = useCallback(() => {
-        const path = getUniqueReadmeFolderPath(workspace.files, 'new-folder');
+    const createReadmeFile = useCallback(() => {
+        createReadmeFileInDirectory();
+    }, [createReadmeFileInDirectory]);
+
+    const createReadmeFolderInDirectory = useCallback((directory = '') => {
+        const normalizedDirectory = normalizeReadmeRelativePath(directory);
+        const preferredPath = [normalizedDirectory, 'new-folder'].filter(Boolean).join('/');
+        const path = getUniqueReadmeFolderPath(workspace.files, preferredPath);
         updateWorkspace((previous) => ({
             ...setReadmeFileContent(previous, path, '', 'folder'),
             activePath: previous.activePath || IUIN_README_MAIN_FILE,
         }));
         setExpandedFolders((previous) => {
             const next = new Set(previous);
+            if (normalizedDirectory) {
+                next.add(normalizedDirectory);
+            }
             next.add(path);
             return next;
         });
@@ -2423,7 +3129,84 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
             id: 'iuin_profile.readme.folder_created',
             defaultMessage: 'New folder created.',
         }));
+        setFolderMenuPath(null);
     }, [intl, updateWorkspace, workspace.files]);
+
+    const createReadmeFolder = useCallback(() => {
+        createReadmeFolderInDirectory();
+    }, [createReadmeFolderInDirectory]);
+
+    const renameReadmeFolderAtPath = useCallback((folderPath: string) => {
+        const normalizedFolder = normalizeReadmeRelativePath(folderPath);
+        if (!normalizedFolder) {
+            return;
+        }
+
+        const currentName = getReadmeBasename(normalizedFolder);
+        const nextName = window.prompt('Rename folder', currentName);
+        if (!nextName) {
+            setFolderMenuPath(null);
+            return;
+        }
+
+        const normalizedName = normalizeReadmeRelativePath(nextName);
+        const nextBasename = getReadmeBasename(normalizedName);
+        if (!nextBasename || nextBasename === currentName) {
+            setFolderMenuPath(null);
+            return;
+        }
+
+        const parentDirectory = getReadmeDirectory(normalizedFolder);
+        const preferredPath = [parentDirectory, nextBasename].filter(Boolean).join('/');
+        const filesOutsideFolder = workspace.files.filter((file) => !isReadmePathInsideFolder(file.path, normalizedFolder));
+        const nextFolderPath = getUniqueReadmeFolderPath(filesOutsideFolder, preferredPath);
+
+        updateWorkspace((previous) => renameReadmeFolder(previous, normalizedFolder, nextFolderPath));
+        setActivePath((previous) => isReadmePathInsideFolder(previous, normalizedFolder) ? getReadmePathWithRenamedFolder(previous, normalizedFolder, nextFolderPath) : previous);
+        setExpandedFolders((previous) => {
+            const next = new Set<string>();
+            previous.forEach((path) => {
+                next.add(isReadmePathInsideFolder(path, normalizedFolder) ? getReadmePathWithRenamedFolder(path, normalizedFolder, nextFolderPath) : path);
+            });
+            next.add(nextFolderPath);
+            return next;
+        });
+        setNotice(intl.formatMessage({
+            id: 'iuin_profile.readme.folder_renamed',
+            defaultMessage: 'Folder renamed.',
+        }));
+        setFolderMenuPath(null);
+    }, [intl, updateWorkspace, workspace.files]);
+
+    const removeReadmeFolderAtPath = useCallback((folderPath: string) => {
+        const normalizedFolder = normalizeReadmeRelativePath(folderPath);
+        if (!normalizedFolder) {
+            return;
+        }
+
+        updateWorkspace((previous) => removeReadmeFolder(previous, normalizedFolder));
+        setActivePath((previous) => isReadmePathInsideFolder(previous, normalizedFolder) ? IUIN_README_MAIN_FILE : previous);
+        setExpandedFolders((previous) => {
+            const next = new Set<string>();
+            previous.forEach((path) => {
+                if (!isReadmePathInsideFolder(path, normalizedFolder)) {
+                    next.add(path);
+                }
+            });
+            return next;
+        });
+        setNotice(intl.formatMessage({
+            id: 'iuin_profile.readme.folder_deleted',
+            defaultMessage: 'Folder deleted.',
+        }));
+        setFolderMenuPath(null);
+    }, [intl, updateWorkspace]);
+
+    const uploadReadmeFileToFolder = useCallback((folderPath: string) => {
+        uploadTargetDirectoryRef.current = normalizeReadmeRelativePath(folderPath);
+        setFolderMenuPath(null);
+        uploadInputRef.current?.click();
+    }, []);
 
     const removeSelectedFile = useCallback(() => {
         if (!selectedFile || selectedFile.path === IUIN_README_MAIN_FILE) {
@@ -2433,6 +3216,12 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         updateWorkspace((previous) => removeReadmeFile(previous, selectedFile.path));
         setActivePath(IUIN_README_MAIN_FILE);
     }, [selectedFile, updateWorkspace]);
+
+    const openFolderMenu = useCallback((event: ReactMouseEvent<HTMLElement>, path: string) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setFolderMenuPath((previous) => previous === path ? null : path);
+    }, []);
 
     const toggleReadmeFolder = useCallback((path: string) => {
         setExpandedFolders((previous) => {
@@ -2451,20 +3240,50 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         const indent = 12 + depth * 17;
         if (node.type === 'folder') {
             const isExpanded = expandedFolders.has(node.path);
+            const isMenuOpen = folderMenuPath === node.path;
 
             return (
                 <React.Fragment key={`folder-${node.path}`}>
-                    <button
-                        type='button'
-                        className={`iuin-readme-workbench__tree-row iuin-readme-workbench__tree-row--folder${isExpanded ? ' expanded' : ''}`}
-                        style={{paddingLeft: `${indent}px`}}
-                        onClick={() => toggleReadmeFolder(node.path)}
-                        aria-expanded={isExpanded}
+                    <div
+                        className={`iuin-readme-workbench__tree-file-row iuin-readme-workbench__tree-folder-row${isMenuOpen ? ' menu-open' : ''}`}
+                        onContextMenu={(event) => openFolderMenu(event, node.path)}
                     >
-                        <i className={`icon ${isExpanded ? 'icon-chevron-down' : 'icon-chevron-right'} iuin-readme-workbench__tree-chevron`}/>
-                        <i className='icon icon-folder-outline'/>
-                        <span>{node.name}</span>
-                    </button>
+                        <button
+                            type='button'
+                            className={`iuin-readme-workbench__tree-row iuin-readme-workbench__tree-row--folder${isExpanded ? ' expanded' : ''}`}
+                            style={{paddingLeft: `${indent}px`}}
+                            onClick={() => toggleReadmeFolder(node.path)}
+                            aria-expanded={isExpanded}
+                        >
+                            <i className={`icon ${isExpanded ? 'icon-chevron-down' : 'icon-chevron-right'} iuin-readme-workbench__tree-chevron`}/>
+                            <i className='icon icon-folder-outline'/>
+                            <span>{node.name}</span>
+                        </button>
+                        <button
+                            type='button'
+                            className='iuin-readme-workbench__tree-menu'
+                            onClick={(event) => openFolderMenu(event, node.path)}
+                            aria-label={`Open ${node.name} folder actions`}
+                            title='Folder actions'
+                        >
+                            <i className='icon icon-dots-vertical'/>
+                        </button>
+                        {isMenuOpen && (
+                            <div
+                                className='iuin-readme-workbench__tree-context-menu'
+                                role='menu'
+                                onClick={(event) => event.stopPropagation()}
+                                onContextMenu={(event) => event.preventDefault()}
+                            >
+                                <button type='button' role='menuitem' onClick={() => renameReadmeFolderAtPath(node.path)}>{'Rename'}</button>
+                                <button type='button' role='menuitem' onClick={() => removeReadmeFolderAtPath(node.path)}>{'Delete'}</button>
+                                <span className='iuin-readme-workbench__tree-context-divider'/>
+                                <button type='button' role='menuitem' onClick={() => createReadmeFileInDirectory(node.path)}>{'New file'}</button>
+                                <button type='button' role='menuitem' onClick={() => createReadmeFolderInDirectory(node.path)}>{'New folder'}</button>
+                                <button type='button' role='menuitem' onClick={() => uploadReadmeFileToFolder(node.path)}>{'Upload'}</button>
+                            </div>
+                        )}
+                    </div>
                     {isExpanded && node.children.map((child) => renderReadmeTreeNode(child, depth + 1))}
                 </React.Fragment>
             );
@@ -2506,10 +3325,12 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 )}
             </div>
         );
-    }, [expandedFolders, selectReadmeFile, selectedFile?.path, toggleReadmeFolder]);
+    }, [createReadmeFileInDirectory, createReadmeFolderInDirectory, expandedFolders, folderMenuPath, openFolderMenu, removeReadmeFolderAtPath, renameReadmeFolderAtPath, selectReadmeFile, selectedFile?.path, toggleReadmeFolder, uploadReadmeFileToFolder]);
 
     const handleReadmeUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files || []);
+        const targetDirectory = uploadTargetDirectoryRef.current;
+        uploadTargetDirectoryRef.current = '';
         event.target.value = '';
         if (files.length === 0) {
             return;
@@ -2524,7 +3345,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                     }));
                 }
 
-                const path = getUploadedReadmePath(file);
+                const path = getUploadedReadmePath(file, targetDirectory);
                 const isImage = file.type.startsWith('image/') && !file.type.includes('svg');
                 const content = isImage ? await readFileAsDataUrl(file) : await file.text();
 
@@ -2548,6 +3369,9 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
             setActivePath(uploadedFiles[0]?.path || activePath);
             setExpandedFolders((previous) => {
                 const next = new Set(previous);
+                if (targetDirectory) {
+                    next.add(targetDirectory);
+                }
                 uploadedFiles.forEach((file) => {
                     const directory = getReadmeDirectory(file.path);
                     if (directory) {
@@ -2624,6 +3448,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 });
                 return next;
             });
+            await saveIuinReadmeWorkspaceToBackend(currentUser.id, importedWorkspace);
             const result = await dispatch(updateMe(getProfilePatch(currentUser, nextDraft)) as any) as any;
             if (result.error) {
                 const message = typeof result.error?.message === 'string' ? result.error.message : intl.formatMessage({
@@ -2773,28 +3598,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                             )}
                         </div>
                     </div>
-                    {readmeToasts.length > 0 && (
-                        <div className='iuin-profile-editor__toast-stack'>
-                            {readmeToasts.map((toast) => (
-                                <div
-                                    key={toast.id}
-                                    className={`iuin-profile-editor__toast iuin-profile-editor__toast--${toast.type}`}
-                                    role={toast.type === 'error' ? 'alert' : 'status'}
-                                    aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
-                                >
-                                    <span
-                                        className='iuin-profile-editor__toast-icon'
-                                        aria-hidden='true'
-                                    >
-                                        <i className={`icon ${toast.type === 'error' ? 'icon-alert-outline' : 'icon-check'}`}/>
-                                    </span>
-                                    <span className='iuin-profile-editor__toast-copy'>
-                                        {toast.text}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                    <IuinProfileToastStack toasts={readmeToasts}/>
                     <div className='iuin-readme-workbench__editor-shell'>
                         {selectedFile?.type === 'asset' ? (
                             <div className='iuin-readme-workbench__asset-preview'>
@@ -2851,7 +3655,6 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
     const [accountDraft, setAccountDraft] = useState(() => getAccountDraft(currentUser));
     const [passwordDraft, setPasswordDraft] = useState<PasswordDraft>(() => getEmptyPasswordDraft());
     const [passwordMessage, setPasswordMessage] = useState<PasswordMessage | null>(null);
-    const [academicDialog, setAcademicDialog] = useState<AcademicEntryDialogState | null>(null);
     const [activeTab, setActiveTab] = useState<EditorTab>('code');
     const [activeSection, setActiveSection] = useState<EditorSection>(initialSection);
     const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -2875,23 +3678,13 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
     const readmeContent = useMemo(() => getReadmeFileContent(readmeWorkspace, IUIN_README_MAIN_FILE), [readmeWorkspace]);
     const readmeHtml = useMemo(() => renderReadmeWorkspacePreview(readmeContent, readmeWorkspace), [readmeContent, readmeWorkspace]);
     const researchFields = useMemo(() => splitProfileList(draft.researchFields), [draft.researchFields]);
-    const experienceEntries = useMemo(() => parseIuinAcademicEntries(draft.experience), [draft.experience]);
-    const educationEntries = useMemo(() => parseIuinAcademicEntries(draft.education), [draft.education]);
-    const paperEntries = useMemo(() => parseIuinAcademicEntries(draft.papers), [draft.papers]);
-    const awardEntries = useMemo(() => parseIuinAcademicEntries(draft.awards), [draft.awards]);
     const sectionVisibility = useMemo(() => parseSectionVisibility(draft.sectionVisibility), [draft.sectionVisibility]);
-    const academicEntriesBySection = useMemo<Record<AcademicSectionId, IuinAcademicEntry[]>>(() => ({
-        experience: experienceEntries,
-        education: educationEntries,
-        papers: paperEntries,
-        awards: awardEntries,
-    }), [awardEntries, educationEntries, experienceEntries, paperEntries]);
     const otherSessions = useMemo(() => sessions.filter((session) => session.id !== settings?.security.current_session_id && session.props?.type !== 'UserAccessToken'), [sessions, settings]);
     const editorDisplayName = `${accountDraft.firstName || ''} ${accountDraft.lastName || ''}`.trim() || accountDraft.nickname || accountDraft.username || currentUser.username;
     const editorPosition = accountDraft.position || currentUser.position;
     const editorAvatarUrl = Client4.getProfilePictureUrl(currentUser.id, currentUser.last_picture_update);
-    const editorToasts = useMemo<Array<{id: string; type: 'error' | 'success'; text: string}>>(() => {
-        const toasts: Array<{id: string; type: 'error' | 'success'; text: string}> = [];
+    const editorToasts = useMemo<ProfileToast[]>(() => {
+        const toasts: ProfileToast[] = [];
 
         if (passwordMessage?.text) {
             toasts.push({
@@ -2928,12 +3721,35 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
         setSessions([]);
         setEditingResearchFieldIndex(null);
         setResearchFieldDraft('');
-        setAcademicDialog(null);
         setVisualDragState(null);
         setVisualWidgetDialog(null);
         setSkillWidgetDraft(getDefaultSkillWidgetDraft());
         setBadgeWidgetDraft(getDefaultBadgeWidgetDraft(currentUser.username, currentUser.email || ''));
         setVisualDeleteAnchor(null);
+    }, [currentUser.id]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        loadIuinReadmeWorkspaceFromBackend(currentUser.id).then((workspace) => {
+            if (cancelled) {
+                return;
+            }
+
+            const homepageReadme = getReadmeFileContent(workspace, IUIN_README_MAIN_FILE) || '';
+
+            setDraft((previous) => ({
+                ...previous,
+                homepageHtml: homepageReadme || previous.homepageHtml,
+                readmeWorkspace: serializeIuinReadmeWorkspace(workspace),
+            }));
+        }).catch(() => {
+            // Keep the legacy user props workspace when the backend workspace is unavailable.
+        });
+
+        return () => {
+            cancelled = true;
+        };
     }, [currentUser.id]);
 
     useEffect(() => {
@@ -3377,95 +4193,20 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
         }
     }, [startEditingResearchField]);
 
-    const startAddingAcademicEntry = useCallback((sectionId: AcademicSectionId) => {
-        setAcademicDialog({
-            sectionId,
-            index: null,
-            draft: getEmptyAcademicEntry(),
-        });
-        setError('');
-    }, []);
-
-    const startEditingAcademicEntry = useCallback((sectionId: AcademicSectionId, index: number) => {
-        setAcademicDialog({
-            sectionId,
-            index,
-            draft: academicEntriesBySection[sectionId][index] || getEmptyAcademicEntry(),
-        });
-        setError('');
-    }, [academicEntriesBySection]);
-
-    const closeAcademicDialog = useCallback(() => {
-        setAcademicDialog(null);
-    }, []);
-
-    const setAcademicDialogField = useCallback((field: keyof IuinAcademicEntry, value: string) => {
-        setAcademicDialog((previous) => previous ? ({
-            ...previous,
-            draft: {
-                ...previous.draft,
-                [field]: value,
-            },
-        }) : previous);
-    }, []);
-
-    const saveAcademicEntry = useCallback(() => {
-        if (!academicDialog) {
-            return;
-        }
-
-        const nextEntry = {
-            title: academicDialog.draft.title.trim(),
-            subtitle: academicDialog.draft.subtitle.trim(),
-            meta: academicDialog.draft.meta.trim(),
-            link: academicDialog.draft.link.trim(),
-        };
-
-        if (!nextEntry.title) {
-            setError(intl.formatMessage({
-                id: 'iuin_profile.editor.academic_title_required',
-                defaultMessage: 'Title is required.',
-            }));
-            return;
-        }
-
-        const nextEntries = [...academicEntriesBySection[academicDialog.sectionId]];
-        if (academicDialog.index === null) {
-            nextEntries.push(nextEntry);
-        } else {
-            nextEntries[academicDialog.index] = nextEntry;
-        }
-
-        setField(academicDialog.sectionId, serializeIuinAcademicEntries(nextEntries));
-        setAcademicDialog(null);
-        setError('');
-    }, [academicDialog, academicEntriesBySection, intl, setField]);
-
-    const removeAcademicEntry = useCallback((sectionId: AcademicSectionId, index: number) => {
-        setField(sectionId, serializeIuinAcademicEntries(academicEntriesBySection[sectionId].filter((_, entryIndex) => entryIndex !== index)));
-        setAcademicDialog((previous) => {
-            if (!previous || previous.sectionId !== sectionId) {
-                return previous;
-            }
-
-            if (previous.index === index) {
-                return null;
-            }
-
-            if (previous.index !== null && previous.index > index) {
-                return {
-                    ...previous,
-                    index: previous.index - 1,
-                };
-            }
-
-            return previous;
-        });
-    }, [academicEntriesBySection, setField]);
-
     const handleSave = useCallback(async () => {
         setSaveState('saving');
         setError('');
+
+        try {
+            await saveIuinReadmeWorkspaceToBackend(currentUser.id, parseIuinReadmeWorkspace(draft.readmeWorkspace, draft.homepageHtml, getReadmeRootName(currentUser)));
+        } catch (err) {
+            setSaveState('error');
+            setError(err instanceof Error ? err.message : intl.formatMessage({
+                id: 'iuin_profile.editor.save_error',
+                defaultMessage: 'Could not save profile.',
+            }));
+            return;
+        }
 
         const result = await dispatch(updateMe(getProfilePatch(currentUser, draft)) as any) as any;
         if (result.error) {
@@ -3666,159 +4407,17 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
     ].filter(Boolean).join(' ');
 
     return (
-        <main className='iuin-profile-page iuin-profile-page--editor'>
-            <aside className='iuin-profile-settings-nav'>
-                <section className='iuin-profile-editor-profile'>
-                    <img
-                        className='iuin-profile-editor-profile__avatar'
-                        src={editorAvatarUrl}
-                        alt={editorDisplayName}
-                    />
-                    <h1>{editorDisplayName}</h1>
-                    <p className='iuin-profile-editor-profile__username'>{`@${accountDraft.username || currentUser.username}`}</p>
-                    {editorPosition && (
-                        <p className='iuin-profile-editor-profile__position'>{editorPosition}</p>
-                    )}
-                    <div className='iuin-profile-editor-profile__stats'>
-                        <div>
-                            <strong>{experienceEntries.length}</strong>
-                            <span>
-                                <FormattedMessage
-                                    id='iuin_profile.experience'
-                                    defaultMessage='Experience'
-                                />
-                            </span>
-                        </div>
-                        <div>
-                            <strong>{educationEntries.length}</strong>
-                            <span>
-                                <FormattedMessage
-                                    id='iuin_profile.education'
-                                    defaultMessage='Education'
-                                />
-                            </span>
-                        </div>
-                        <div>
-                            <strong>{paperEntries.length}</strong>
-                            <span>
-                                <FormattedMessage
-                                    id='iuin_profile.papers'
-                                    defaultMessage='Paper'
-                                />
-                            </span>
-                        </div>
-                        <div>
-                            <strong>{awardEntries.length}</strong>
-                            <span>
-                                <FormattedMessage
-                                    id='iuin_profile.awards'
-                                    defaultMessage='Awards'
-                                />
-                            </span>
-                        </div>
-                    </div>
-                </section>
-                <p className='iuin-profile-editor-section-label'>
-                    <FormattedMessage
-                        id='iuin_profile.editor.sections'
-                        defaultMessage='Edit sections'
-                    />
-                </p>
-                <nav className='iuin-profile-settings-nav__channels'>
-                    <button
-                        type='button'
-                        className={`iuin-profile-settings-nav__item${activeSection === 'homepage' ? ' active' : ''}`}
-                        onClick={() => selectEditorSection('homepage')}
-                    >
-                        <i className='icon icon-home-variant-outline'/>
-                        <span className='iuin-profile-settings-nav__copy'>
-                            <strong>
-                                <FormattedMessage
-                                    id='iuin_profile.settings.homepage'
-                                    defaultMessage='Homepage'
-                                />
-                            </strong>
-                            <small>
-                                <FormattedMessage
-                                    id='iuin_profile.editor.homepage_nav_hint'
-                                    defaultMessage='Summary and CV sections'
-                                />
-                            </small>
-                        </span>
-                    </button>
-                    <button
-                        type='button'
-                        className={`iuin-profile-settings-nav__item${activeSection === 'advanced' ? ' active' : ''}`}
-                        onClick={() => selectEditorSection('advanced')}
-                    >
-                        <i className='icon icon-tune'/>
-                        <span className='iuin-profile-settings-nav__copy'>
-                            <strong>
-                                <FormattedMessage
-                                    id='iuin_profile.readme.advanced_settings'
-                                    defaultMessage='Profile customization'
-                                />
-                            </strong>
-                            <small>
-                                <FormattedMessage
-                                    id='iuin_profile.editor.advanced_nav_hint'
-                                    defaultMessage='README files and import'
-                                />
-                            </small>
-                        </span>
-                    </button>
-                    <button
-                        type='button'
-                        className={`iuin-profile-settings-nav__item${activeSection === 'account' ? ' active' : ''}`}
-                        onClick={() => selectEditorSection('account')}
-                    >
-                        <i className='icon icon-account-outline'/>
-                        <span className='iuin-profile-settings-nav__copy'>
-                            <strong>
-                                <FormattedMessage
-                                    id='iuin_profile.settings.account'
-                                    defaultMessage='Account'
-                                />
-                            </strong>
-                            <small>
-                                <FormattedMessage
-                                    id='iuin_profile.editor.account_nav_hint'
-                                    defaultMessage='Name, title, language'
-                                />
-                            </small>
-                        </span>
-                    </button>
-                    <button
-                        type='button'
-                        className={`iuin-profile-settings-nav__item${activeSection === 'security' ? ' active' : ''}`}
-                        onClick={() => selectEditorSection('security')}
-                    >
-                        <i className='icon icon-lock-outline'/>
-                        <span className='iuin-profile-settings-nav__copy'>
-                            <strong>
-                                <FormattedMessage
-                                    id='iuin_profile.settings.security'
-                                    defaultMessage='Security'
-                                />
-                            </strong>
-                            <small>
-                                <FormattedMessage
-                                    id='iuin_profile.editor.security_nav_hint'
-                                    defaultMessage='Password and sessions'
-                                />
-                            </small>
-                        </span>
-                    </button>
-                </nav>
-            </aside>
+        <main className='iuin-profile-page iuin-profile-page--editor iuin-profile-page--customization-only'>
             <section className='iuin-profile-editor'>
-                <div className='iuin-profile-editor__header'>
-                    <div>
-                        <p className='iuin-profile-main__eyebrow'>
-                            {getEditorSectionEyebrow(activeSection)}
-                        </p>
-                        <h1>
-                            {getEditorSectionTitle(activeSection)}
+                <div className='iuin-profile-editor__header iuin-profile-editor__header--profile'>
+                    <div className='iuin-profile-editor__header-profile'>
+                        <img
+                            className='iuin-profile-editor__header-profile-avatar'
+                            src={editorAvatarUrl}
+                            alt={editorDisplayName}
+                        />
+                        <h1 className='iuin-profile-editor__header-profile-name'>
+                            {editorDisplayName}
                         </h1>
                     </div>
                     <div className='iuin-profile-editor__actions'>
@@ -3832,16 +4431,14 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
                                 defaultMessage='Cancel'
                             />
                         </button>
-                        {(activeSection === 'homepage' || activeSection === 'advanced') && (
-                            <button
-                                type='button'
-                                className='iuin-profile-button'
-                                disabled={saveState === 'saving'}
-                                onClick={handleSave}
-                            >
-                                {getProfileSaveMessage(saveState === 'saving')}
-                            </button>
-                        )}
+                        <button
+                            type='button'
+                            className='iuin-profile-button'
+                            disabled={saveState === 'saving'}
+                            onClick={handleSave}
+                        >
+                            {getProfileSaveMessage(saveState === 'saving')}
+                        </button>
                     </div>
                 </div>
 
@@ -4232,273 +4829,16 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
                             </div>
                         ), document.body)}
 
-                        {ACADEMIC_SECTION_CONFIGS.map((config) => {
-                            const entries = academicEntriesBySection[config.id];
-                            const managerClassName = `iuin-profile-editor__section-control iuin-profile-academic-manager iuin-profile-academic-manager--${config.id}`;
-
-                            return (
-                                <section
-                                    key={config.id}
-                                    className='iuin-profile-editor__settings-section iuin-profile-editor__settings-section--academic'
-                                >
-                                    <div className='iuin-profile-editor__section-copy'>
-                                        <h2>
-                                            <FormattedMessage
-                                                id={config.titleId}
-                                                defaultMessage={config.defaultTitle}
-                                            />
-                                        </h2>
-                                        <p>
-                                            <FormattedMessage
-                                                id={config.descriptionId}
-                                                defaultMessage={config.defaultDescription}
-                                            />
-                                        </p>
-                                    </div>
-                                    <div className={managerClassName}>
-                                        <div className='iuin-profile-academic-manager__toolbar'>
-                                            <label className='iuin-profile-section-toggle'>
-                                                <input
-                                                    type='checkbox'
-                                                    checked={sectionVisibility[config.id]}
-                                                    onChange={(event) => setHomepageSectionVisible(config.id, event.target.checked)}
-                                                />
-                                                <span className='iuin-profile-section-toggle__track'/>
-                                                <span className='iuin-profile-section-toggle__copy'>
-                                                    <strong>
-                                                        <FormattedMessage
-                                                            id='iuin_profile.editor.section_show_on_homepage'
-                                                            defaultMessage='Show on homepage'
-                                                        />
-                                                    </strong>
-                                                </span>
-                                            </label>
-                                            <button
-                                                type='button'
-                                                className='iuin-profile-button'
-                                                onClick={() => startAddingAcademicEntry(config.id)}
-                                            >
-                                                <i className='icon icon-plus'/>
-                                                <FormattedMessage
-                                                    id='iuin_profile.editor.section_add'
-                                                    defaultMessage='Add'
-                                                />
-                                            </button>
-                                        </div>
-                                        {entries.length > 0 ? (
-                                            <div className='iuin-profile-academic-manager__cards'>
-                                                {entries.map((entry, index) => {
-                                                    const safeLink = getSafeAcademicLink(entry.link);
-                                                    const detail = safeLink ? '' : entry.link;
-
-                                                    return (
-                                                        <article
-                                                            key={`${entry.title}-${entry.subtitle}-${entry.meta}-${index}`}
-                                                            className='iuin-profile-academic-manager__card'
-                                                        >
-                                                            <span className='iuin-profile-academic-manager__icon'>
-                                                                <i className={`icon ${config.icon}`}/>
-                                                            </span>
-                                                            <div className='iuin-profile-academic-manager__card-copy'>
-                                                                <h3>{getAcademicEntryHeading(entry)}</h3>
-                                                                {entry.meta && <span>{entry.meta}</span>}
-                                                                {detail && <p>{detail}</p>}
-                                                            </div>
-                                                            <div className='iuin-profile-academic-manager__card-actions'>
-                                                                <button
-                                                                    type='button'
-                                                                    aria-label={intl.formatMessage({
-                                                                        id: 'iuin_profile.editor.section_entry_edit',
-                                                                        defaultMessage: 'Edit entry',
-                                                                    })}
-                                                                    title={intl.formatMessage({
-                                                                        id: 'iuin_profile.editor.section_entry_edit',
-                                                                        defaultMessage: 'Edit entry',
-                                                                    })}
-                                                                    onClick={() => startEditingAcademicEntry(config.id, index)}
-                                                                >
-                                                                    <i className='icon icon-pencil-outline'/>
-                                                                </button>
-                                                                <button
-                                                                    type='button'
-                                                                    aria-label={intl.formatMessage({
-                                                                        id: 'iuin_profile.editor.section_entry_delete',
-                                                                        defaultMessage: 'Delete entry',
-                                                                    })}
-                                                                    title={intl.formatMessage({
-                                                                        id: 'iuin_profile.editor.section_entry_delete',
-                                                                        defaultMessage: 'Delete entry',
-                                                                    })}
-                                                                    onClick={() => removeAcademicEntry(config.id, index)}
-                                                                >
-                                                                    <i className='icon icon-trash-can-outline'/>
-                                                                </button>
-                                                            </div>
-                                                        </article>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : (
-                                            <div className='iuin-profile-academic-manager__empty'>
-                                                <i className={`icon ${config.icon}`}/>
-                                                <span>
-                                                    <FormattedMessage
-                                                        id={config.emptyId}
-                                                        defaultMessage={config.defaultEmpty}
-                                                    />
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </section>
-                            );
-                        })}
-
-                        {academicDialog && (() => {
-                            const config = ACADEMIC_SECTION_CONFIGS.find((section) => section.id === academicDialog.sectionId);
-                            if (!config) {
-                                return null;
-                            }
-
-                            if (typeof document === 'undefined') {
-                                return null;
-                            }
-
-                            return createPortal((
-                                <div className='iuin-profile-entry-dialog__backdrop'>
-                                    <section
-                                        className='iuin-profile-entry-dialog'
-                                        role='dialog'
-                                        aria-modal='true'
-                                        aria-labelledby='iuin-profile-entry-dialog-title'
-                                    >
-                                        <div className='iuin-profile-entry-dialog__header'>
-                                            <div>
-                                                <span>
-                                                    <FormattedMessage
-                                                        id={config.titleId}
-                                                        defaultMessage={config.defaultTitle}
-                                                    />
-                                                </span>
-                                                <h2 id='iuin-profile-entry-dialog-title'>
-                                                    {academicDialog.index === null ? (
-                                                        <FormattedMessage
-                                                            id='iuin_profile.editor.section_entry_add'
-                                                            defaultMessage='Add entry'
-                                                        />
-                                                    ) : (
-                                                        <FormattedMessage
-                                                            id='iuin_profile.editor.section_entry_edit'
-                                                            defaultMessage='Edit entry'
-                                                        />
-                                                    )}
-                                                </h2>
-                                            </div>
-                                            <button
-                                                type='button'
-                                                className='iuin-profile-entry-dialog__close'
-                                                aria-label={intl.formatMessage({
-                                                    id: 'iuin_profile.editor.section_dialog_close',
-                                                    defaultMessage: 'Close dialog',
-                                                })}
-                                                onClick={closeAcademicDialog}
-                                            >
-                                                <i className='icon icon-close'/>
-                                            </button>
-                                        </div>
-                                        <div className='iuin-profile-entry-dialog__form'>
-                                            <label>
-                                                <span>
-                                                    <FormattedMessage
-                                                        id={config.titleLabelId}
-                                                        defaultMessage={config.defaultTitleLabel}
-                                                    />
-                                                </span>
-                                                <input
-                                                    autoFocus={true}
-                                                    value={academicDialog.draft.title}
-                                                    onChange={(event) => setAcademicDialogField('title', event.target.value)}
-                                                    placeholder={config.titlePlaceholder}
-                                                />
-                                            </label>
-                                            <label>
-                                                <span>
-                                                    <FormattedMessage
-                                                        id={config.subtitleLabelId}
-                                                        defaultMessage={config.defaultSubtitleLabel}
-                                                    />
-                                                </span>
-                                                <input
-                                                    value={academicDialog.draft.subtitle}
-                                                    onChange={(event) => setAcademicDialogField('subtitle', event.target.value)}
-                                                    placeholder={config.subtitlePlaceholder}
-                                                />
-                                            </label>
-                                            <label>
-                                                <span>
-                                                    <FormattedMessage
-                                                        id={config.metaLabelId}
-                                                        defaultMessage={config.defaultMetaLabel}
-                                                    />
-                                                </span>
-                                                <input
-                                                    value={academicDialog.draft.meta}
-                                                    onChange={(event) => setAcademicDialogField('meta', event.target.value)}
-                                                    placeholder={config.metaPlaceholder}
-                                                />
-                                            </label>
-                                            <label>
-                                                <span>
-                                                    <FormattedMessage
-                                                        id={config.detailLabelId}
-                                                        defaultMessage={config.defaultDetailLabel}
-                                                    />
-                                                </span>
-                                                <textarea
-                                                    value={academicDialog.draft.link}
-                                                    onChange={(event) => setAcademicDialogField('link', event.target.value)}
-                                                    placeholder={config.detailPlaceholder}
-                                                />
-                                            </label>
-                                        </div>
-                                        <div className='iuin-profile-entry-dialog__actions'>
-                                            <button
-                                                type='button'
-                                                className='iuin-profile-button iuin-profile-button--subtle'
-                                                onClick={closeAcademicDialog}
-                                            >
-                                                <FormattedMessage
-                                                    id='iuin_profile.editor.cancel'
-                                                    defaultMessage='Cancel'
-                                                />
-                                            </button>
-                                            <button
-                                                type='button'
-                                                className='iuin-profile-button'
-                                                onClick={saveAcademicEntry}
-                                            >
-                                                <FormattedMessage
-                                                    id='iuin_profile.editor.save_entry'
-                                                    defaultMessage='Save'
-                                                />
-                                            </button>
-                                        </div>
-                                    </section>
-                                </div>
-                            ), document.body);
-                        })()}
                     </>
                 )}
-                {activeSection === 'advanced' && (
-                    <div className='iuin-profile-editor__advanced-workbench'>
-                        <IuinReadmeAdvancedEditor
-                            currentUser={currentUser}
-                            embedded={true}
-                            draft={draft}
-                            setDraft={setAdvancedDraft}
-                        />
-                    </div>
-                )}
+                <div className='iuin-profile-editor__advanced-workbench'>
+                    <IuinReadmeAdvancedEditor
+                        currentUser={currentUser}
+                        embedded={true}
+                        draft={draft}
+                        setDraft={setAdvancedDraft}
+                    />
+                </div>
                 {activeSection === 'account' && (
                     <section className='iuin-profile-card iuin-profile-editor__settings-panel'>
                         <div className='iuin-profile-editor__settings-grid'>
@@ -4821,28 +5161,7 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
                     </>
                 )}
 
-                {editorToasts.length > 0 && (
-                    <div className='iuin-profile-editor__toast-stack'>
-                        {editorToasts.map((toast) => (
-                            <div
-                                key={toast.id}
-                                className={`iuin-profile-editor__toast iuin-profile-editor__toast--${toast.type}`}
-                                role={toast.type === 'error' ? 'alert' : 'status'}
-                                aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
-                            >
-                                <span
-                                    className='iuin-profile-editor__toast-icon'
-                                    aria-hidden='true'
-                                >
-                                    <i className={`icon ${toast.type === 'error' ? 'icon-alert-outline' : 'icon-check'}`}/>
-                                </span>
-                                <span className='iuin-profile-editor__toast-copy'>
-                                    {toast.text}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                <IuinProfileToastStack toasts={editorToasts}/>
             </section>
         </main>
     );
