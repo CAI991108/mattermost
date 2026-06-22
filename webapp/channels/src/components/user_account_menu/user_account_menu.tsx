@@ -58,7 +58,6 @@ export default function UserAccountMenu(props: Props) {
                 children: (
                     <UserAccountMenuButton
                         profilePicture={props.profilePicture}
-                        openCustomStatusModal={openCustomStatusModal}
                         status={props.status}
                     />
                 ),
