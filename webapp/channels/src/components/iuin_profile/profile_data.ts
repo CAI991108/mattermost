@@ -135,13 +135,11 @@ export function getDisplayName(user: UserProfile): string {
 
 export function getIuinProfileData(user?: UserProfile): IuinProfileData {
     const props = user?.props || {};
-    const homepageHtml = props[IUIN_PROFILE_PROPS.homepageHtml] || getDefaultHomepageHtml(user);
-    const readmeContent = isLegacyDefaultHomepageHtml(homepageHtml) ? getDefaultReadmeMarkdown(user) : normalizeLegacyReadmeMarkdown(homepageHtml);
-    const readmeWorkspace = getStringProp(props, IUIN_PROFILE_PROPS.readmeWorkspace, '');
+    const readmeContent = getDefaultReadmeMarkdown(user);
 
     return {
         homepageHtml: readmeContent,
-        readmeWorkspace: serializeIuinReadmeWorkspace(parseIuinReadmeWorkspace(readmeWorkspace, readmeContent, getReadmeRootName(user))),
+        readmeWorkspace: serializeIuinReadmeWorkspace(parseIuinReadmeWorkspace('', readmeContent, getReadmeRootName(user))),
         researchStatus: props[IUIN_PROFILE_PROPS.researchStatus] || '',
         statusMedia: props[IUIN_PROFILE_PROPS.statusMedia] || '',
         researchFields: props[IUIN_PROFILE_PROPS.researchFields] || '',
@@ -155,26 +153,12 @@ export function getIuinProfileData(user?: UserProfile): IuinProfileData {
 }
 
 export function getProfilePatch(user: UserProfile, data: IuinProfileData): Partial<UserProfile> {
-    const workspace = parseIuinReadmeWorkspace(data.readmeWorkspace, data.homepageHtml, getReadmeRootName(user));
-    const homepageReadme = getReadmeFileContent(workspace, IUIN_README_MAIN_FILE) || data.homepageHtml;
-    const normalizedWorkspace = serializeIuinReadmeWorkspace({
-        ...workspace,
-        rootName: workspace.rootName || getReadmeRootName(user),
-        activePath: workspace.activePath || IUIN_README_MAIN_FILE,
-        files: upsertReadmeFile(workspace.files, {
-            path: IUIN_README_MAIN_FILE,
-            content: homepageReadme,
-            type: 'markdown',
-            updatedAt: Date.now(),
-        }),
-    });
-
     return {
         id: user.id,
         props: {
             ...(user.props || {}),
-            [IUIN_PROFILE_PROPS.homepageHtml]: homepageReadme,
-            [IUIN_PROFILE_PROPS.readmeWorkspace]: normalizedWorkspace,
+            [IUIN_PROFILE_PROPS.homepageHtml]: '',
+            [IUIN_PROFILE_PROPS.readmeWorkspace]: '',
             [IUIN_PROFILE_PROPS.researchStatus]: data.researchStatus,
             [IUIN_PROFILE_PROPS.statusMedia]: data.statusMedia,
             [IUIN_PROFILE_PROPS.researchFields]: data.researchFields,
@@ -354,10 +338,6 @@ export function appendHtmlModule(html: string, moduleHtml: string): string {
     return `${trimmed}\n\n${moduleHtml.trim()}`;
 }
 
-export function getDefaultHomepageHtml(user?: UserProfile): string {
-    return getDefaultReadmeMarkdown(user);
-}
-
 export function getDefaultReadmeMarkdown(user?: UserProfile): string {
     const name = user ? escapeHtml(getDisplayName(user)) : 'IUIN Member';
     const title = user?.position ? escapeHtml(user.position) : 'Research member';
@@ -484,14 +464,6 @@ function getReadmeFileType(path: string, content: string): IuinReadmeFile['type'
 
 function getStringProp(props: Record<string, string>, key: string, defaultValue: string): string {
     return Object.prototype.hasOwnProperty.call(props, key) ? props[key] : defaultValue;
-}
-
-function isLegacyDefaultHomepageHtml(html: string): boolean {
-    const normalized = html.replace(/\s+/g, ' ').trim().toLowerCase();
-
-    return normalized.includes('class="iuin-profile-hero"') &&
-        normalized.includes('research group member') &&
-        normalized.includes('write a short research introduction here');
 }
 
 function normalizeLegacyReadmeMarkdown(content: string): string {
