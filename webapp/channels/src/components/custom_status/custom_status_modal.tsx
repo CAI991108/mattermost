@@ -2,8 +2,6 @@
 // See LICENSE.txt for license information.
 
 import classNames from 'classnames';
-import type {Moment} from 'moment-timezone';
-import moment from 'moment-timezone';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import type {MessageDescriptor} from 'react-intl';
 import {FormattedMessage, defineMessage, useIntl} from 'react-intl';
@@ -17,23 +15,20 @@ import {CustomStatusDuration} from '@mattermost/types/users';
 
 import {createCustomEmoji} from 'mattermost-redux/actions/emojis';
 import {setCustomStatusInitialisationState} from 'mattermost-redux/actions/preferences';
-import {setCustomStatus, setStatus, unsetCustomStatus} from 'mattermost-redux/actions/users';
+import {setCustomStatus, unsetCustomStatus} from 'mattermost-redux/actions/users';
 import {Preferences} from 'mattermost-redux/constants';
-import {getCurrentTimezone} from 'mattermost-redux/selectors/entities/timezone';
-import {getCurrentUserId, getStatusForUserId} from 'mattermost-redux/selectors/entities/users';
+import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
 
 import {loadCustomEmojisForRecentCustomStatuses} from 'actions/emoji_actions';
 import {closeModal} from 'actions/views/modals';
 import {makeGetCustomStatus, showStatusDropdownPulsatingDot, isCustomStatusExpired} from 'selectors/views/custom_status';
 
-import DateTimeInput, {getRoundedTime} from 'components/datetime_input/datetime_input';
 import RenderEmoji from 'components/emoji/render_emoji';
 import useEmojiPicker from 'components/emoji_picker/use_emoji_picker';
 import EmojiIcon from 'components/widgets/icons/emoji_icon';
 
-import {Constants, ModalIdentifiers, UserStatuses} from 'utils/constants';
+import {Constants, ModalIdentifiers} from 'utils/constants';
 import {isKeyPressed} from 'utils/keyboard';
-import {getCurrentMomentForTimezone} from 'utils/timezone';
 
 import type {GlobalState} from 'types/store';
 
@@ -56,13 +51,6 @@ type DefaultUserCustomStatus = {
 
 const {
     DONT_CLEAR,
-    THIRTY_MINUTES,
-    ONE_HOUR,
-    FOUR_HOURS,
-    TODAY,
-    THIS_WEEK,
-    DATE_AND_TIME,
-    CUSTOM_DATE_TIME,
 } = CustomStatusDuration;
 
 const githubStatusSuggestions: DefaultUserCustomStatus[] = [
@@ -100,8 +88,6 @@ const githubStatusSuggestions: DefaultUserCustomStatus[] = [
     },
 ];
 
-const defaultDuration = DONT_CLEAR;
-
 function createStatusEmojiName(filename: string): string {
     const suffix = Date.now().toString(36);
     const baseName = filename.
@@ -122,36 +108,22 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
     const customStatusExpired = useSelector((state: GlobalState) => isCustomStatusExpired(state, currentCustomStatus));
     const {formatMessage} = useIntl();
     const currentUserId = useSelector(getCurrentUserId);
-    const currentUserStatus = useSelector((state: GlobalState) => getStatusForUserId(state, currentUserId));
     const isCurrentCustomStatusSet = !customStatusExpired && (currentCustomStatus?.text || currentCustomStatus?.emoji);
     const [showEmojiPicker, setShowEmojiPicker] = useState<boolean>(false);
     const [text, setText] = useState<string>(isCurrentCustomStatusSet ? currentCustomStatus?.text : '');
     const [emoji, setEmoji] = useState<string>(isCurrentCustomStatusSet ? currentCustomStatus?.emoji : '');
-    const initialDuration = isCurrentCustomStatusSet ? currentCustomStatus?.duration : defaultDuration;
-    const [duration, setDuration] = useState<CustomStatusDuration>(initialDuration === undefined ? defaultDuration : initialDuration);
-    const [isBusy, setIsBusy] = useState<boolean>(currentUserStatus === UserStatuses.DND);
-    const [visibleTo, setVisibleTo] = useState<string>('everyone');
     const [imageUploadError, setImageUploadError] = useState<string>('');
     const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
     const statusImageInputRef = useRef<HTMLInputElement | null>(null);
     const isStatusSet = Boolean(emoji || text);
     const firstTimeModalOpened = useSelector(showStatusDropdownPulsatingDot);
-    const timezone = useSelector(getCurrentTimezone);
     const inCustomEmojiPath = useRouteMatch('/:team/emoji');
 
-    const currentTime = getCurrentMomentForTimezone(timezone);
-    let initialCustomExpiryTime: Moment = getRoundedTime(currentTime);
-    if (isCurrentCustomStatusSet && currentCustomStatus?.duration === DATE_AND_TIME && currentCustomStatus?.expires_at) {
-        initialCustomExpiryTime = moment(currentCustomStatus.expires_at);
-    }
-    const [customExpiryTime, setCustomExpiryTime] = useState<Moment>(initialCustomExpiryTime);
-    const [isInteracting, setIsInteracting] = useState<boolean>(false);
-
     const handleKeyDown = useCallback((event: KeyboardEvent) => {
-        if (isKeyPressed(event, Constants.KeyCodes.ESCAPE) && !isInteracting) {
+        if (isKeyPressed(event, Constants.KeyCodes.ESCAPE)) {
             props.onExited();
         }
-    }, [isInteracting, props.onExited]);
+    }, [props.onExited]);
 
     useEffect(() => {
         document.addEventListener('keydown', handleKeyDown);
@@ -190,81 +162,27 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
     }, [dispatch, inCustomEmojiPath]);
 
     const handleSetStatus = () => {
-        if (isInteracting) {
-            return;
-        }
-
-        const expiresAt = calculateExpiryTime();
         const customStatus: UserCustomStatus = {
             emoji: emoji || 'speech_balloon',
             text: text.trim(),
-            duration: duration === CUSTOM_DATE_TIME ? DATE_AND_TIME : duration,
+            duration: DONT_CLEAR,
         };
-        if (expiresAt) {
-            customStatus.expires_at = expiresAt;
-        }
         dispatch(setCustomStatus(customStatus));
-        if (currentUserId) {
-            if (isBusy) {
-                dispatch(setStatus({
-                    user_id: currentUserId,
-                    status: UserStatuses.DND,
-                    dnd_end_time: expiresAt ? moment(expiresAt).unix() : 0,
-                }));
-            } else if (currentUserStatus === UserStatuses.DND) {
-                dispatch(setStatus({
-                    user_id: currentUserId,
-                    status: UserStatuses.ONLINE,
-                }));
-            }
-        }
         dispatch(closeModal(ModalIdentifiers.CUSTOM_STATUS));
     };
 
     const handleEnterKeyPressed = useCallback(() => {
-        if (!isInteracting) {
-            handleSetStatus();
-        }
-    }, [isInteracting, handleSetStatus]);
-
-    const calculateExpiryTime = (): string => {
-        switch (duration) {
-        case DONT_CLEAR:
-            return '';
-        case THIRTY_MINUTES:
-            return moment().add(30, 'minutes').seconds(0).milliseconds(0).toISOString();
-        case ONE_HOUR:
-            return moment().add(1, 'hour').seconds(0).milliseconds(0).toISOString();
-        case FOUR_HOURS:
-            return moment().add(4, 'hours').seconds(0).milliseconds(0).toISOString();
-        case TODAY:
-            return moment().endOf('day').add(1, 'minute').seconds(0).milliseconds(0).toISOString();
-        case THIS_WEEK:
-            return moment().endOf('week').toISOString();
-        case DATE_AND_TIME:
-        case CUSTOM_DATE_TIME:
-            return customExpiryTime.toISOString();
-        default:
-            return '';
-        }
-    };
+        handleSetStatus();
+    }, [handleSetStatus]);
 
     function clearHandle() {
         setEmoji('');
         setText('');
-        setDuration(defaultDuration);
-        setIsBusy(false);
     }
 
     const handleClearStatus = () => {
         if (isCurrentCustomStatusSet) {
             dispatch(unsetCustomStatus());
-        }
-        if (currentUserId && (isBusy || currentUserStatus === UserStatuses.DND)) {
-            dispatch(setStatus({
-                user_id: currentUserId,
-                status: UserStatuses.ONLINE,
-            }));
         }
         clearHandle();
     };
@@ -381,20 +299,10 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
     const handleSuggestionClick = (status: UserCustomStatus) => {
         setEmoji(status.emoji);
         setText(status.text);
-        setDuration(status.duration || DONT_CLEAR);
     };
 
     const disableSetStatus = !isStatusSet || text.length > CUSTOM_STATUS_TEXT_CHARACTER_LIMIT;
-
-    const showDateAndTimeField = duration === CUSTOM_DATE_TIME || duration === DATE_AND_TIME;
     const remainingCharacters = CUSTOM_STATUS_TEXT_CHARACTER_LIMIT - text.length;
-
-    const visibilityOptions = [
-        {
-            value: 'everyone',
-            label: formatMessage({id: 'custom_status.visibility.everyone', defaultMessage: 'Everyone'}),
-        },
-    ];
 
     const suggestionChips = (
         <div className='StatusModal__suggestions'>
@@ -520,124 +428,6 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
                         </div>
                     )}
                     {suggestionChips}
-                </div>
-
-                <div className='StatusModal__busy'>
-                    <input
-                        id='custom_status_busy'
-                        type='checkbox'
-                        checked={isBusy}
-                        onChange={(event) => setIsBusy(event.target.checked)}
-                    />
-                    <label
-                        className='StatusModal__busy-copy'
-                        htmlFor='custom_status_busy'
-                    >
-                        <span className='StatusModal__busy-title'>
-                            <FormattedMessage
-                                id='custom_status.busy'
-                                defaultMessage='Busy'
-                            />
-                        </span>
-                        <span className='StatusModal__help'>
-                            <FormattedMessage
-                                id='custom_status.busy_help'
-                                defaultMessage='When others mention you, assign you, or request your review, GitHub will let them know that you have limited availability.'
-                            />
-                        </span>
-                    </label>
-                </div>
-
-                <div className='StatusModal__divider'/>
-
-                <div className='StatusModal__section'>
-                    <label
-                        className='StatusModal__label'
-                        htmlFor='custom_status_expiration'
-                    >
-                        <FormattedMessage
-                            id='custom_status.expiration'
-                            defaultMessage='Expiration'
-                        />
-                    </label>
-                    <select
-                        id='custom_status_expiration'
-                        className='StatusModal__select form-control'
-                        value={duration === DATE_AND_TIME ? CUSTOM_DATE_TIME : duration}
-                        onChange={(event) => setDuration(event.target.value as CustomStatusDuration)}
-                    >
-                        <option value={DONT_CLEAR}>
-                            {formatMessage({id: 'custom_status.expiry_dropdown.never', defaultMessage: 'Never'})}
-                        </option>
-                        <option value={THIRTY_MINUTES}>
-                            {formatMessage({id: 'custom_status.expiry_dropdown.thirty_minutes', defaultMessage: '30 minutes'})}
-                        </option>
-                        <option value={ONE_HOUR}>
-                            {formatMessage({id: 'custom_status.expiry_dropdown.one_hour', defaultMessage: '1 hour'})}
-                        </option>
-                        <option value={FOUR_HOURS}>
-                            {formatMessage({id: 'custom_status.expiry_dropdown.four_hours', defaultMessage: '4 hours'})}
-                        </option>
-                        <option value={TODAY}>
-                            {formatMessage({id: 'custom_status.expiry_dropdown.today', defaultMessage: 'Today'})}
-                        </option>
-                        <option value={THIS_WEEK}>
-                            {formatMessage({id: 'custom_status.expiry_dropdown.this_week', defaultMessage: 'This week'})}
-                        </option>
-                        <option value={CUSTOM_DATE_TIME}>
-                            {formatMessage({id: 'custom_status.expiry_dropdown.date_and_time', defaultMessage: 'Custom date and time'})}
-                        </option>
-                    </select>
-                    <div className='StatusModal__help'>
-                        <FormattedMessage
-                            id='custom_status.expiration_help'
-                            defaultMessage='Your status will be cleared after the selected time.'
-                        />
-                    </div>
-                </div>
-                {showDateAndTimeField && (
-                    <div className='StatusModal__custom-time'>
-                        <DateTimeInput
-                            time={customExpiryTime}
-                            handleChange={(date) => date && setCustomExpiryTime(date)}
-                            timezone={timezone}
-                            setIsInteracting={setIsInteracting}
-                            relativeDate={true}
-                        />
-                    </div>
-                )}
-
-                <div className='StatusModal__section'>
-                    <label
-                        className='StatusModal__label'
-                        htmlFor='custom_status_visibility'
-                    >
-                        <FormattedMessage
-                            id='custom_status.visible_to'
-                            defaultMessage='Visible to'
-                        />
-                    </label>
-                    <select
-                        id='custom_status_visibility'
-                        className='StatusModal__select form-control'
-                        value={visibleTo}
-                        onChange={(event) => setVisibleTo(event.target.value)}
-                    >
-                        {visibilityOptions.map((option) => (
-                            <option
-                                key={option.value}
-                                value={option.value}
-                            >
-                                {option.label}
-                            </option>
-                        ))}
-                    </select>
-                    <div className='StatusModal__help'>
-                        <FormattedMessage
-                            id='custom_status.visibility_help'
-                            defaultMessage='Limit status visibility to a single organization.'
-                        />
-                    </div>
                 </div>
             </div>
         </GenericModal >

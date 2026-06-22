@@ -46,9 +46,9 @@ describe('CustomStatusModal', () => {
         expect(screen.getByRole('button', {name: /Out sick/})).toBeInTheDocument();
         expect(screen.getByRole('button', {name: /Working from home/})).toBeInTheDocument();
         expect(screen.getByRole('button', {name: /Focusing/})).toBeInTheDocument();
-        expect(screen.getByLabelText(/Busy/)).toBeInTheDocument();
-        expect(screen.getByLabelText('Expiration')).toHaveValue('');
-        expect(screen.getByLabelText('Visible to')).toHaveValue('everyone');
+        expect(screen.queryByLabelText(/Busy/)).not.toBeInTheDocument();
+        expect(screen.queryByText('Expiration')).not.toBeInTheDocument();
+        expect(screen.queryByText('Visible to')).not.toBeInTheDocument();
         expect(screen.getByText('Clear status')).toBeInTheDocument();
         expect(screen.getByText('Set status')).toBeInTheDocument();
     });
