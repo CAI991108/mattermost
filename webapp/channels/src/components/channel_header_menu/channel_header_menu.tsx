@@ -28,11 +28,8 @@ import * as Menu from 'components/menu';
 
 import {Constants} from 'utils/constants';
 
-
 import type {GlobalState} from 'types/store';
 
-import ChannelDirectMenu from './channel_header_menu_items/channel_header_direct_menu';
-import ChannelGroupMenu from './channel_header_menu_items/channel_header_group_menu';
 import ChannelHeaderMobileMenu from './channel_header_menu_items/channel_header_mobile_menu';
 import ChannelPublicPrivateMenu from './channel_header_menu_items/channel_header_public_private_menu';
 
@@ -71,25 +68,37 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
     const isGroup = (channel.type === Constants.GM_CHANNEL);
 
     let channelTitle: ReactNode = channel.display_name;
-    let ariaLabel = intl.formatMessage({
+    if (isDirect && dmUser) {
+        channelTitle = <ChannelHeaderTitleDirect dmUser={dmUser}/>;
+    } else if (isGroup) {
+        channelTitle = <ChannelHeaderTitleGroup gmMembers={gmMembers}/>;
+    }
+
+    // DM/GM: keep the title visible, but remove the dropdown menu and chevron.
+    if (isDirect || isGroup) {
+        return (
+            <div
+                id='channelHeaderDropdownButton'
+                className='channel-header__trigger channel-header__trigger--static style--none'
+            >
+                {archivedIcon}
+                <strong
+                    id='channelHeaderTitle'
+                    className='heading'
+                >
+                    {channelTitle}
+                </strong>
+                {sharedIcon}
+            </div>
+        );
+    }
+
+    const ariaLabel = intl.formatMessage({
         id: 'channel_header.otherchannel',
         defaultMessage: '{displayName} Channel Menu',
     }, {
         displayName: channel.display_name,
     });
-    if (isDirect && dmUser) {
-        channelTitle = <ChannelHeaderTitleDirect dmUser={dmUser}/>;
-        if (user.id === dmUser.id) {
-            ariaLabel = intl.formatMessage({
-                id: 'channel_header.directchannel',
-                defaultMessage: '{displayName} (you) Channel Menu',
-            }, {
-                displayName: channel.display_name,
-            });
-        }
-    } else if (isGroup) {
-        channelTitle = <ChannelHeaderTitleGroup gmMembers={gmMembers}/>;
-    }
 
     let pluginItems: JSX.Element[] = [];
 
@@ -147,42 +156,18 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
                 horizontal: 'left',
             }}
         >
-            {isDirect && (
-                <ChannelDirectMenu
-                    channel={channel}
-                    user={user}
-                    isMuted={isMuted}
-                    pluginItems={pluginItems}
-                    isMobile={isMobile || false}
-                    isChannelBookmarksEnabled={isChannelBookmarksEnabled}
-                    isChannelAutotranslated={isChannelAutotranslated}
-                />
-            )}
-            {isGroup && (
-                <ChannelGroupMenu
-                    channel={channel}
-                    user={user}
-                    isMuted={isMuted}
-                    pluginItems={pluginItems}
-                    isMobile={isMobile || false}
-                    isChannelBookmarksEnabled={isChannelBookmarksEnabled}
-                    isChannelAutotranslated={isChannelAutotranslated}
-                />
-            )}
-            {(!isDirect && !isGroup) && (
-                <ChannelPublicPrivateMenu
-                    channel={channel}
-                    user={user}
-                    isMuted={isMuted}
-                    pluginItems={pluginItems}
-                    isMobile={isMobile || false}
-                    isDefault={isDefault}
-                    isReadonly={isReadonly}
-                    isLicensedForLDAPGroups={isLicensedForLDAPGroups}
-                    isChannelBookmarksEnabled={isChannelBookmarksEnabled}
-                    isChannelAutotranslated={isChannelAutotranslated}
-                />
-            )}
+            <ChannelPublicPrivateMenu
+                channel={channel}
+                user={user}
+                isMuted={isMuted}
+                pluginItems={pluginItems}
+                isMobile={isMobile || false}
+                isDefault={isDefault}
+                isReadonly={isReadonly}
+                isLicensedForLDAPGroups={isLicensedForLDAPGroups}
+                isChannelBookmarksEnabled={isChannelBookmarksEnabled}
+                isChannelAutotranslated={isChannelAutotranslated}
+            />
 
             <ChannelHeaderMobileMenu
                 isMobile={isMobile || false}

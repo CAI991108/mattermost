@@ -31,6 +31,14 @@
             background: rgba(functions.v(center-channel-color-rgb), 0.08);
         }
 
+        &.channel-header__trigger--static {
+            cursor: default;
+
+            &:hover {
+                background: transparent;
+            }
+        }
+
         &.active {
             background: rgba(functions.v(button-bg-rgb), 0.08);
 
