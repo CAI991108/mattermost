@@ -397,7 +397,6 @@ class ChannelHeader extends React.PureComponent<Props> {
                                     {hasGuestsText}
                                     {autotranslationMessage}
                                     <ChannelHeaderText
-                                        teamId={team?.id}
                                         channel={channel}
                                         dmUser={dmUser}
                                     />

@@ -7,8 +7,6 @@ import {useSelector} from 'react-redux';
 
 import {
     MarkAsUnreadIcon,
-    BellOutlineIcon,
-    BellOffOutlineIcon,
     LinkVariantIcon,
     AccountPlusOutlineIcon,
     DotsVerticalIcon,
@@ -32,17 +30,13 @@ type Props = PropsFromRedux & OwnProps;
 const SidebarChannelMenu = ({
     channel,
     channelLink,
-    currentUserId,
-    isMuted,
     isUnread,
     managePrivateChannelMembers,
     managePublicChannelMembers,
     readMultipleChannels,
     markMostRecentPostInChannelAsUnread,
-    muteChannel,
     onMenuToggle,
     openModal,
-    unmuteChannel,
     channelLeaveHandler,
 }: Props) => {
     const isLeaving = useRef(false);
@@ -87,65 +81,6 @@ const SidebarChannelMenu = ({
                         defaultMessage='Mark as Unread'
                     />
                 )}
-            />
-        );
-    }
-
-    let muteUnmuteChannelMenuItem: JSX.Element | null = null;
-    if (isMuted) {
-        let muteChannelText = (
-            <FormattedMessage
-                id='sidebar_left.sidebar_channel_menu.unmuteChannel'
-                defaultMessage='Unmute Channel'
-            />
-        );
-        if (channel.type === Constants.DM_CHANNEL || channel.type === Constants.GM_CHANNEL) {
-            muteChannelText = (
-                <FormattedMessage
-                    id='sidebar_left.sidebar_channel_menu.unmute'
-                    defaultMessage='Unmute'
-                />
-            );
-        }
-
-        function handleUnmuteChannel() {
-            unmuteChannel(currentUserId, channel.id);
-        }
-
-        muteUnmuteChannelMenuItem = (
-            <Menu.Item
-                id={`unmute-${channel.id}`}
-                onClick={handleUnmuteChannel}
-                leadingElement={<BellOffOutlineIcon size={18}/>}
-                labels={muteChannelText}
-            />
-        );
-    } else {
-        let muteChannelText = (
-            <FormattedMessage
-                id='sidebar_left.sidebar_channel_menu.muteChannel'
-                defaultMessage='Mute Channel'
-            />
-        );
-        if (channel.type === Constants.DM_CHANNEL || channel.type === Constants.GM_CHANNEL) {
-            muteChannelText = (
-                <FormattedMessage
-                    id='sidebar_left.sidebar_channel_menu.mute'
-                    defaultMessage='Mute'
-                />
-            );
-        }
-
-        function handleMuteChannel() {
-            muteChannel(currentUserId, channel.id);
-        }
-
-        muteUnmuteChannelMenuItem = (
-            <Menu.Item
-                id={`mute-${channel.id}`}
-                onClick={handleMuteChannel}
-                leadingElement={<BellOutlineIcon size={18}/>}
-                labels={muteChannelText}
             />
         );
     }
@@ -259,7 +194,6 @@ const SidebarChannelMenu = ({
             }}
         >
             {markAsReadUnreadMenuItem}
-            {muteUnmuteChannelMenuItem}
             {(copyLinkMenuItem || addMembersMenuItem) && <Menu.Separator/>}
             {copyLinkMenuItem}
             {addMembersMenuItem}
