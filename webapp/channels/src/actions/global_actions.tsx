@@ -32,7 +32,7 @@ import {handleNewPost} from 'actions/post_actions';
 import {loadProfilesForSidebar} from 'actions/user_actions';
 import {clearUserCookie} from 'actions/views/cookie';
 import {close as closeLhs} from 'actions/views/lhs';
-import {closeRightHandSide, closeMenu as closeRhsMenu, updateRhsState, showChannelMembers, showChannelInfo} from 'actions/views/rhs';
+import {closeRightHandSide, closeMenu as closeRhsMenu, updateRhsState, showChannelMembers, showPinnedPosts} from 'actions/views/rhs';
 import * as WebsocketActions from 'actions/websocket_actions';
 import {getCurrentLocale} from 'selectors/i18n';
 import {getIsRhsOpen, getPreviousRhsState, getRhsState} from 'selectors/rhs';
@@ -122,7 +122,7 @@ export function emitChannelClickEvent(channel: Channel) {
 
         // LZX: 进入频道/DM 时默认打开 RHS Tab
         // - 普通频道：默认打开成员 Tab
-        // - DM：默认打开信息 Tab（成员 Tab 在 DM 下已隐藏，左侧联系人列表承担通讯录职责）
+        // - DM/GM：默认打开置顶 Tab（详情功能保留，但不再作为 RHS TabBar 入口）
         const currentRhsState = getRhsState(state);
         const isChannelTabView = currentRhsState === RHSStates.CHANNEL_INFO ||
             currentRhsState === RHSStates.CHANNEL_MEMBERS ||
@@ -130,10 +130,10 @@ export function emitChannelClickEvent(channel: Channel) {
             currentRhsState === RHSStates.CHANNEL_FILES;
 
         if (!isRHSOpened || isChannelTabView) {
-            // LZX: DM/GM 进入时默认打开信息 Tab（成员 Tab 在 DM 下隐藏）
+            // LZX: DM/GM 进入时默认打开置顶 Tab（成员/详情 Tab 在 DM 下不作为入口显示）
             // 普通频道进入时默认打开成员 Tab
             if (isDirectOrGroupMessage) {
-                dispatch(showChannelInfo(chan.id));
+                dispatch(showPinnedPosts(chan.id));
             } else {
                 dispatch(showChannelMembers(chan.id));
             }

@@ -2,13 +2,13 @@
 // See LICENSE.txt for license information.
 
 import classNames from 'classnames';
-import React, {useCallback, useEffect} from 'react';
+import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
 import {useDispatch, useSelector} from 'react-redux';
 
 import {getCurrentChannel} from 'mattermost-redux/selectors/entities/channels';
 
-import {showChannelInfo, showChannelMembers, showPinnedPosts, showChannelFiles} from 'actions/views/rhs';
+import {showChannelMembers, showPinnedPosts, showChannelFiles} from 'actions/views/rhs';
 import {getRhsState} from 'selectors/rhs';
 
 import {WithTooltip} from '@mattermost/shared/components/tooltip';
@@ -34,13 +34,6 @@ const TABS: TabItem[] = [
         rhsState: RHSStates.CHANNEL_MEMBERS,
         labelId: 'rhs_tab_bar.members',
         defaultLabel: 'Members',
-    },
-    {
-        id: 'rhs-tab-info',
-        icon: 'icon-information-outline',
-        rhsState: RHSStates.CHANNEL_INFO,
-        labelId: 'rhs_tab_bar.info',
-        defaultLabel: 'Channel Info',
     },
     {
         id: 'rhs-tab-pinned',
@@ -70,13 +63,6 @@ const RhsTabBar = () => {
         ? TABS.filter((tab) => tab.rhsState !== RHSStates.CHANNEL_MEMBERS)
         : TABS;
 
-    // LZX: 如果当前是成员 Tab 但进入了 DM，自动切换到信息 Tab
-    useEffect(() => {
-        if (isDmChannel && rhsState === RHSStates.CHANNEL_MEMBERS && channel) {
-            dispatch(showChannelInfo(channel.id));
-        }
-    }, [isDmChannel, rhsState, channel, dispatch]);
-
     const handleTabClick = useCallback((tab: TabItem) => {
         if (!channel) {
             return;
@@ -84,9 +70,6 @@ const RhsTabBar = () => {
         switch (tab.rhsState) {
         case RHSStates.CHANNEL_MEMBERS:
             dispatch(showChannelMembers(channel.id));
-            break;
-        case RHSStates.CHANNEL_INFO:
-            dispatch(showChannelInfo(channel.id));
             break;
         case RHSStates.PIN:
             dispatch(showPinnedPosts(channel.id));
@@ -106,7 +89,7 @@ const RhsTabBar = () => {
                     <WithTooltip
                         key={tab.id}
                         title={label}
-                        placement='left'
+                        forcedPlacement='left'
                     >
                         <button
                             id={tab.id}
