@@ -8,18 +8,14 @@ import type {Dispatch} from 'redux';
 import type {UserProfile} from '@mattermost/types/users';
 
 import {
-    getProfiles,
-    getTotalUsersStats,
     searchProfiles,
     canUserDirectMessage,
 } from 'mattermost-redux/actions/users';
 import {getConfig, getFeatureFlagValue} from 'mattermost-redux/selectors/entities/general';
 import {
     getCurrentUserId,
-    getProfiles as selectProfiles,
     getProfilesInCurrentChannel,
     makeSearchProfilesStartingWithTerm,
-    getTotalUsersStats as getTotalUsersStatsSelector,
 } from 'mattermost-redux/selectors/entities/users';
 
 import {openDirectChannelToUserId} from 'actions/channel_actions';
@@ -56,14 +52,12 @@ export const makeMapStateToProps = () => {
         }
 
         let users: UserProfile[];
-        // LZX: 全局私信搜索，始终走全局用户，不限当前团队
+        // LZX: 无搜索词时不展示默认成员列表；输入搜索词后继续走全局用户搜索。
         if (searchTerm) {
             users = searchProfilesStartingWithTerm(state, searchTerm, false, filters);
         } else {
-            users = selectProfiles(state, filters);
+            users = [];
         }
-
-        const stats = getTotalUsersStatsSelector(state) || {total_users_count: 0};
 
         return {
             searchTerm,
@@ -71,7 +65,6 @@ export const makeMapStateToProps = () => {
             currentChannelMembers,
             currentUserId,
             restrictDirectMessage,
-            totalCount: stats.total_users_count ?? 0,
         };
     };
 };
@@ -79,9 +72,7 @@ export const makeMapStateToProps = () => {
 function mapDispatchToProps(dispatch: Dispatch) {
     return {
         actions: bindActionCreators({
-            getProfiles,
             loadProfilesMissingStatus,
-            getTotalUsersStats,
             loadStatusesForProfilesList,
             openDirectChannelToUserId,
             searchProfiles,

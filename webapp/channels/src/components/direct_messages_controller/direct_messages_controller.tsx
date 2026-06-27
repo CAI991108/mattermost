@@ -2,9 +2,11 @@
 // See LICENSE.txt for license information.
 
 import classNames from 'classnames';
-import React from 'react';
-import {useSelector} from 'react-redux';
+import React, {useEffect, useState} from 'react';
+import {useDispatch, useSelector} from 'react-redux';
 import type {RouteComponentProps} from 'react-router-dom';
+
+import {fetchAllMyChannelMembers, fetchAllMyTeamsChannels} from 'mattermost-redux/actions/channels';
 
 import ResizableLhs from 'components/resizable_sidebar/resizable_lhs';
 
@@ -24,8 +26,31 @@ type Props = RouteComponentProps<{identifier?: string}>;
  * the same as team channels.
  */
 export default function DirectMessagesController(props: Props) {
+    const dispatch = useDispatch();
     const lhsOpen = useSelector(getIsLhsOpen);
     const rhsOpen = useSelector(getIsRhsOpen);
+    const [channelsLoaded, setChannelsLoaded] = useState(false);
+
+    useEffect(() => {
+        let mounted = true;
+
+        async function loadDirectMessageData() {
+            await Promise.all([
+                dispatch(fetchAllMyTeamsChannels() as any),
+                dispatch(fetchAllMyChannelMembers() as any),
+            ]);
+
+            if (mounted) {
+                setChannelsLoaded(true);
+            }
+        }
+
+        loadDirectMessageData();
+
+        return () => {
+            mounted = false;
+        };
+    }, [dispatch]);
 
     return (
         <>
@@ -45,7 +70,10 @@ export default function DirectMessagesController(props: Props) {
                         })}
                     >
                         <div className='row main'>
-                            <DirectMessagesCenter {...props}/>
+                            <DirectMessagesCenter
+                                {...props}
+                                channelsLoaded={channelsLoaded}
+                            />
                         </div>
                     </div>
                 </div>
