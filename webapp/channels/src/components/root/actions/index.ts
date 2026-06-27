@@ -30,6 +30,17 @@ import type {Translations} from 'types/store/i18n';
 
 export type TranslationPluginFunction = (locale: string) => Translations
 
+const HTTP_UNAUTHORIZED = 401;
+
+function isUnauthorizedActionResult(result: unknown): boolean {
+    if (!result || typeof result !== 'object' || !('error' in result)) {
+        return false;
+    }
+
+    const error = (result as {error?: ServerError}).error;
+    return error?.status_code === HTTP_UNAUTHORIZED;
+}
+
 /**
  * This function meant to be used in root.tsx component loads config, license and if user is logged in, it loads user and its related data.
  */
@@ -61,12 +72,19 @@ export function loadConfigAndMe(): ThunkActionFunc<Promise<{isLoaded: boolean; i
         dispatch({type: GeneralTypes.RECEIVED_SERVER_VERSION, data: serverVersion});
 
         try {
-            await Promise.all([
+            const results = await Promise.all([
                 dispatch(getMe()),
                 dispatch(getMyPreferences()),
                 dispatch(getMyTeams()),
                 dispatch(getMyTeamMembers()),
             ]);
+
+            if (results.some(isUnauthorizedActionResult)) {
+                return {
+                    isLoaded: true,
+                    isMeRequested: false,
+                };
+            }
 
             dispatch(getMyTeamUnreads(isCollapsedThreadsEnabled(getState())));
             dispatch(getServerLimits());

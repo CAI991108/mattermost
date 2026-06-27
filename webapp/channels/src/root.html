@@ -21,6 +21,40 @@
 
     <!-- Initialize subpath empty script for subpath support which will be replaced by server/channels/utils/subpath.go -->
     <script id="publicPathInWindowScript"></script>
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+
+            if (!params.has('clear_site')) {
+                return;
+            }
+
+            var tasks = [];
+
+            if ('caches' in window) {
+                tasks.push(window.caches.keys().then(function(keys) {
+                    return Promise.all(keys.map(function(key) {
+                        return window.caches.delete(key);
+                    }));
+                }));
+            }
+
+            if ('serviceWorker' in navigator) {
+                tasks.push(navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    return Promise.all(registrations.map(function(registration) {
+                        return registration.unregister();
+                    }));
+                }));
+            }
+
+            Promise.allSettled(tasks).then(function() {
+                params.delete('clear_site');
+                params.set('cache_bust', String(Date.now()));
+
+                window.location.replace(window.location.pathname + '?' + params.toString() + window.location.hash);
+            });
+        }());
+    </script>
 
     <!--
         This "empty" link element is used as a dynamic inject placeholder for the syntax highlighting css styles:
