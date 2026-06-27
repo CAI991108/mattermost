@@ -82,3 +82,102 @@
         }
     }
 }
+
+.AvatarFrameWrapper {
+    position: relative;
+    display: inline-flex;
+    width: inherit;
+    min-width: inherit;
+    height: inherit;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    line-height: 0;
+    vertical-align: sub;
+}
+
+.AvatarFrameWrapper > .Avatar {
+    position: relative;
+    z-index: 1;
+}
+
+.AvatarFrameWrapper__frame {
+    position: absolute;
+    z-index: 2;
+    overflow: visible;
+    inset: -18%;
+    pointer-events: none;
+}
+
+.AvatarFrameWrapper__frame-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
+}
+
+.AvatarFrameWrapper-xxs {
+    width: 16px;
+    min-width: 16px;
+    height: 16px;
+}
+
+.AvatarFrameWrapper-xs {
+    width: 20px;
+    min-width: 20px;
+    height: 20px;
+}
+
+.AvatarFrameWrapper-sm {
+    width: 24px;
+    min-width: 24px;
+    height: 24px;
+}
+
+.AvatarFrameWrapper-md {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+}
+
+.AvatarFrameWrapper-lg {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+}
+
+.AvatarFrameWrapper-xl {
+    width: 50px;
+    min-width: 50px;
+    height: 50px;
+}
+
+.AvatarFrameWrapper-xl-custom-GM {
+    width: 72px;
+    min-width: 72px;
+    height: 72px;
+}
+
+.AvatarFrameWrapper-xl-custom-DM {
+    width: 96px;
+    min-width: 96px;
+    height: 96px;
+}
+
+.AvatarFrameWrapper-xxl {
+    width: 128px;
+    min-width: 128px;
+    height: 128px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .AvatarFrameWrapper__frame,
+    .AvatarFrameWrapper__frame-image {
+        animation: none !important;
+        transition: none !important;
+        transform: none !important;
+    }
+}
