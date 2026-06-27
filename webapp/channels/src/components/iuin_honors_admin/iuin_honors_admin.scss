@@ -1,0 +1,1269 @@
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
+
+.iuin-honors-admin {
+    display: block;
+    overflow: hidden;
+    width: 100%;
+    min-width: 0;
+    height: calc(100vh - 48px);
+    min-height: calc(100vh - 48px);
+    background: rgba(var(--center-channel-color-rgb), 0.04);
+    color: var(--center-channel-color);
+}
+
+body.app__body #root:has(.iuin-honors-admin) {
+    background: rgba(var(--center-channel-color-rgb), 0.04);
+    grid-template:
+        "classification-banner" min-content
+        "announcement" min-content
+        "admin-announcement" min-content
+        "header" min-content
+        "main" minmax(0, 1fr)
+        "classification-banner-bottom" min-content
+        "footer" min-content / minmax(0, 1fr);
+}
+
+body.app__body #root:has(.iuin-honors-admin) > .iuin-honors-admin {
+    grid-area: main;
+    align-self: stretch;
+    justify-self: stretch;
+}
+
+body.app__body #root .main-wrapper:has(.iuin-honors-admin) {
+    border: 0;
+    border-radius: 0;
+    margin: 0;
+    grid-template: "center";
+    grid-template-columns: minmax(0, 1fr);
+}
+
+body.app__body #root .main-wrapper:has(.iuin-honors-admin) .iuin-honors-admin {
+    grid-area: center;
+    align-self: stretch;
+    justify-self: stretch;
+}
+
+body.app__body #root .main-wrapper:has(.iuin-honors-admin) > .sidebar--right--width-holder,
+body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
+    display: none;
+}
+
+.channel-view-inner:has(.iuin-honors-admin),
+#app-content:has(.iuin-honors-admin) {
+    overflow: hidden;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    background: rgba(var(--center-channel-color-rgb), 0.04);
+}
+
+.iuin-honors-admin .admin-console__header {
+    z-index: 100;
+    display: flex;
+    min-height: 64px;
+    flex: 0 0 64px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.1);
+    background: var(--center-channel-bg);
+    font-family: Metropolis, sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 32px;
+    padding: 12px 20px;
+}
+
+.iuin-honors-admin .admin-console__header button,
+.iuin-honors-admin .admin-console__header select {
+    font-family: 'Open Sans', sans-serif;
+    letter-spacing: 0;
+}
+
+.iuin-honors-admin__shell {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    flex-direction: column;
+}
+
+.iuin-honors-admin__header-title {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.iuin-honors-admin__header-title span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin__header-title small {
+    overflow: hidden;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-family: 'Open Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin .iuin-honors-admin__wrapper {
+    position: relative;
+    overflow: auto;
+    flex: 1 1 auto;
+    padding: 20px;
+}
+
+.iuin-honors-admin__layout {
+    display: grid;
+    width: 100%;
+    max-width: none;
+    min-height: 100%;
+    align-items: start;
+    gap: 20px;
+    grid-template-columns: 232px minmax(0, 1fr);
+}
+
+.iuin-honors-admin__sidebar {
+    position: sticky;
+    top: 0;
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+    border-radius: var(--radius-s);
+    background: var(--center-channel-bg);
+    box-shadow: var(--elevation-1);
+    padding: 12px;
+}
+
+.iuin-honors-admin__nav-heading {
+    padding: 4px 8px 10px;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 16px;
+    text-transform: uppercase;
+}
+
+.iuin-honors-admin__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.iuin-honors-admin__nav-item {
+    display: grid;
+    width: 100%;
+    min-height: 40px;
+    align-items: center;
+    border: 0;
+    border-radius: var(--radius-s);
+    background: transparent;
+    color: rgba(var(--center-channel-color-rgb), 0.72);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    gap: 8px;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    padding: 0 8px;
+    text-align: left;
+}
+
+.iuin-honors-admin__nav-item i {
+    width: 20px;
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 16px;
+    text-align: center;
+}
+
+.iuin-honors-admin__nav-item span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin__nav-item strong {
+    min-width: 24px;
+    border-radius: 10px;
+    background: rgba(var(--center-channel-color-rgb), 0.08);
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+}
+
+.iuin-honors-admin__nav-item:hover,
+.iuin-honors-admin__nav-item:focus,
+.iuin-honors-admin__nav-item--active {
+    background: rgba(var(--button-bg-rgb), 0.08);
+    color: var(--center-channel-color);
+    outline: 0;
+}
+
+.iuin-honors-admin__nav-item:hover i,
+.iuin-honors-admin__nav-item:focus i,
+.iuin-honors-admin__nav-item--active i {
+    color: var(--button-bg);
+}
+
+.iuin-honors-admin__nav-item--active strong {
+    background: rgba(var(--button-bg-rgb), 0.12);
+    color: var(--button-bg);
+}
+
+.iuin-honors-admin .iuin-honors-admin__content {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+}
+
+.iuin-honors-admin-panel.AdminPanel {
+    margin: 0 0 16px;
+}
+
+.iuin-honors-admin-panel.AdminPanel .header {
+    background: var(--center-channel-bg);
+}
+
+.iuin-honors-admin-panel.AdminPanel .header h3 {
+    letter-spacing: 0;
+}
+
+.iuin-honors-admin__panel-button {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+}
+
+.iuin-honors-admin-table-wrap.AdminPanel__content {
+    padding: 0;
+}
+
+.iuin-honors-admin-table {
+    width: 100%;
+}
+
+.iuin-honors-admin-table__header,
+.iuin-honors-admin-row {
+    display: grid;
+    align-items: center;
+    grid-template-columns: 56px minmax(280px, 2fr) minmax(180px, 1.2fr) minmax(104px, 0.55fr) minmax(132px, 0.7fr) 96px;
+}
+
+.iuin-honors-admin-table__header {
+    min-height: 40px;
+    border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+    background: rgba(var(--center-channel-color-rgb), 0.025);
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.iuin-honors-admin-table__header span,
+.iuin-honors-admin-row > * {
+    min-width: 0;
+    padding: 0 16px;
+}
+
+.iuin-honors-admin-table__body {
+    display: flex;
+    flex-direction: column;
+}
+
+.iuin-honors-admin-row {
+    min-height: 88px;
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    background: var(--center-channel-bg);
+}
+
+.iuin-honors-admin-row:last-child {
+    border-bottom: 0;
+}
+
+.iuin-honors-admin-row:hover {
+    background: rgba(var(--button-bg-rgb), 0.04);
+}
+
+.iuin-honors-admin-row--dragging {
+    opacity: 0.56;
+}
+
+.iuin-honors-admin-row--drop-target {
+    box-shadow: inset 0 2px 0 var(--button-bg);
+}
+
+.iuin-honors-admin-row__order {
+    display: flex;
+    justify-content: center;
+    padding-right: 8px;
+    padding-left: 8px;
+}
+
+.iuin-honors-admin-row__drag-handle {
+    cursor: grab;
+}
+
+.iuin-honors-admin-row__drag-handle:active {
+    cursor: grabbing;
+}
+
+.iuin-honors-admin-row__resource {
+    display: grid;
+    align-items: center;
+    gap: 12px;
+    grid-template-columns: 72px minmax(0, 1fr);
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.iuin-honors-admin-row__summary,
+.iuin-honors-admin-row__unlock,
+.iuin-honors-admin-row__contributor {
+    min-width: 0;
+}
+
+.iuin-honors-admin-row__title {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+}
+
+.iuin-honors-admin-row__title h3 {
+    overflow: hidden;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin-audit__action {
+    flex: 0 0 auto;
+    border-radius: 10px;
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+    padding: 0 8px;
+}
+
+.iuin-honors-admin-row__summary p {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 4px 0 0;
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 13px;
+    line-height: 20px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.iuin-honors-admin-row__unlock {
+    display: flex;
+    align-items: flex-start;
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 13px;
+    gap: 8px;
+    line-height: 20px;
+}
+
+.iuin-honors-admin-row__unlock i {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    color: rgba(var(--center-channel-color-rgb), 0.48);
+    font-size: 14px;
+}
+
+.iuin-honors-admin-row__unlock span {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.iuin-honors-admin-row__contributor {
+    display: flex;
+    align-items: center;
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 13px;
+    gap: 8px;
+}
+
+.iuin-honors-admin-row__contributor i {
+    flex: 0 0 auto;
+    color: rgba(var(--center-channel-color-rgb), 0.48);
+    font-size: 14px;
+}
+
+.iuin-honors-admin-row__contributor span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin-row__id {
+    display: inline-block;
+    overflow: hidden;
+    width: fit-content;
+    max-width: min(180px, 100%);
+    justify-self: start;
+    border-radius: 6px;
+    background: rgba(var(--center-channel-color-rgb), 0.08);
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: 12px;
+    line-height: 20px;
+    padding: 0 8px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin-row__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.iuin-honors-admin-row__actions .btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+}
+
+.iuin-honors-admin-drafts.AdminPanel__content {
+    padding: 0;
+}
+
+.iuin-honors-admin-drafts__header,
+.iuin-honors-admin-draft-row {
+    display: grid;
+    align-items: center;
+    grid-template-columns: minmax(280px, 1.8fr) minmax(88px, 0.45fr) minmax(180px, 0.8fr) 136px;
+}
+
+.iuin-honors-admin-drafts__header {
+    min-height: 40px;
+    border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+    background: rgba(var(--center-channel-color-rgb), 0.025);
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.iuin-honors-admin-drafts__header span,
+.iuin-honors-admin-draft-row > * {
+    min-width: 0;
+    padding: 0 16px;
+}
+
+.iuin-honors-admin-draft-row {
+    min-height: 88px;
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    background: var(--center-channel-bg);
+}
+
+.iuin-honors-admin-draft-row:hover {
+    background: rgba(var(--button-bg-rgb), 0.04);
+}
+
+.iuin-honors-admin-draft-row__resource {
+    display: grid;
+    align-items: center;
+    gap: 12px;
+    grid-template-columns: 72px minmax(0, 1fr);
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.iuin-honors-admin-draft-row > span {
+    overflow: hidden;
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin-draft-row code {
+    display: block;
+    overflow: hidden;
+    width: fit-content;
+    max-width: 220px;
+    border-radius: 6px;
+    margin-top: 4px;
+    background: rgba(var(--center-channel-color-rgb), 0.08);
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: 12px;
+    line-height: 20px;
+    padding: 0 8px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin-preview {
+    position: relative;
+    display: flex;
+    overflow: visible;
+    width: 64px;
+    height: 64px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    border-radius: var(--radius-s);
+    background: rgba(var(--center-channel-color-rgb), 0.035);
+}
+
+.iuin-honors-admin-preview img {
+    display: block;
+    max-width: 94%;
+    max-height: 94%;
+    object-fit: contain;
+}
+
+.iuin-honors-admin-preview__frame-image {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    max-width: none;
+    max-height: none;
+    inset: 50% auto auto 50%;
+    object-fit: contain;
+    transform: translate(-50%, -50%);
+}
+
+.iuin-honors-admin-preview__avatar,
+.iuin-honors-admin-frame-adjuster__sample-avatar {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    border-radius: 50%;
+    background:
+        linear-gradient(135deg, #dbeafe, #f8fafc 52%, #fef3c7),
+        var(--center-channel-bg);
+    box-shadow: inset 0 0 0 1px rgba(var(--center-channel-color-rgb), 0.08);
+}
+
+.iuin-honors-admin-preview__avatar-image,
+.iuin-honors-admin-frame-adjuster__sample-avatar-image {
+    position: absolute;
+    display: block;
+    width: 100%;
+    height: 100%;
+    inset: 0;
+    object-fit: cover;
+}
+
+.iuin-honors-admin-preview__avatar {
+    width: 44px;
+    height: 44px;
+}
+
+.iuin-honors-admin-preview--achievement i {
+    color: var(--button-bg);
+    font-size: 32px;
+}
+
+.iuin-honors-admin__notice {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    border: 1px solid rgba(210, 75, 78, 0.24);
+    border-radius: var(--radius-s);
+    margin: 0 0 16px;
+    background: rgba(210, 75, 78, 0.08);
+    color: #9b1c1f;
+    gap: 10px;
+    padding: 0 14px;
+}
+
+.iuin-honors-admin__loading,
+.iuin-honors-admin__empty-state {
+    display: flex;
+    min-height: 240px;
+    align-items: center;
+    justify-content: center;
+    color: rgba(var(--center-channel-color-rgb), 0.58);
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+}
+
+.iuin-honors-admin__empty-state {
+    width: 100%;
+    padding: 32px 16px;
+}
+
+.iuin-honors-admin__empty-state h1,
+.iuin-honors-admin__empty-state h3 {
+    margin: 0;
+    letter-spacing: 0;
+}
+
+.iuin-honors-admin__file-input {
+    display: none;
+}
+
+.iuin-honors-admin-editor__backdrop,
+.iuin-honors-admin-confirm__backdrop {
+    position: fixed;
+    z-index: 2000;
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-end;
+    background: rgba(15, 23, 42, 0.32);
+    inset: 0;
+}
+
+.iuin-honors-admin-editor {
+    display: flex;
+    width: min(560px, 100vw);
+    flex-direction: column;
+    background: var(--center-channel-bg);
+    box-shadow: -20px 0 48px rgba(15, 23, 42, 0.22);
+}
+
+.iuin-honors-admin-editor__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+    padding: 20px 22px;
+}
+
+.iuin-honors-admin-editor__header h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 28px;
+}
+
+.iuin-honors-admin-editor__header button {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: var(--radius-s);
+    background: transparent;
+    color: rgba(var(--center-channel-color-rgb), 0.72);
+    cursor: pointer;
+}
+
+.iuin-honors-admin-editor__header button:hover,
+.iuin-honors-admin-editor__header button:focus {
+    background: rgba(var(--center-channel-color-rgb), 0.08);
+    outline: 0;
+}
+
+.iuin-honors-admin__eyebrow {
+    display: block;
+    margin-bottom: 4px;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 16px;
+    text-transform: uppercase;
+}
+
+.iuin-honors-admin-editor__body {
+    overflow: auto;
+    flex: 1 1 auto;
+    padding: 18px 22px 24px;
+}
+
+.iuin-honors-admin-editor__body label {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 14px;
+    gap: 6px;
+}
+
+.iuin-honors-admin-editor__body label > span,
+.iuin-honors-admin-editor__id-row span,
+.iuin-honors-admin-editor__asset-head span,
+.iuin-honors-admin-frame-adjuster__controls span {
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.iuin-honors-admin-editor__id-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+    border-radius: var(--radius-s);
+    margin-bottom: 14px;
+    background: rgba(var(--center-channel-color-rgb), 0.03);
+    gap: 12px;
+    padding: 10px 12px;
+}
+
+.iuin-honors-admin-editor__id-row code {
+    overflow: hidden;
+    color: rgba(var(--center-channel-color-rgb), 0.72);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin-editor__body input,
+.iuin-honors-admin-editor__body select,
+.iuin-honors-admin-editor__body textarea {
+    width: 100%;
+    min-height: 38px;
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+    border-radius: var(--radius-s);
+    background: var(--center-channel-bg);
+    color: var(--center-channel-color);
+    font: inherit;
+    padding: 8px 10px;
+}
+
+.iuin-honors-admin-editor__body textarea {
+    min-height: 72px;
+    resize: vertical;
+}
+
+.iuin-honors-admin-editor__body input:focus,
+.iuin-honors-admin-editor__body select:focus,
+.iuin-honors-admin-editor__body textarea:focus {
+    border-color: rgba(var(--button-bg-rgb), 0.56);
+    box-shadow: 0 0 0 3px rgba(var(--button-bg-rgb), 0.12);
+    outline: 0;
+}
+
+.iuin-honors-admin-editor__rarity-preview {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.iuin-honors-admin-editor__split {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 1fr 1fr;
+}
+
+.iuin-honors-admin-editor__code {
+    font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.iuin-honors-admin-editor__asset {
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+    border-radius: var(--radius-s);
+    padding: 12px;
+}
+
+.iuin-honors-admin-editor__asset-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.iuin-honors-admin-editor__asset-head button,
+.iuin-honors-admin-editor__actions button,
+.iuin-honors-admin-confirm footer button {
+    display: inline-flex;
+    min-height: 34px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+    border-radius: var(--radius-s);
+    background: rgba(var(--center-channel-color-rgb), 0.04);
+    color: var(--center-channel-color);
+    cursor: pointer;
+    font-weight: 600;
+    gap: 8px;
+    padding: 0 12px;
+}
+
+.iuin-honors-admin-editor__actions button[type='submit'],
+.iuin-honors-admin-confirm footer button:last-child {
+    border-color: transparent;
+    background: var(--button-bg);
+    color: var(--button-color);
+}
+
+.iuin-honors-admin-image-adjuster {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: minmax(180px, 224px) 1fr;
+}
+
+.iuin-honors-admin-image-adjuster--title {
+    grid-template-columns: 1fr;
+}
+
+.iuin-honors-admin-image-adjuster__stage {
+    position: relative;
+    overflow: hidden;
+    width: 224px;
+    border-radius: var(--radius-s);
+    background:
+        linear-gradient(45deg, rgba(var(--center-channel-color-rgb), 0.05) 25%, transparent 25% 75%, rgba(var(--center-channel-color-rgb), 0.05) 75%),
+        linear-gradient(45deg, rgba(var(--center-channel-color-rgb), 0.05) 25%, transparent 25% 75%, rgba(var(--center-channel-color-rgb), 0.05) 75%);
+    background-position: 0 0, 10px 10px;
+    background-size: 20px 20px;
+    cursor: grab;
+    touch-action: none;
+}
+
+.iuin-honors-admin-image-adjuster--title .iuin-honors-admin-image-adjuster__stage {
+    width: 100%;
+    min-height: 150px;
+}
+
+.iuin-honors-admin-image-adjuster__stage--dragging {
+    cursor: grabbing;
+}
+
+.iuin-honors-admin-image-adjuster__image {
+    position: absolute;
+    display: block;
+    max-width: none;
+    max-height: none;
+    object-fit: fill;
+    pointer-events: none;
+    user-select: none;
+}
+
+.iuin-honors-admin-image-adjuster__stage > i {
+    position: absolute;
+    color: rgba(var(--center-channel-color-rgb), 0.42);
+    font-size: 42px;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+}
+
+.iuin-honors-admin-image-adjuster__crop-guide {
+    position: absolute;
+    z-index: 2;
+    box-sizing: border-box;
+    border: 2px dashed rgba(255, 255, 255, 0.86);
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.08);
+    box-shadow: 0 0 0 999px rgba(15, 23, 42, 0.08);
+    inset: 18px;
+    pointer-events: none;
+}
+
+.iuin-honors-admin-frame-adjuster {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: minmax(180px, 224px) 1fr;
+}
+
+.iuin-honors-admin-frame-adjuster__stage {
+    position: relative;
+    overflow: hidden;
+    width: 224px;
+    height: 224px;
+    border-radius: var(--radius-s);
+    background:
+        linear-gradient(45deg, rgba(var(--center-channel-color-rgb), 0.05) 25%, transparent 25% 75%, rgba(var(--center-channel-color-rgb), 0.05) 75%),
+        linear-gradient(45deg, rgba(var(--center-channel-color-rgb), 0.05) 25%, transparent 25% 75%, rgba(var(--center-channel-color-rgb), 0.05) 75%);
+    background-position: 0 0, 10px 10px;
+    background-size: 20px 20px;
+    cursor: grab;
+    touch-action: none;
+}
+
+.iuin-honors-admin-frame-adjuster__stage--dragging {
+    cursor: grabbing;
+}
+
+.iuin-honors-admin-frame-adjuster__sample-avatar {
+    position: absolute;
+    z-index: 1;
+    width: 73.529%;
+    height: 73.529%;
+    box-sizing: border-box;
+    border: 1px solid #dbe5f2;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+}
+
+.iuin-honors-admin-frame-adjuster__stage > .iuin-honors-admin-frame-adjuster__frame-image {
+    position: absolute;
+    z-index: 2;
+    display: block;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    max-width: none;
+    max-height: none;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+.iuin-honors-admin-frame-adjuster__stage > i {
+    position: absolute;
+    color: rgba(var(--center-channel-color-rgb), 0.42);
+    font-size: 42px;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+}
+
+.iuin-honors-admin-frame-adjuster__controls {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+}
+
+.iuin-honors-admin-frame-adjuster__controls label {
+    margin: 0;
+}
+
+.iuin-honors-admin-frame-adjuster__controls input {
+    padding: 0;
+}
+
+.iuin-honors-admin-editor__actions {
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+    gap: 10px;
+    padding: 16px 22px;
+}
+
+.iuin-honors-admin-audit.AdminPanel__content {
+    padding: 0;
+}
+
+.iuin-honors-admin-audit__header,
+.iuin-honors-admin-audit__row {
+    display: grid;
+    align-items: start;
+    grid-template-columns: minmax(160px, 0.8fr) minmax(220px, 1fr) minmax(260px, 1.6fr);
+}
+
+.iuin-honors-admin-audit__header {
+    min-height: 40px;
+    align-items: center;
+    border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+    background: rgba(var(--center-channel-color-rgb), 0.025);
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.iuin-honors-admin-audit__header span,
+.iuin-honors-admin-audit__row > * {
+    min-width: 0;
+    padding: 0 16px;
+}
+
+.iuin-honors-admin-audit__row {
+    min-height: 72px;
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    background: var(--center-channel-bg);
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.iuin-honors-admin-audit__row:hover {
+    background: rgba(var(--button-bg-rgb), 0.04);
+}
+
+.iuin-honors-admin-audit__row > div {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.iuin-honors-admin-audit__row strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin-audit__row span,
+.iuin-honors-admin-audit__row code,
+.iuin-honors-admin-audit__row p {
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 12px;
+}
+
+.iuin-honors-admin-audit__row p {
+    margin: 0;
+    line-height: 18px;
+}
+
+.iuin-honors-admin-audit__row details {
+    grid-column: 1 / -1;
+    margin-top: 12px;
+}
+
+.iuin-honors-admin-audit__row summary {
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.iuin-honors-admin-audit__row pre {
+    overflow: auto;
+    max-height: 260px;
+    border-radius: var(--radius-s);
+    margin: 8px 0 0;
+    background: rgba(var(--center-channel-color-rgb), 0.05);
+    font-size: 12px;
+    padding: 10px;
+}
+
+.iuin-honors-admin-audit__action--create {
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+}
+
+.iuin-honors-admin-audit__action--update {
+    background: rgba(245, 158, 11, 0.16);
+    color: #b45309;
+}
+
+.iuin-honors-admin-audit__action--delete {
+    background: rgba(225, 29, 72, 0.12);
+    color: #be123c;
+}
+
+.iuin-honors-admin-audit__action--upload {
+    background: rgba(20, 184, 166, 0.12);
+    color: #0f766e;
+}
+
+.iuin-honors-admin-audit__action--publish,
+.iuin-honors-admin-audit__action--draft_create {
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+}
+
+.iuin-honors-admin-audit__action--draft_update {
+    background: rgba(245, 158, 11, 0.16);
+    color: #b45309;
+}
+
+.iuin-honors-admin-audit__action--draft_delete {
+    background: rgba(225, 29, 72, 0.12);
+    color: #be123c;
+}
+
+.iuin-honors-admin-confirm__backdrop {
+    align-items: center;
+    justify-content: center;
+}
+
+.iuin-honors-admin-confirm {
+    width: min(420px, calc(100vw - 32px));
+    border-radius: var(--radius-s);
+    background: var(--center-channel-bg);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+    padding: 22px;
+}
+
+.iuin-honors-admin-confirm header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.iuin-honors-admin-confirm h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 28px;
+}
+
+.iuin-honors-admin-confirm header i {
+    color: #be123c;
+    font-size: 24px;
+}
+
+.iuin-honors-admin-confirm p {
+    margin: 16px 0 22px;
+    color: rgba(var(--center-channel-color-rgb), 0.7);
+}
+
+.iuin-honors-admin-confirm footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+    cursor: not-allowed;
+    opacity: 0.56;
+}
+
+@media screen and (max-width: 1080px) {
+    .iuin-honors-admin__layout {
+        grid-template-columns: 200px minmax(0, 1fr);
+    }
+
+    .iuin-honors-admin-table__header,
+    .iuin-honors-admin-row {
+        grid-template-columns: 48px minmax(240px, 1.55fr) minmax(160px, 0.95fr) minmax(92px, 0.5fr) minmax(120px, 0.65fr) 88px;
+    }
+
+    .iuin-honors-admin-drafts__header,
+    .iuin-honors-admin-draft-row {
+        grid-template-columns: minmax(240px, 1.6fr) minmax(80px, 0.45fr) minmax(150px, 0.75fr) 128px;
+    }
+}
+
+@media screen and (max-width: 900px) {
+    .iuin-honors-admin {
+        height: auto;
+        min-height: calc(100vh - 48px);
+    }
+
+    .iuin-honors-admin__layout {
+        grid-template-columns: 1fr;
+    }
+
+    .iuin-honors-admin__sidebar {
+        position: static;
+    }
+
+    .iuin-honors-admin__nav {
+        overflow-x: auto;
+        flex-direction: row;
+        padding-bottom: 4px;
+    }
+
+    .iuin-honors-admin__nav-item {
+        min-width: 138px;
+    }
+
+    .iuin-honors-admin-table__header {
+        display: none;
+    }
+
+    .iuin-honors-admin-row {
+        align-items: start;
+        gap: 10px;
+        grid-template-columns: 40px minmax(0, 1fr) auto;
+        padding: 12px 16px;
+    }
+
+    .iuin-honors-admin-row > * {
+        padding: 0;
+    }
+
+    .iuin-honors-admin-row__order {
+        grid-column: 1 / 2;
+        grid-row: 1 / 2;
+        align-self: start;
+        padding: 0;
+    }
+
+    .iuin-honors-admin-row__resource {
+        grid-column: 2 / -1;
+        padding: 0;
+    }
+
+    .iuin-honors-admin-row__unlock,
+    .iuin-honors-admin-row__contributor,
+    .iuin-honors-admin-row__id {
+        grid-column: 2 / 3;
+    }
+
+    .iuin-honors-admin-row__actions {
+        grid-column: 3 / 4;
+        grid-row: 2 / 5;
+        align-self: end;
+    }
+
+    .iuin-honors-admin-drafts__header {
+        display: none;
+    }
+
+    .iuin-honors-admin-draft-row {
+        align-items: start;
+        gap: 10px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        padding: 12px 16px;
+    }
+
+    .iuin-honors-admin-draft-row > * {
+        padding: 0;
+    }
+
+    .iuin-honors-admin-draft-row__resource {
+        grid-column: 1 / -1;
+        padding: 0;
+    }
+
+    .iuin-honors-admin-draft-row > span {
+        grid-column: 1 / 2;
+    }
+
+    .iuin-honors-admin-draft-row .iuin-honors-admin-row__actions {
+        grid-column: 2 / 3;
+        grid-row: 2 / 4;
+    }
+
+    .iuin-honors-admin-audit__header {
+        display: none;
+    }
+
+    .iuin-honors-admin-audit__row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 14px 16px;
+    }
+
+    .iuin-honors-admin-audit__row > * {
+        padding: 0;
+    }
+}
+
+@media screen and (max-width: 640px) {
+    .iuin-honors-admin .iuin-honors-admin__wrapper {
+        padding: 12px;
+    }
+
+    .iuin-honors-admin .admin-console__header {
+        height: auto;
+        min-height: 64px;
+    }
+
+    .iuin-honors-admin-editor {
+        width: 100vw;
+    }
+
+    .iuin-honors-admin-editor__split,
+    .iuin-honors-admin-image-adjuster,
+    .iuin-honors-admin-frame-adjuster {
+        grid-template-columns: 1fr;
+    }
+
+    .iuin-honors-admin-image-adjuster__stage,
+    .iuin-honors-admin-frame-adjuster__stage {
+        justify-self: center;
+    }
+}
