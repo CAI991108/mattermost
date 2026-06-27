@@ -5,11 +5,9 @@ import React, {useEffect, useCallback, useMemo, useState} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
 import {useRouteMatch} from 'react-router-dom';
 
-import {getProfiles, getTotalUsersStats} from 'mattermost-redux/actions/users';
+import {getMissingProfilesByIds, getMissingProfilesByUsernames} from 'mattermost-redux/actions/users';
 import {getTeammateNameDisplaySetting} from 'mattermost-redux/selectors/entities/preferences';
-import {getCurrentUserId, getCurrentUser, getProfiles as selectProfiles, getUserStatuses, getTotalUsersStats as getTotalUsersStatsSelector} from 'mattermost-redux/selectors/entities/users';
-
-import {displayUsername} from 'mattermost-redux/utils/user_utils';
+import {getUserByUsername, getUsers, getUserStatuses} from 'mattermost-redux/selectors/entities/users';
 
 import {openModal} from 'actions/views/modals';
 import {getDmUnreadByUserId} from 'selectors/direct_messages';
@@ -26,36 +24,22 @@ import type {GlobalState} from 'types/store';
 
 import './direct_messages_sidebar.scss';
 
-const DM_USERS_PAGE_SIZE = 200;
+type RecentDmUser = {
+    userId: string;
+    dmInfo: DmUnreadInfo;
+};
 
-type SortedUser = {
+type DisplayedRecentUser = {
     user: UserProfile;
     dmInfo: DmUnreadInfo | null;
 };
 
-function toSortedUsers(
-    users: UserProfile[],
-    dmUnreadByUserId: Record<string, DmUnreadInfo>,
-): SortedUser[] {
-    return users.map((user) => ({
-        user,
-        dmInfo: dmUnreadByUserId[user.id] ?? null,
-    }));
-}
-
-function sortRecentUsers(users: SortedUser[]): SortedUser[] {
-    return users
-        .filter(({dmInfo}) => dmInfo?.hasHistory)
-        .sort((a, b) => (b.dmInfo?.lastPostAt ?? 0) - (a.dmInfo?.lastPostAt ?? 0))
-        .slice(0, 20);
-}
-
-function sortAllUsersByDisplayName(users: SortedUser[], nameDisplaySetting: string): SortedUser[] {
-    return [...users].sort((a, b) => {
-        const aName = displayUsername(a.user, nameDisplaySetting);
-        const bName = displayUsername(b.user, nameDisplaySetting);
-        return aName.localeCompare(bName);
-    });
+function getRecentDmUsers(dmUnreadByUserId: Record<string, DmUnreadInfo>): RecentDmUser[] {
+    return Object.entries(dmUnreadByUserId)
+        .filter(([, dmInfo]) => dmInfo.hasHistory)
+        .sort(([, a], [, b]) => b.lastPostAt - a.lastPostAt)
+        .slice(0, 20)
+        .map(([userId, dmInfo]) => ({userId, dmInfo}));
 }
 
 export default function DirectMessagesSidebar() {
@@ -68,57 +52,59 @@ export default function DirectMessagesSidebar() {
         : null;
     const activeUserId = identifierParam && !identifierParam.startsWith('@') ? identifierParam : null;
 
-    const currentUserId = useSelector(getCurrentUserId);
-    const selfUser = useSelector(getCurrentUser);  // getCurrentUser 专门获取当前登录用户
-    const allProfiles = useSelector((state: GlobalState) => selectProfiles(state));
+    const profilesById = useSelector(getUsers);
+    const activeUserByUsername = useSelector((state: GlobalState) => activeUsername ? getUserByUsername(state, activeUsername) : undefined);
     const statuses = useSelector(getUserStatuses);
     const dmUnreadByUserId = useSelector(getDmUnreadByUserId);
     const nameDisplaySetting = useSelector(getTeammateNameDisplaySetting);
-    const totalUsersCount = useSelector((state: GlobalState) => getTotalUsersStatsSelector(state)?.total_users_count ?? 0);
-
-    useEffect(() => {
-        dispatch(getTotalUsersStats() as any);
-        dispatch(getProfiles(0, DM_USERS_PAGE_SIZE) as any);
-    }, [dispatch]);
-
-    useEffect(() => {
-        if (totalUsersCount <= DM_USERS_PAGE_SIZE) {
-            return;
-        }
-
-        const pageCount = Math.ceil(totalUsersCount / DM_USERS_PAGE_SIZE);
-        for (let page = 1; page < pageCount; page++) {
-            dispatch(getProfiles(page, DM_USERS_PAGE_SIZE) as any);
-        }
-    }, [dispatch, totalUsersCount]);
-
-    // Exclude deleted users; self is included and participates in normal sorting
-    const otherUsers = Object.values(allProfiles).filter(
-        (u) => u.delete_at === 0 && u.id !== currentUserId,
-    );
-
-    // Merge self into the full list so it participates in sort (unread/history/alpha)
-    const allUsers = selfUser && selfUser.delete_at === 0
-        ? [...otherUsers, selfUser]
-        : otherUsers;
 
     const [isRecentOpen, setIsRecentOpen] = useState(true);
-    const [isAllMembersOpen, setIsAllMembersOpen] = useState(false);
 
-    const sortedUsers = useMemo(() => toSortedUsers(allUsers, dmUnreadByUserId), [allUsers, dmUnreadByUserId]);
-    const recentUsers = useMemo(() => sortRecentUsers(sortedUsers), [sortedUsers]);
+    const recentDmUsers = useMemo(() => getRecentDmUsers(dmUnreadByUserId), [dmUnreadByUserId]);
+
+    const activeProfile = activeUserId ? profilesById[activeUserId] : activeUserByUsername;
+    const activeProfileId = activeProfile?.id ?? activeUserId;
+
+    const profileIdsToLoad = useMemo(() => {
+        const userIds = new Set<string>();
+        recentDmUsers.forEach(({userId}) => userIds.add(userId));
+        if (activeProfileId) {
+            userIds.add(activeProfileId);
+        }
+        return Array.from(userIds);
+    }, [activeProfileId, recentDmUsers]);
+
+    useEffect(() => {
+        if (activeUsername && !activeUserByUsername) {
+            dispatch(getMissingProfilesByUsernames([activeUsername]) as any);
+        }
+    }, [activeUsername, activeUserByUsername, dispatch]);
+
+    useEffect(() => {
+        if (profileIdsToLoad.length > 0) {
+            dispatch(getMissingProfilesByIds(profileIdsToLoad) as any);
+        }
+    }, [dispatch, profileIdsToLoad]);
+
     const displayedRecentUsers = useMemo(() => {
-        const activeUser = sortedUsers.find(({user}) => (
-            (activeUsername && user.username.toLowerCase() === activeUsername) ||
-            (activeUserId && user.id === activeUserId)
-        ));
-        if (!activeUser || recentUsers.some(({user}) => user.id === activeUser.user.id)) {
+        const recentUsers = recentDmUsers.reduce<DisplayedRecentUser[]>((users, {userId, dmInfo}) => {
+            const user = profilesById[userId];
+            if (user && user.delete_at === 0) {
+                users.push({user, dmInfo});
+            }
+            return users;
+        }, []);
+
+        if (!activeProfile || activeProfile.delete_at !== 0 || !activeProfileId) {
             return recentUsers;
         }
-        return [activeUser, ...recentUsers];
-    }, [activeUsername, activeUserId, recentUsers, sortedUsers]);
 
-    const allMembers = useMemo(() => sortAllUsersByDisplayName(sortedUsers, nameDisplaySetting), [sortedUsers, nameDisplaySetting]);
+        if (recentUsers.some(({user}) => user.id === activeProfileId)) {
+            return recentUsers;
+        }
+
+        return [{user: activeProfile, dmInfo: dmUnreadByUserId[activeProfileId] ?? null}, ...recentUsers];
+    }, [activeProfile, activeProfileId, dmUnreadByUserId, profilesById, recentDmUsers]);
 
     const handleClick = (username: string) => {
         getHistory().push(`/direct_messages/@${username}`);
@@ -174,28 +160,6 @@ export default function DirectMessagesSidebar() {
                     ))}
                 </div>
 
-                <div className='dm-sidebar__section'>
-                    <button
-                        type='button'
-                        className='dm-sidebar__section-header'
-                        onClick={() => setIsAllMembersOpen(!isAllMembersOpen)}
-                        aria-expanded={isAllMembersOpen}
-                    >
-                        <i className={`icon ${isAllMembersOpen ? 'icon-chevron-down' : 'icon-chevron-right'} dm-sidebar__section-icon`}/>
-                        <span className='dm-sidebar__section-title'>{'全部成员'}</span>
-                    </button>
-                    {isAllMembersOpen && allMembers.map(({user, dmInfo}) => (
-                        <DmContactItem
-                            key={`all-${user.id}`}
-                            user={user}
-                            status={statuses[user.id]}
-                            unreadCount={dmInfo?.unread ?? 0}
-                            isActive={(activeUsername && user.username.toLowerCase() === activeUsername) || user.id === activeUserId}
-                            nameDisplaySetting={nameDisplaySetting}
-                            onClick={handleClick}
-                        />
-                    ))}
-                </div>
             </div>
         </div>
     );

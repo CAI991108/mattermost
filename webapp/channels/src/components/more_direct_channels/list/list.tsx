@@ -12,7 +12,7 @@ import {openModal} from 'actions/views/modals';
 import MultiSelect from 'components/multiselect/multiselect';
 import NewChannelModal from 'components/new_channel_modal/new_channel_modal';
 
-import Constants, {ModalIdentifiers} from 'utils/constants';
+import {ModalIdentifiers} from 'utils/constants';
 
 import ListItem from '../list_item';
 import {optionValue} from '../types';
@@ -26,7 +26,6 @@ type Props = {
     addValue: (value: OptionValue) => void;
     currentUserId: string;
     handleDelete: (values: OptionValue[]) => void;
-    handlePageChange: (page: number, prevPage: number) => void;
     handleSubmit: (values?: OptionValue[]) => void;
     handleHide: () => void;
     isExistingChannel: boolean;
@@ -34,8 +33,8 @@ type Props = {
     options: Option[];
     saving: boolean;
     search: (term: string) => void;
+    searchTerm: string;
     selectedItemRef: React.RefObject<HTMLDivElement>;
-    totalCount: number;
     users: UserProfile[];
 
     /**
@@ -132,6 +131,16 @@ const List = React.forwardRef((props: Props, ref?: React.Ref<MultiSelect<OptionV
         return props.options.map(optionValue);
     }, [props.options]);
 
+    const emptySearchMessage = props.searchTerm ? undefined : (
+        <div
+            key='more-direct-channels-empty-search'
+            className='no-channel-message'
+            tabIndex={0}
+        >
+            <p className='primary-message'>{'请输入成员名称、用户名或邮箱进行搜索'}</p>
+        </div>
+    );
+
     return (
         <MultiSelect<OptionValue>
             ref={ref}
@@ -143,7 +152,6 @@ const List = React.forwardRef((props: Props, ref?: React.Ref<MultiSelect<OptionV
             valueRenderer={renderValue}
             ariaLabelRenderer={renderAriaLabel}
             perPage={USERS_PER_PAGE}
-            handlePageChange={props.handlePageChange}
             handleInput={props.search}
             handleDelete={props.handleDelete}
             handleAdd={props.addValue}
@@ -151,6 +159,7 @@ const List = React.forwardRef((props: Props, ref?: React.Ref<MultiSelect<OptionV
             submitImmediatelyOn={handleSubmitImmediatelyOn}
             saving={props.saving}
             loading={props.loading}
+            customNoOptionsMessage={emptySearchMessage}
             saveButtonPosition='none'
             placeholderText={intl.formatMessage({id: 'multiselect.placeholder', defaultMessage: 'Search for people'})}
         />

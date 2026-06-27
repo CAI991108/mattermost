@@ -5,7 +5,7 @@ import React, {useEffect, useRef} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
 import type {RouteComponentProps} from 'react-router-dom';
 
-import {getUserByUsername} from 'mattermost-redux/actions/users';
+import {getUser, getUserByUsername} from 'mattermost-redux/actions/users';
 import {getUserByUsername as selectUserByUsername, getUser as selectUser} from 'mattermost-redux/selectors/entities/users';
 
 import {openDirectChannelToUserId} from 'actions/channel_actions';
@@ -18,7 +18,9 @@ import {getDmDefaultTargetUserId} from 'selectors/direct_messages';
 
 import type {GlobalState} from 'types/store';
 
-type Props = RouteComponentProps<{identifier?: string}>;
+type Props = RouteComponentProps<{identifier?: string}> & {
+    channelsLoaded: boolean;
+};
 
 /**
  * DirectMessagesCenter handles rendering the DM conversation area.
@@ -39,6 +41,7 @@ export default function DirectMessagesCenter(props: Props) {
         defaultTargetUserId ? selectUser(state, defaultTargetUserId) : undefined,
     );
     const lastOpenedIdentifier = useRef<string | null>(null);
+    const defaultRedirectTarget = useRef<string | null>(null);
 
     // Selector for looking up user by username from redux state
     const username = identifier?.startsWith('@') ? identifier.slice(1).toLowerCase() : null;
@@ -48,11 +51,25 @@ export default function DirectMessagesCenter(props: Props) {
 
     useEffect(() => {
         if (!identifier) {
-            if (defaultTargetUser?.username) {
-                getHistory().replace(`/direct_messages/@${defaultTargetUser.username}`);
-            } else if (defaultTargetUserId) {
-                getHistory().replace(`/direct_messages/${defaultTargetUserId}`);
+            if (!props.channelsLoaded || !defaultTargetUserId) {
+                return;
             }
+
+            (async () => {
+                let defaultUser = defaultTargetUser;
+                if (!defaultUser) {
+                    const result = await dispatch(getUser(defaultTargetUserId) as any);
+                    if ('error' in result || !result.data) {
+                        return;
+                    }
+                    defaultUser = result.data;
+                }
+
+                if (defaultUser?.username && defaultRedirectTarget.current !== defaultUser.username) {
+                    defaultRedirectTarget.current = defaultUser.username;
+                    getHistory().replace(`/direct_messages/@${defaultUser.username}`);
+                }
+            })();
             return;
         }
 
@@ -91,7 +108,7 @@ export default function DirectMessagesCenter(props: Props) {
                 GlobalActions.emitChannelClickEvent(result.data);
             }
         })();
-    }, [identifier, defaultTargetUserId, defaultTargetUser, userByUsername, dispatch]);
+    }, [identifier, props.channelsLoaded, defaultTargetUserId, defaultTargetUser, userByUsername, dispatch]);
 
     if (!identifier) {
         return null;
