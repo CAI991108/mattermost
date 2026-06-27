@@ -321,8 +321,8 @@ function generateCSP() {
     let csp = 'script-src \'self\' js.stripe.com/v3';
 
     if (DEV) {
-        // Development source maps require eval
-        csp += ' \'unsafe-eval\'';
+        // Development source maps require eval, and the IUIN cache-clear helper is an inline script.
+        csp += ' \'unsafe-eval\' \'unsafe-inline\'';
     }
 
     return csp;
