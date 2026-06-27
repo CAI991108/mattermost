@@ -79,6 +79,7 @@ const AppBar = makeAsyncComponent('AppBar', lazy(() => import('components/app_ba
 const ComponentLibrary = makeAsyncComponent('ComponentLibrary', lazy(() => import('components/component_library')));
 const PopoutController = makeAsyncComponent('PopoutController', lazy(() => import('components/popout_controller')));
 const Help = makeAsyncComponent('Help', lazy(() => import('components/help')));
+const IuinHonorsAdminPage = makeAsyncComponent('IuinHonorsAdminPage', lazy(() => import('components/iuin_honors_admin')));
 const IuinProfilePage = makeAsyncComponent('IuinProfilePage', lazy(() => import('components/iuin_profile')));
 
 const Pluggable = makeAsyncPluggableComponent();
@@ -437,6 +438,10 @@ export default class Root extends React.PureComponent<Props, State> {
                                 <Readout/>
                             </WithUserTheme>
                         )}
+                    />
+                    <LoggedInRoute
+                        path={'/iuin_honors_admin'}
+                        component={IuinHonorsAdminPage}
                     />
                     <WithUserTheme>
                         {(this.props.showLaunchingWorkspace && !this.props.location.pathname.includes('/preparing-workspace') &&
