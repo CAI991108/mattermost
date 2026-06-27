@@ -12,6 +12,7 @@ import {get} from 'mattermost-redux/selectors/entities/preferences';
 import {getCurrentTimezone} from 'mattermost-redux/selectors/entities/timezone';
 import {getCurrentUser, getStatusForUserId} from 'mattermost-redux/selectors/entities/users';
 
+import {loadStatusesByIds} from 'actions/status_actions';
 import {openModal} from 'actions/views/modals';
 import {makeGetCustomStatus, isCustomStatusExpired, isCustomStatusEnabled} from 'selectors/views/custom_status';
 
@@ -49,6 +50,7 @@ function makeMapStateToProps() {
 function mapDispatchToProps(dispatch: Dispatch) {
     return {
         actions: bindActionCreators({
+            loadStatusesByIds,
             openModal,
         }, dispatch),
     };
