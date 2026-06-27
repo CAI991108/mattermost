@@ -1,0 +1,107 @@
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
+
+.iuin-honor-rarity-tag {
+    --iuin-rarity-bg-start: #f8fbff;
+    --iuin-rarity-bg-end: #eef4ff;
+    --iuin-rarity-border: rgba(37, 99, 235, 0.2);
+    --iuin-rarity-color: #1d4ed8;
+    --iuin-rarity-dot: #3b82f6;
+    --iuin-rarity-glow: rgba(59, 130, 246, 0.16);
+
+    position: relative;
+    display: inline-flex;
+    overflow: hidden;
+    max-width: 100%;
+    min-height: 22px;
+    flex: 0 0 auto;
+    align-items: center;
+    border: 1px solid var(--iuin-rarity-border);
+    border-radius: 999px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 58%),
+        linear-gradient(135deg, var(--iuin-rarity-bg-start), var(--iuin-rarity-bg-end));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 1px 2px rgba(31, 41, 55, 0.06);
+    color: var(--iuin-rarity-color);
+    font-size: 11px;
+    font-weight: 800;
+    gap: 5px;
+    letter-spacing: 0;
+    line-height: 18px;
+    padding: 1px 8px;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.iuin-honor-rarity-tag__glow {
+    position: absolute;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--iuin-rarity-glow);
+    filter: blur(10px);
+    inset: -18px auto auto -10px;
+    pointer-events: none;
+}
+
+.iuin-honor-rarity-tag__dot {
+    position: relative;
+    z-index: 1;
+    width: 6px;
+    min-width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--iuin-rarity-dot);
+    box-shadow: 0 0 0 3px var(--iuin-rarity-glow);
+}
+
+.iuin-honor-rarity-tag__label {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honor-rarity-tag--compact {
+    min-height: 20px;
+    gap: 4px;
+    padding: 0 7px;
+}
+
+.iuin-honor-rarity-tag--common {
+    --iuin-rarity-bg-start: #f8fbff;
+    --iuin-rarity-bg-end: #eef4ff;
+    --iuin-rarity-border: rgba(37, 99, 235, 0.2);
+    --iuin-rarity-color: #1d4ed8;
+    --iuin-rarity-dot: #3b82f6;
+    --iuin-rarity-glow: rgba(59, 130, 246, 0.16);
+}
+
+.iuin-honor-rarity-tag--rare {
+    --iuin-rarity-bg-start: #f0fdfa;
+    --iuin-rarity-bg-end: #dff8ee;
+    --iuin-rarity-border: rgba(13, 148, 136, 0.24);
+    --iuin-rarity-color: #0f766e;
+    --iuin-rarity-dot: #14b8a6;
+    --iuin-rarity-glow: rgba(20, 184, 166, 0.18);
+}
+
+.iuin-honor-rarity-tag--epic {
+    --iuin-rarity-bg-start: #fff8ed;
+    --iuin-rarity-bg-end: #ffe9c2;
+    --iuin-rarity-border: rgba(194, 92, 24, 0.26);
+    --iuin-rarity-color: #9a3412;
+    --iuin-rarity-dot: #f97316;
+    --iuin-rarity-glow: rgba(249, 115, 22, 0.18);
+}
+
+.iuin-honor-rarity-tag--hidden {
+    --iuin-rarity-bg-start: #f8fafc;
+    --iuin-rarity-bg-end: #e2e8f0;
+    --iuin-rarity-border: rgba(71, 85, 105, 0.26);
+    --iuin-rarity-color: #334155;
+    --iuin-rarity-dot: #64748b;
+    --iuin-rarity-glow: rgba(100, 116, 139, 0.18);
+}
