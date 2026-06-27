@@ -16,9 +16,9 @@
 
 ## 实现说明
 
-- 记录 `scripts/iuin-platform.sh` 的常用命令，包括 `start`、`start-public`、`restart-public`、`stop` 和 `status`。
+- 记录 `scripts/iuin-platform.sh` 的常用命令，包括 `start`、`restart`、`start-local`、`stop` 和 `status`。
 - 区分 Mattermost 后端服务、webapp watcher、数据库和实际端侧访问 URL。
-- 明确 `127.0.0.1:8065` 与 `10.26.1.78:8065` 的使用差异，避免 helper 输出和真实监听地址不一致时误判。
+- 明确默认内网直连入口与 `start-local` loopback 调试入口的差异，避免 helper 输出和真实监听地址不一致时误判。
 - 加入常见故障排查路径，例如 cookie/token 过期、前端 chunk 缓存、端侧无法访问等。
 
 ## 验证建议
