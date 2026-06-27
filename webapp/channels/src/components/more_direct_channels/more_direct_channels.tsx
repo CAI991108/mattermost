@@ -17,7 +17,6 @@ import {getHistory} from 'utils/browser_history';
 import Constants from 'utils/constants';
 
 import List from './list';
-import {USERS_PER_PAGE} from './list/list';
 import {optionValue} from './types';
 import type {OptionValue} from './types';
 
@@ -25,7 +24,6 @@ export type Props = {
     currentUserId: string;
     searchTerm: string;
     users: UserProfile[];
-    totalCount: number;
 
     /*
     * List of current channel members of existing channel
@@ -44,9 +42,7 @@ export type Props = {
     onModalDismissed?: () => void;
     onExited?: () => void;
     actions: {
-        getProfiles: (page?: number, perPage?: number, options?: any) => Promise<ActionResult>;
         loadProfilesMissingStatus: (users: UserProfile[]) => void;
-        getTotalUsersStats: () => void;
         loadStatusesForProfilesList: (users: UserProfile[]) => void;
         openDirectChannelToUserId: (userId: string) => Promise<ActionResult>;
         searchProfiles: (term: string, options: any) => Promise<ActionResult<UserProfile[]>>;
@@ -94,14 +90,12 @@ export default class MoreDirectChannels extends React.PureComponent<Props, State
             show: true,
             search: false,
             saving: false,
-            loadingUsers: true,
+            loadingUsers: false,
             directMessageCapabilityCache: {},
         };
     }
 
     loadModalData = () => {
-        this.getUserProfiles();
-        this.props.actions.getTotalUsersStats();
         this.props.actions.loadProfilesMissingStatus(this.props.users);
         this.checkDMCapabilities(this.props.users);
     };
@@ -232,20 +226,6 @@ export default class MoreDirectChannels extends React.PureComponent<Props, State
         this.setState({values});
     };
 
-    getUserProfiles = (page?: number) => {
-        const pageNum = page ? page + 1 : 0;
-        this.props.actions.getProfiles(pageNum, USERS_PER_PAGE * 2).then(() => {
-            this.setUsersLoadingState(false);
-        });
-    };
-
-    handlePageChange = (page: number, prevPage: number) => {
-        if (page > prevPage) {
-            this.setUsersLoadingState(true);
-            this.getUserProfiles(page);
-        }
-    };
-
     resetPaging = () => {
         this.multiselect.current?.resetPaging();
     };
@@ -286,15 +266,14 @@ export default class MoreDirectChannels extends React.PureComponent<Props, State
                 addValue={this.addValue}
                 currentUserId={this.props.currentUserId}
                 handleDelete={this.handleDelete}
-                handlePageChange={this.handlePageChange}
                 handleSubmit={this.handleSubmit}
                 handleHide={this.handleHide}
                 isExistingChannel={this.props.isExistingChannel}
                 loading={this.state.loadingUsers}
                 saving={this.state.saving}
                 search={this.search}
+                searchTerm={this.props.searchTerm}
                 selectedItemRef={this.selectedItemRef}
-                totalCount={this.props.totalCount}
                 users={filteredUsers}
                 values={this.state.values}
             />

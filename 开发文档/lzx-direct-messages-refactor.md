@@ -65,15 +65,17 @@ Mattermost 原始私信并不是一个独立的全局模块，而是团队频道
 ### 3. 新页面结构
 
 - TeamSidebar：展示固定“私信”入口和未读 badge。
-- DirectMessagesSidebar：展示最近私信联系人、搜索入口、未读数和选中状态。
-- DirectMessagesCenter：负责私信页中间消息区和默认联系人选择。
+- DirectMessagesSidebar：只展示最近聊天联系人、搜索入口、未读数和选中状态，不再展示“全部成员”列表。
+- DirectMessagesCenter：负责私信页中间消息区、默认联系人选择和 `/direct_messages/@username` URL 规范化。
 - DmContactItem：负责单个联系人项展示。
 - RHS：继续复用原频道 RHS 能力，但允许 DM/GM 在无 team 场景下显示。
 
 ### 4. 新交互逻辑
 
-- 点击 TeamSidebar 私信按钮进入 `/direct_messages`。
+- 点击 TeamSidebar 私信按钮进入 `/direct_messages`，等待 DM channels/memberships 初始化完成后跳转到默认联系人。
+- 系统默认跳转统一使用 `/direct_messages/@username`；plain userId URL 仅作为兼容解析保留。
 - 搜索用户后点击，打开一对一 DM 并跳转 `/direct_messages/@username`。
+- 查找成员弹窗刚打开时不展示成员列表，输入成员名称、用户名或邮箱后才搜索全局用户。
 - DM 不再污染团队 last viewed channel。
 - 回到团队时恢复团队频道，而不是恢复到 DM channel。
 - GM 底层数据不迁移、不删除，但 UI 不再暴露新增或扩容入口。
@@ -93,6 +95,8 @@ Mattermost 原始私信并不是一个独立的全局模块，而是团队频道
   - 新增全局私信页顶层布局。
   - 复用 `ResizableLhs`、`channel_view`、`inner-wrap` 等频道布局结构。
   - 根据 LHS/RHS 打开状态添加 `move--right`、`move--left`。
+  - 进入 `/direct_messages` 时调用 `fetchAllMyTeamsChannels()` 和 `fetchAllMyChannelMembers()`，补齐最近聊天依赖的 DM channels 和 channel memberships。
+  - 维护 `channelsLoaded` 状态并传给 `DirectMessagesCenter`，避免无 identifier 默认跳转早于基础 DM 数据初始化。
 
 - `webapp/channels/src/components/direct_messages_controller/direct_messages_controller.scss`
   - 新增全局私信页布局样式。
@@ -100,14 +104,16 @@ Mattermost 原始私信并不是一个独立的全局模块，而是团队频道
 - `webapp/channels/src/components/direct_messages_controller/direct_messages_center.tsx`
   - 新增私信中间消息区控制逻辑。
   - 根据路由 identifier 解析目标用户并打开 DM。
-  - 没有 identifier 时选择默认联系人或显示空状态。
+  - 没有 identifier 时等待 `channelsLoaded` 后再计算默认联系人，避免 DM 数据未加载完成时 fallback 到当前用户。
+  - 默认跳转统一规范为 `/direct_messages/@username`；如果默认 target 的 profile 未缓存，则先按 userId 获取用户资料，再取 username 跳转。
+  - plain userId URL 仅保留为兼容解析，不再作为系统默认跳转输出。
 
 - `webapp/channels/src/components/direct_messages_controller/direct_messages_sidebar.tsx`
   - 新增私信左侧联系人栏。
-  - 展示最近 DM 联系人、未读数、当前选中联系人。
-  - 提供搜索/新建一对一私信入口。
-  - “全部成员”使用全局用户数据；页面进入时按 `DM_USERS_PAGE_SIZE = 200` 加载第一页用户。
-  - 当全局用户数超过 200 时，继续按页调用 `getProfiles` 补齐剩余用户，避免成员列表只显示已缓存用户。
+  - 只展示最近聊天联系人、未读数、当前选中联系人和搜索入口，不再展示“全部成员”。
+  - 删除进入页面时的全量用户资料预加载，不再调用 `getProfiles`、`getTotalUsersStats` 或按页补齐全部成员。
+  - 最近聊天采用 DM-first：先从 `getDmUnreadByUserId` 筛选有历史 DM 的 userId，按 `lastPostAt` 排序取最近 20 个，再通过 `getMissingProfilesByIds` 按需补用户资料。
+  - 当前 active 用户不在最近 20 个联系人中时，仍会按需加载并显示高亮。
 
 - `webapp/channels/src/components/direct_messages_controller/direct_messages_sidebar.scss`
   - 新增私信联系人栏样式、搜索区域样式、未读 badge 样式。
@@ -163,13 +169,15 @@ Mattermost 原始私信并不是一个独立的全局模块，而是团队频道
 - `webapp/channels/src/components/more_direct_channels/index.ts`
   - 移除 `searchGroupChannels`、`openGroupChannelToUserIds` 注入。
   - 保留用户搜索、用户资料加载、DM 权限检查等一对一私信能力。
-  - 用户候选数据改为全局用户范围，不再依赖当前 team。
-  - 清理 `getProfilesInTeam`、`getCurrentTeam`、`currentTeamId`、`currentTeamName` 等旧团队范围依赖。
+  - 用户搜索范围为全局用户，不再依赖当前 team。
+  - 无搜索词时 `users = []`，不再通过 `selectProfiles` 默认展示全局成员。
+  - 清理 `getProfilesInTeam`、`getCurrentTeam`、`currentTeamId`、`currentTeamName`、`getProfiles`、`getTotalUsersStats` 等旧团队范围和默认加载依赖。
 
 - `webapp/channels/src/components/more_direct_channels/more_direct_channels.tsx`
   - 将弹窗行为从“选择 DM/GM 成员”改为“一对一私信用户搜索”。
   - 搜索时只查询用户，不再查询 GM channel。
-  - 默认加载和搜索都走全局用户范围，不再传 `team_id` 或回退到 `getProfilesInTeam`。
+  - 打开弹窗时不再默认调用 `getProfiles(0, 100)`，也不再获取全局用户总数或执行分页加载。
+  - 无搜索词时不展示候选成员；输入搜索词后才调用 `searchProfiles(searchTerm, {})` 搜索全局用户。
   - 提交时只调用 `openDirectChannelToUserId`。
   - 成功后跳转 `/direct_messages/@username`。
   - 移除 GM option 展开为多个用户的逻辑。
@@ -177,11 +185,13 @@ Mattermost 原始私信并不是一个独立的全局模块，而是团队频道
 - `webapp/channels/src/components/more_direct_channels/list/index.ts`
   - 候选项只返回用户，不再混入 GM channel。
   - 移除 `getChannelsWithUserProfiles`、GM 搜索过滤、GM 最近会话合并逻辑。
-  - 弹窗默认候选不再按最近私信优先或只展示最近聊天用户，而是展示全部未删除成员并按用户名排序，方便直接从全部成员中选择。
+  - 弹窗默认不展示候选成员；候选列表只来自输入搜索词后的用户搜索结果。
 
 - `webapp/channels/src/components/more_direct_channels/list/list.tsx`
   - 适配点击用户后直接触发私信打开。
   - 移除多选/创建 GM 相关交互残留。
+  - 移除网络分页相关 prop，不再在弹窗内滚动加载默认成员。
+  - 无搜索词时显示提示文案：`请输入成员名称、用户名或邮箱进行搜索`；有搜索词但无结果时保留原无结果展示。
 
 - `webapp/channels/src/components/more_direct_channels/list_item/list_item.tsx`
   - 只渲染用户详情 `UserDetails`。
@@ -276,8 +286,9 @@ Mattermost 原始私信并不是一个独立的全局模块，而是团队频道
 
 - `webapp/channels/src/selectors/direct_messages.ts`
   - 新增全局私信 selector。
-  - 负责计算最近 DM 联系人、未读数、最后消息时间、当前 active user。
+  - 负责基于 DM channels 和 channel memberships 计算最近 DM 联系人、未读数、最后消息时间、当前 active user。
   - 为 TeamSidebar 私信按钮和 DirectMessagesSidebar 提供数据。
+  - 最近聊天不依赖全量 user profiles；profiles 只在确定最近聊天 userId 后按需加载用于展示头像、昵称和状态。
 
 - `webapp/channels/src/selectors/views/channel_sidebar.ts`
   - 普通频道 unread 列表过滤 DM/GM。
@@ -329,7 +340,9 @@ Mattermost 原始私信并不是一个独立的全局模块，而是团队频道
 - 无 team route 下，组件不能强依赖 `currentTeam`。
 - 历史 localStorage 可能保存过 DM channel name，需要回退到团队默认频道。
 - 插件或旧代码如果绕过 UI 直接调用旧 action，仍可能触发 Mattermost 原有 GM 能力。
-- 左侧私信栏“全部成员”依赖全局用户加载；当前按 200 人一页预取并在超过 200 人时补齐，后续若用户规模明显增大，需要考虑虚拟列表或滚动分页以降低渲染压力。
+- 左侧私信栏已移除“全部成员”，最近聊天不再全量加载用户资料；最近聊天依赖 DM channels + memberships，进入 `/direct_messages` 时会补齐这些基础数据。
+- 查找成员弹窗默认不加载全局用户；只有输入搜索词后才调用用户搜索。
+- 系统默认私信 URL 统一为 `/direct_messages/@username`；plain userId URL 仅保留兼容解析。
 - `/direct_messages/@username` 依赖用户数据加载和 username 解析。
 - 私信页面复用频道消息区和 RHS，后续改动频道布局时需要同步验证全局私信路由。
 
