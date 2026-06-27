@@ -2,9 +2,9 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback} from 'react';
-import {FormattedMessage, useIntl} from 'react-intl';
+import {useIntl} from 'react-intl';
 
-import {Button} from '@mattermost/shared/components/button';
+import {HomeVariantOutlineIcon, SendIcon} from '@mattermost/compass-icons/components';
 import {WithTooltip} from '@mattermost/shared/components/tooltip';
 
 import {getHistory} from 'utils/browser_history';
@@ -31,6 +31,14 @@ const ProfilePopoverSelfUserRow = ({
     handleShowDirectChannel,
 }: Props) => {
     const {formatMessage} = useIntl();
+    const enterHomepageLabel = formatMessage({
+        id: 'iuin_profile.account.enterHomepage',
+        defaultMessage: 'Enter homepage',
+    });
+    const sendYourselfMessageLabel = formatMessage({
+        id: 'user_profile.send.dm.yourself',
+        defaultMessage: 'Send yourself a message',
+    });
 
     const handleViewHomepage = useCallback(() => {
         hide?.();
@@ -47,32 +55,30 @@ const ProfilePopoverSelfUserRow = ({
         <div
             className='user-popover__bottom-row-container'
         >
-            <Button
-                type='button'
-                emphasis='primary'
-                size='sm'
-                onClick={handleViewHomepage}
-            >
-                <i
-                    className='icon icon-home-outline'
-                    aria-hidden='true'
-                />
-                <FormattedMessage
-                    id='iuin_profile.account.enterHomepage'
-                    defaultMessage='Enter homepage'
-                />
-            </Button>
+            <WithTooltip title={enterHomepageLabel}>
+                <button
+                    type='button'
+                    className='btn btn-icon btn-sm'
+                    onClick={handleViewHomepage}
+                    aria-label={enterHomepageLabel}
+                >
+                    <HomeVariantOutlineIcon
+                        size={18}
+                        aria-hidden='true'
+                    />
+                </button>
+            </WithTooltip>
             <WithTooltip
-                title={formatMessage({id: 'user_profile.send.dm.yourself', defaultMessage: 'Send yourself a message'})}
+                title={sendYourselfMessageLabel}
             >
                 <button
                     type='button'
                     className='btn btn-icon btn-sm'
                     onClick={handleShowDirectChannel}
-                    aria-label={formatMessage({id: 'user_profile.send.dm.yourself', defaultMessage: 'Send yourself a message'})}
+                    aria-label={sendYourselfMessageLabel}
                 >
-                    <i
-                        className='icon icon-send'
+                    <SendIcon
+                        size={18}
                         aria-hidden='true'
                     />
                 </button>
