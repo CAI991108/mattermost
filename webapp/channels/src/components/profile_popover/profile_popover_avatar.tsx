@@ -6,17 +6,21 @@ import React from 'react';
 import StatusIcon from 'components/status_icon';
 import Avatar from 'components/widgets/users/avatar';
 
+import type {IuinAvatarFrameItem} from 'utils/iuin_honors';
+
 type Props = {
     username?: string;
     hideStatus?: boolean;
     status?: string;
     urlSrc: string;
+    avatarFrame?: IuinAvatarFrameItem | null;
 }
 const ProfilePopoverAvatar = ({
     username,
     hideStatus,
     status,
     urlSrc,
+    avatarFrame,
 }: Props) => {
     return (
         <div className='user-popover-image'>
@@ -25,6 +29,7 @@ const ProfilePopoverAvatar = ({
                 size='xxl'
                 username={username}
                 url={urlSrc}
+                avatarFrame={avatarFrame}
                 tabIndex={-1}
             />
             <StatusIcon

@@ -17,10 +17,14 @@ import {getSelectedPost} from 'selectors/rhs';
 import {getIsMobileView} from 'selectors/views/browser';
 
 import {usePluginVisibilityInSharedChannel} from 'components/common/hooks/usePluginVisibilityInSharedChannel';
+import {IuinProfilePopoverAchievements, IuinProfilePopoverTitle} from 'components/iuin_profile/iuin_honors';
+
 import Pluggable from 'plugins/pluggable';
 import {getHistory} from 'utils/browser_history';
 import {A11yCustomEventTypes, UserStatuses} from 'utils/constants';
 import type {A11yFocusEventDetail} from 'utils/constants';
+import type {IuinHonorSummary} from 'utils/iuin_honors';
+import {getIuinHonorSummaryCached, IUIN_HONOR_SUMMARY_CHANGED_EVENT} from 'utils/iuin_honors';
 import {isEnterpriseLicense} from 'utils/license_utils';
 import * as Utils from 'utils/utils';
 
@@ -82,6 +86,7 @@ const ProfilePopover = ({
     const enableCustomProfileAttributes = useSelector((state: GlobalState) => getFeatureFlagValue(state, 'CustomProfileAttributes') === 'true' && isEnterprise && !fromWebhook);
 
     const [loadingDMChannel, setLoadingDMChannel] = useState<string>();
+    const [honorSummary, setHonorSummary] = useState<IuinHonorSummary | null>(null);
 
     const handleReturnFocus = useMemo(() => {
         if (returnFocus) {
@@ -145,6 +150,42 @@ const ProfilePopover = ({
         }
     }, [channelId, userId, currentTeamId, dispatch]);
 
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadHonorSummary = async () => {
+            if (!userId || user?.is_bot || fromWebhook) {
+                setHonorSummary(null);
+                return;
+            }
+
+            const summary = await getIuinHonorSummaryCached(userId);
+            if (!cancelled) {
+                setHonorSummary(summary);
+            }
+        };
+
+        loadHonorSummary();
+
+        const handleHonorSummaryChanged = (event: Event) => {
+            const detail = (event as CustomEvent<{userId?: string}>).detail;
+            if (detail?.userId === userId) {
+                loadHonorSummary();
+            }
+        };
+
+        if (typeof window !== 'undefined' && userId && !user?.is_bot && !fromWebhook) {
+            window.addEventListener(IUIN_HONOR_SUMMARY_CHANGED_EVENT, handleHonorSummaryChanged);
+        }
+
+        return () => {
+            cancelled = true;
+            if (typeof window !== 'undefined') {
+                window.removeEventListener(IUIN_HONOR_SUMMARY_CHANGED_EVENT, handleHonorSummaryChanged);
+            }
+        };
+    }, [fromWebhook, user?.is_bot, userId]);
+
     if (!user) {
         return null;
     }
@@ -169,13 +210,16 @@ const ProfilePopover = ({
                     urlSrc={urlSrc}
                     username={user.username}
                     status={status}
+                    avatarFrame={honorSummary?.avatarFrame || null}
                 />
                 <ProfilePopoverLastActive userId={user.id}/>
+                <IuinProfilePopoverTitle summary={honorSummary}/>
                 <ProfilePopoverName
                     user={user}
                     haveOverrideProp={haveOverrideProp}
                     fullname={fullname}
                 />
+                <IuinProfilePopoverAchievements summary={honorSummary}/>
                 <hr/>
                 <ProfilePopoverEmail
                     email={Utils.getEmail(user)}
