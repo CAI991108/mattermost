@@ -370,6 +370,8 @@ func Init(srv *app.Server) (*API, error) {
 	api.InitEmoji()
 	api.InitOAuth()
 	api.InitReaction()
+	api.InitIuinStickers()
+	api.InitIuinHonorAdmin()
 	api.InitPlugin()
 	api.InitRole()
 	api.InitScheme()
