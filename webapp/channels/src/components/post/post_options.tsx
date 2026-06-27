@@ -24,6 +24,8 @@ import {isSystemMessage, fromAutoResponder} from 'utils/post_utils';
 
 import type {PostActionComponent} from 'types/store/plugins';
 
+import AddIuinStickerFavoriteButton from './add_iuin_sticker_favorite_button';
+
 type Props = {
     post: Post;
     teamId: string;
@@ -103,6 +105,7 @@ const PostOptions = (props: Props): JSX.Element => {
     const isEphemeral = isPostEphemeral(post);
     const systemMessage = isSystemMessage(post);
     const isFromAutoResponder = fromAutoResponder(post);
+    const iuinStickerId = typeof post.props?.iuin_sticker_id === 'string' ? post.props.iuin_sticker_id : '';
 
     function removePost() {
         props.removePost(props.post);
@@ -178,6 +181,15 @@ const PostOptions = (props: Props): JSX.Element => {
         );
     }
 
+    const addIuinStickerFavorite = iuinStickerId ? (
+        <li>
+            <AddIuinStickerFavoriteButton
+                postId={post.id}
+                stickerId={iuinStickerId}
+            />
+        </li>
+    ) : null;
+
     // Action menus
     const showActionsMenuIcon = props.shouldShowActionsMenu && (isMobileView || hoverLocal);
     const actionsMenu = showActionsMenuIcon && (
@@ -211,7 +223,7 @@ const PostOptions = (props: Props): JSX.Element => {
             }) || [];
     }
 
-    const dotMenu = (
+    const dotMenu = !iuinStickerId && (
         <li>
             <DotMenu
                 post={props.post}
@@ -226,6 +238,7 @@ const PostOptions = (props: Props): JSX.Element => {
             />
         </li>
     );
+    const postMenuActions = iuinStickerId ? addIuinStickerFavorite : dotMenu;
 
     // Build post options
     let options: ReactNode;
@@ -279,13 +292,13 @@ const PostOptions = (props: Props): JSX.Element => {
                 data-testid={`post-menu-${props.post.id}`}
                 className={classnames('col post-menu', {'post-menu--position': !hoverLocal && showCommentIcon})}
             >
-                {!collapsedThreadsEnabled && !showRecentlyUsedReactions && dotMenu}
+                {!collapsedThreadsEnabled && !showRecentlyUsedReactions && postMenuActions}
                 {showRecentReactions}
                 {postReaction}
                 {pluginItems}
                 {actionsMenu}
                 {commentIcon}
-                {(collapsedThreadsEnabled || showRecentlyUsedReactions) && dotMenu}
+                {(collapsedThreadsEnabled || showRecentlyUsedReactions) && postMenuActions}
             </ul>
         );
     }

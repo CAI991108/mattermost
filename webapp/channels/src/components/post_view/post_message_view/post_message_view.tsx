@@ -106,6 +106,19 @@ export default class PostMessageView extends React.PureComponent<Props, State> {
         );
     }
 
+    renderIuinStickerPost(stickerUrl: string) {
+        return (
+            <div className='iuin-sticker-post'>
+                <img
+                    className='iuin-sticker-post__image'
+                    src={stickerUrl}
+                    alt=''
+                    onLoad={() => this.handleHeightReceived(1)}
+                />
+            </div>
+        );
+    }
+
     handleFormattedTextClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) =>
         Utils.handleFormattedTextClick(e, this.props.currentRelativeTeamUrl);
 
@@ -124,6 +137,12 @@ export default class PostMessageView extends React.PureComponent<Props, State> {
 
         if (post.state === Posts.POST_DELETED) {
             return this.renderDeletedPost();
+        }
+
+        const iuinStickerId = typeof post.props?.iuin_sticker_id === 'string' ? post.props.iuin_sticker_id : '';
+        if (iuinStickerId) {
+            const stickerUrl = typeof post.props?.iuin_sticker_url === 'string' ? post.props.iuin_sticker_url : `/api/v4/iuin/stickers/${iuinStickerId}/image`;
+            return this.renderIuinStickerPost(stickerUrl);
         }
 
         if (!enableFormatting) {

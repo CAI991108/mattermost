@@ -5,6 +5,7 @@ import classNames from 'classnames';
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
 
+import {EmoticonHappyOutlineIcon} from '@mattermost/compass-icons/components';
 import {WithTooltip} from '@mattermost/shared/components/tooltip';
 import type {Emoji} from '@mattermost/types/emojis';
 
@@ -13,7 +14,6 @@ import {getEmojiName} from 'mattermost-redux/utils/emoji_utils';
 
 import useEmojiPicker from 'components/emoji_picker/use_emoji_picker';
 import ChannelPermissionGate from 'components/permissions_gates/channel_permission_gate';
-import EmojiIcon from 'components/widgets/icons/emoji_icon';
 
 import {Locations} from 'utils/constants';
 
@@ -79,7 +79,10 @@ export default function PostReaction({
                     })}
                     {...getReferenceProps()}
                 >
-                    <EmojiIcon className='icon icon--small'/>
+                    <EmoticonHappyOutlineIcon
+                        className='icon icon--small'
+                        size={16}
+                    />
                 </button>
             </WithTooltip>
             {emojiPicker}
