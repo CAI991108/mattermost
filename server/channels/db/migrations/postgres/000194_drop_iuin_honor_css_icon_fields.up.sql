@@ -1,0 +1,11 @@
+ALTER TABLE IuinAchievements
+    DROP COLUMN IF EXISTS StylePayload,
+    DROP COLUMN IF EXISTS IconName;
+
+ALTER TABLE IuinTitles
+    DROP COLUMN IF EXISTS StylePayload,
+    DROP COLUMN IF EXISTS IconName;
+
+ALTER TABLE IuinHonorAdminDrafts
+    DROP COLUMN IF EXISTS StylePayload,
+    DROP COLUMN IF EXISTS IconName;
