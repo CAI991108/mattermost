@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import classNames from 'classnames';
 import throttle from 'lodash/throttle';
 import React, {type ReactNode, useRef, useState, useEffect, useCallback, memo, useMemo} from 'react';
 import {FormattedMessage} from 'react-intl';
@@ -14,6 +15,7 @@ import {getEmojiName} from 'mattermost-redux/utils/emoji_utils';
 import EmojiPickerCategories from 'components/emoji_picker/components/emoji_picker_categories';
 import EmojiPickerCurrentResults from 'components/emoji_picker/components/emoji_picker_current_results';
 import EmojiPickerCustomEmojiButton from 'components/emoji_picker/components/emoji_picker_custom_emoji_button';
+import EmojiPickerItem from 'components/emoji_picker/components/emoji_picker_item';
 import EmojiPickerPreview from 'components/emoji_picker/components/emoji_picker_preview';
 import EmojiPickerSearch from 'components/emoji_picker/components/emoji_picker_search';
 import EmojiPickerSkin from 'components/emoji_picker/components/emoji_picker_skin';
@@ -34,11 +36,16 @@ import {createCategoryAndEmojiRows, getCursorProperties, getUpdatedCategoriesAnd
 import NoResultsIndicator from 'components/no_results_indicator';
 import {NoResultsVariant} from 'components/no_results_indicator/types';
 
+import type {IuinSticker} from 'utils/iuin_stickers';
+import {listIuinRecentEmojis, listIuinStickers, uploadIuinSticker} from 'utils/iuin_stickers';
+
 import type {PropsFromRedux} from './index';
 
 export interface Props extends PropsFromRedux {
     filter: string;
     onEmojiClick: (emoji: Emoji) => void;
+    enableIuinStickers?: boolean;
+    onStickerClick?: (sticker: IuinSticker) => void;
     handleFilterChange: (filter: string) => void;
     handleEmojiPickerClose: () => void;
     onAddCustomEmojiClick?: () => void;
@@ -49,6 +56,8 @@ export interface Props extends PropsFromRedux {
 const EmojiPicker = ({
     filter,
     onEmojiClick,
+    enableIuinStickers,
+    onStickerClick,
     handleFilterChange,
     handleEmojiPickerClose,
     onAddCustomEmojiClick,
@@ -66,8 +75,14 @@ const EmojiPicker = ({
         setUserSkinTone,
     },
 }: Props) => {
+    type IuinPanel = 'stickers' | 'recent' | 'emoji';
+
     const getInitialActiveCategory = () => (recentEmojis.length ? RECENT : SMILEY_EMOTION);
     const [activeCategory, setActiveCategory] = useState<EmojiCategory>(getInitialActiveCategory);
+    const [iuinPanel, setIuinPanel] = useState<IuinPanel>(enableIuinStickers ? 'stickers' : 'emoji');
+    const [iuinStickers, setIuinStickers] = useState<IuinSticker[]>([]);
+    const [iuinRecentEmojiNames, setIuinRecentEmojiNames] = useState<string[]>([]);
+    const [iuinPanelError, setIuinPanelError] = useState('');
 
     const [cursor, setCursor] = useState<EmojiCursor>({
         rowIndex: -1,
@@ -87,6 +102,7 @@ const EmojiPicker = ({
     const [emojiPositions, setEmojiPositionsArray] = useState<EmojiPosition[]>([]);
 
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const stickerUploadInputRef = useRef<HTMLInputElement>(null);
 
     const infiniteLoaderRef = React.useRef<InfiniteLoader & {_listRef: FixedSizeList<CategoryOrEmojiRow[]>}>(null);
 
@@ -139,6 +155,31 @@ const EmojiPicker = ({
     useEffect(() => {
         searchInputRef.current?.focus();
     }, []);
+
+    useEffect(() => {
+        let mounted = true;
+        if (enableIuinStickers) {
+            Promise.all([
+                listIuinStickers(),
+                listIuinRecentEmojis(),
+            ]).then(([stickers, recentEmojiNames]) => {
+                if (!mounted) {
+                    return;
+                }
+                setIuinStickers(stickers);
+                setIuinRecentEmojiNames(recentEmojiNames);
+                setIuinPanelError('');
+            }).catch(() => {
+                if (mounted) {
+                    setIuinPanelError('Unable to load stickers.');
+                }
+            });
+        }
+
+        return () => {
+            mounted = false;
+        };
+    }, [enableIuinStickers]);
 
     // clear out the active category on search input
     useEffect(() => {
@@ -365,6 +406,34 @@ const EmojiPicker = ({
         }
     };
 
+    const handleStickerUploadClick = useCallback(() => {
+        stickerUploadInputRef.current?.click();
+    }, []);
+
+    const handleStickerFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) {
+            return;
+        }
+
+        try {
+            const sticker = await uploadIuinSticker(file);
+            setIuinStickers((current) => [sticker, ...current.filter((item) => item.id !== sticker.id)]);
+            setIuinPanelError('');
+        } catch (error) {
+            setIuinPanelError('Unable to upload this sticker.');
+        }
+    }, []);
+
+    const handleStickerClick = useCallback((sticker: IuinSticker) => {
+        onStickerClick?.(sticker);
+    }, [onStickerClick]);
+
+    const iuinRecentEmojis = useMemo(() => {
+        return iuinRecentEmojiNames.map((emojiName) => emojiMap.get(emojiName)).filter(Boolean) as Emoji[];
+    }, [emojiMap, iuinRecentEmojiNames]);
+
     const cursorEmojiName = useMemo(() => {
         const {emoji} = cursor;
 
@@ -378,20 +447,103 @@ const EmojiPicker = ({
 
     const areSearchResultsEmpty = filter.length !== 0 && categoryOrEmojisRows.length === 1 && categoryOrEmojisRows?.[0]?.items?.[0]?.categoryName === SEARCH_RESULTS;
 
-    return (
-        <>
-            <div
-                aria-live='assertive'
-                className='sr-only'
-            >
-                <FormattedMessage
-                    id='emoji_picker_item.emoji_aria_label'
-                    defaultMessage='{emojiName} emoji'
-                    values={{
-                        emojiName: cursorEmojiName,
+    const renderIuinTabs = () => {
+        if (!enableIuinStickers) {
+            return null;
+        }
+
+        return (
+            <div className='emoji-picker__iuin-tabs'>
+                <button
+                    type='button'
+                    className={classNames('emoji-picker__iuin-tab', {'emoji-picker__iuin-tab--active': iuinPanel === 'stickers'})}
+                    aria-label='Favorite stickers'
+                    onClick={() => setIuinPanel('stickers')}
+                >
+                    <i className='icon-heart-outline'/>
+                </button>
+                <button
+                    type='button'
+                    className={classNames('emoji-picker__iuin-tab', {'emoji-picker__iuin-tab--active': iuinPanel === 'recent'})}
+                    aria-label='Recently used emoji'
+                    onClick={() => {
+                        setIuinPanel('recent');
+                        listIuinRecentEmojis().then(setIuinRecentEmojiNames).catch(() => undefined);
                     }}
-                />
+                >
+                    <i className='icon-clock-outline'/>
+                </button>
+                <button
+                    type='button'
+                    className={classNames('emoji-picker__iuin-tab', {'emoji-picker__iuin-tab--active': iuinPanel === 'emoji'})}
+                    aria-label='All emoji'
+                    onClick={() => setIuinPanel('emoji')}
+                >
+                    <i className='icon-emoticon-happy-outline'/>
+                </button>
             </div>
+        );
+    };
+
+    const renderIuinStickerPanel = () => (
+        <div className='emoji-picker__iuin-panel'>
+            <input
+                ref={stickerUploadInputRef}
+                type='file'
+                accept='image/png,image/jpeg,image/gif,image/webp'
+                className='emoji-picker__iuin-file-input'
+                onChange={handleStickerFileChange}
+            />
+            <div className='emoji-picker__iuin-sticker-grid'>
+                <button
+                    type='button'
+                    className='emoji-picker__iuin-sticker-upload'
+                    aria-label='Upload sticker'
+                    onClick={handleStickerUploadClick}
+                >
+                    <i className='icon-plus'/>
+                </button>
+                {iuinStickers.map((sticker) => (
+                    <button
+                        key={sticker.id}
+                        type='button'
+                        className='emoji-picker__iuin-sticker'
+                        title={sticker.filename}
+                        onClick={() => handleStickerClick(sticker)}
+                    >
+                        <img
+                            src={sticker.imageUrl}
+                            alt=''
+                        />
+                    </button>
+                ))}
+            </div>
+            {iuinPanelError && <div className='emoji-picker__iuin-error'>{iuinPanelError}</div>}
+        </div>
+    );
+
+    const renderIuinRecentPanel = () => (
+        <div className='emoji-picker__iuin-panel'>
+            {iuinRecentEmojis.length === 0 ? (
+                <div className='emoji-picker__iuin-empty'>{'No recently used emoji.'}</div>
+            ) : (
+                <div className='emoji-picker__iuin-emoji-grid'>
+                    {iuinRecentEmojis.map((emoji) => (
+                        <EmojiPickerItem
+                            key={getEmojiName(emoji)}
+                            emoji={emoji}
+                            rowIndex={0}
+                            onClick={onEmojiClick}
+                            onMouseOver={() => undefined}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
+    const renderEmojiPanel = () => (
+        <>
             <div className='emoji-picker__search-container'>
                 <EmojiPickerSearch
                     ref={searchInputRef}
@@ -457,6 +609,27 @@ const EmojiPicker = ({
                     />
                 )}
             </div>
+        </>
+    );
+
+    return (
+        <>
+            <div
+                aria-live='assertive'
+                className='sr-only'
+            >
+                <FormattedMessage
+                    id='emoji_picker_item.emoji_aria_label'
+                    defaultMessage='{emojiName} emoji'
+                    values={{
+                        emojiName: cursorEmojiName,
+                    }}
+                />
+            </div>
+            {renderIuinTabs()}
+            {iuinPanel === 'stickers' && renderIuinStickerPanel()}
+            {iuinPanel === 'recent' && renderIuinRecentPanel()}
+            {iuinPanel === 'emoji' && renderEmojiPanel()}
         </>
     );
 };
