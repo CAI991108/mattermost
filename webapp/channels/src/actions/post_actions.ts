@@ -46,6 +46,7 @@ import {
     StoragePrefixes,
 } from 'utils/constants';
 import {matchEmoticons} from 'utils/emoticons';
+import {recordIuinRecentEmoji, recordIuinRecentEmojis} from 'utils/iuin_stickers';
 import {makeGetIsReactionAlreadyAddedToPost, makeGetUniqueEmojiNameReactionsForPost} from 'utils/post_utils';
 
 import type {
@@ -125,13 +126,21 @@ export function unflagPost(postId: string): ActionFuncAsync {
     };
 }
 
+function getEmojiAliasesForMessage(message: string): string[] {
+    const emojis = matchEmoticons(message);
+    if (!emojis) {
+        return [];
+    }
+
+    return emojis.map((emoji) => emoji.substring(1, emoji.length - 1));
+}
+
 function addRecentEmojisForMessage(message: string): ActionFunc {
     return (dispatch) => {
         // parse message and emit emoji event
-        const emojis = matchEmoticons(message);
-        if (emojis) {
-            const trimmedEmojis = emojis.map((emoji) => emoji.substring(1, emoji.length - 1));
-            dispatch(addRecentEmojis(trimmedEmojis));
+        const emojis = getEmojiAliasesForMessage(message);
+        if (emojis.length) {
+            dispatch(addRecentEmojis(emojis));
         }
         return {data: true};
     };
@@ -144,9 +153,14 @@ export function createPost(
     options?: OnSubmitOptions,
 ): ActionFuncAsync<PostActions.CreatePostReturnType> {
     return async (dispatch) => {
-        dispatch(addRecentEmojisForMessage(post.message));
+        const recentEmojiNames = getEmojiAliasesForMessage(post.message);
 
         const result = await dispatch(PostActions.createPost(post, files, afterSubmit));
+
+        if (!result.error && recentEmojiNames.length) {
+            dispatch(addRecentEmojis(recentEmojiNames));
+            recordIuinRecentEmojis(recentEmojiNames);
+        }
 
         if (!options?.keepDraft) {
             if (post.root_id) {
@@ -241,8 +255,11 @@ export function addReaction(postId: string, emojiName: string): ActionFuncAsync<
             return {error: new Error('reached reaction limit')};
         }
 
-        dispatch(addRecentEmoji(emojiName));
         const result = await dispatch(PostActions.addReaction(postId, emojiName));
+        if (!result.error) {
+            dispatch(addRecentEmoji(emojiName));
+            recordIuinRecentEmoji(emojiName).catch(() => undefined);
+        }
         return result;
     };
 }

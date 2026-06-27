@@ -341,6 +341,8 @@ const AdvancedTextEditor = ({
         textboxId,
         isDisabled,
         showPreview,
+        channelId,
+        rootId,
     );
     const {
         labels: priorityLabels,
