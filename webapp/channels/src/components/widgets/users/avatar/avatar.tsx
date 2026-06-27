@@ -9,6 +9,8 @@ import {useIntl} from 'react-intl';
 import {Client4} from 'mattermost-redux/client';
 
 import BotDefaultIcon from 'images/bot_default_icon.png';
+import type {IuinAvatarFrameItem} from 'utils/iuin_honors';
+import {getIuinHonorAssetUrl} from 'utils/iuin_honors';
 
 import './avatar.scss';
 
@@ -43,6 +45,7 @@ type Props = {
     username?: string;
     size?: TAvatarSizeToken;
     text?: string;
+    avatarFrame?: IuinAvatarFrameItem | null;
 
     /**
      * Override the default alt text for the image.
@@ -64,11 +67,13 @@ const Avatar = forwardRef<HTMLElement, Props & Attrs>(({
     size = 'md',
     text,
     alt,
+    avatarFrame,
     ...attrs
 }, ref) => {
     const {formatMessage} = useIntl();
 
     const classes = classNames(`Avatar Avatar-${size}`, attrs.className);
+    const avatarFrameAssetUrl = getIuinHonorAssetUrl(avatarFrame?.frameStorageKey || avatarFrame?.previewStorageKey);
 
     if (text) {
         return (
@@ -89,7 +94,7 @@ const Avatar = forwardRef<HTMLElement, Props & Attrs>(({
         }
     }
 
-    return (
+    const avatarImage = (
         <img
             {...attrs}
             ref={ref as RefObject<HTMLImageElement>}
@@ -101,6 +106,29 @@ const Avatar = forwardRef<HTMLElement, Props & Attrs>(({
             loading='lazy'
             onError={handleOnError}
         />
+    );
+
+    if (!avatarFrameAssetUrl) {
+        return avatarImage;
+    }
+
+    return (
+        <span
+            className={classNames('AvatarFrameWrapper', `AvatarFrameWrapper-${size}`)}
+        >
+            {avatarImage}
+            <span
+                className='AvatarFrameWrapper__frame'
+                aria-hidden={true}
+            >
+                <img
+                    className='AvatarFrameWrapper__frame-image'
+                    src={avatarFrameAssetUrl}
+                    alt=''
+                    draggable={false}
+                />
+            </span>
+        </span>
     );
 });
 

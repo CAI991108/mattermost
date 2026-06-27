@@ -1212,6 +1212,7 @@ $sidebarOpacityAnimationDuration: 0.15s;
 
         .DirectChannel__status-icon {
             position: absolute;
+            z-index: 3;
             top: 10px;
             left: 10px;
             display: flex;
