@@ -18,6 +18,7 @@ import {getConfig, getPasswordConfig} from 'mattermost-redux/selectors/entities/
 import {getCurrentUser, getUserByUsername as selectUserByUsername} from 'mattermost-redux/selectors/entities/users';
 
 import {loadCustomEmojisIfNeeded} from 'actions/emoji_actions';
+import {loadStatusesByIds} from 'actions/status_actions';
 import {openModal} from 'actions/views/modals';
 
 import CustomStatusModal from 'components/custom_status/custom_status_modal';
@@ -25,11 +26,23 @@ import RenderEmoji from 'components/emoji/render_emoji';
 
 import {getHistory} from 'utils/browser_history';
 import {AcceptedProfileImageTypes, ModalIdentifiers} from 'utils/constants';
+import type {IuinHonorSummary} from 'utils/iuin_honors';
+import {getIuinHonorSummaryCached} from 'utils/iuin_honors';
 import {isValidPassword} from 'utils/password';
 
 import type {GlobalState} from 'types/store';
 
 import HtmlCodeEditor from './html_code_editor';
+import {
+    IuinAchievementsDialog,
+    IuinAvatarAppearanceDialog,
+    IuinAvatarFrameRing,
+    IuinAvatarFramesDialog,
+    IuinProfileHonorSidebar,
+    IuinProfileTitleSidebar,
+    IuinTitlesDialog,
+    type HonorDialogState,
+} from './iuin_honors';
 import {
     appendHtmlModule,
     getDisplayName,
@@ -263,6 +276,7 @@ const AVATAR_CROP_STAGE_WIDTH = 414;
 const AVATAR_CROP_STAGE_HEIGHT = 300;
 const AVATAR_CROP_SIZE = 292;
 const AVATAR_CROP_OUTPUT_SIZE = 512;
+const IUIN_PROFILE_DIALOG_EXIT_MS = 180;
 
 const SKILL_ICON_OPTIONS: SkillIconOption[] = [
     {id: 'py', label: 'Python'},
@@ -778,10 +792,49 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
         month: 'short',
         year: 'numeric',
     }).format(new Date(user.create_at || Date.now()));
+    const [honorSummary, setHonorSummary] = useState<IuinHonorSummary | null>(null);
+    const [honorDialog, setHonorDialog] = useState<HonorDialogState | null>(null);
+    const [avatarAppearanceDialogOpen, setAvatarAppearanceDialogOpen] = useState(false);
+    const [avatarAppearanceAvatarChanged, setAvatarAppearanceAvatarChanged] = useState(false);
+
+    const reloadHonorSummary = useCallback(async () => {
+        if (!currentUser?.id) {
+            setHonorSummary(null);
+            return;
+        }
+
+        const summary = await getIuinHonorSummaryCached(user.id);
+        setHonorSummary(summary);
+    }, [currentUser?.id, user.id]);
 
     useEffect(() => {
         setLocalResearchFields(null);
     }, [profile.researchFields, user.id]);
+
+    useEffect(() => {
+        if (currentUser?.id) {
+            dispatch(loadStatusesByIds([currentUser.id]) as any);
+        }
+    }, [currentUser?.id, dispatch]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        if (!currentUser?.id) {
+            setHonorSummary(null);
+            return undefined;
+        }
+
+        getIuinHonorSummaryCached(user.id).then((summary) => {
+            if (!cancelled) {
+                setHonorSummary(summary);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentUser?.id, user.id]);
 
     useEffect(() => {
         setBackendReadmeWorkspace(null);
@@ -839,6 +892,25 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
         setAvatarUploadError('');
         avatarFileInputRef.current?.click();
     }, [avatarUploadState, canEdit]);
+
+    const openAvatarAppearanceDialog = useCallback(() => {
+        if (!canEdit) {
+            return;
+        }
+
+        setAvatarUploadError('');
+        setAvatarAppearanceAvatarChanged(false);
+        setAvatarAppearanceDialogOpen(true);
+    }, [canEdit]);
+
+    const closeAvatarAppearanceDialog = useCallback(() => {
+        if (avatarUploadState === 'saving') {
+            return;
+        }
+
+        setAvatarAppearanceDialogOpen(false);
+        setAvatarAppearanceAvatarChanged(false);
+    }, [avatarUploadState]);
 
     const handleAvatarFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -909,6 +981,7 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
         }
 
         setAvatarUploadState('idle');
+        setAvatarAppearanceAvatarChanged(true);
         setAvatarCropDraft(null);
     }, [canEdit, currentUser, dispatch, intl]);
 
@@ -933,7 +1006,7 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
 
     const saveResearchFields = useCallback(async (nextFields: string[]) => {
         if (!currentUser || !canEdit) {
-            return;
+            return false;
         }
 
         const normalizedFields = nextFields.map((field) => field.trim()).filter(Boolean);
@@ -956,14 +1029,27 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                 id: 'iuin_profile.fields_dialog.save_error',
                 defaultMessage: 'Could not save research fields.',
             }));
-            return;
+            return false;
         }
 
         setLocalResearchFields(normalizedFields);
         setResearchFieldsSaveState('saved');
-        setResearchFieldsDialogOpen(false);
+        return true;
     }, [canEdit, currentUser, dispatch, intl, profile, sectionVisibility]);
 
+    const openHonorDialog = useCallback((dialog: HonorDialogState) => {
+        if (!canEdit) {
+            return;
+        }
+
+        setHonorDialog(dialog);
+    }, [canEdit]);
+
+    const closeHonorDialog = useCallback(() => {
+        setHonorDialog(null);
+    }, []);
+
+    const hasAvatarFrame = Boolean(honorSummary?.avatarFrame);
     const avatarStatusClassName = `iuin-profile-avatar-status${avatarStatus?.text ? ' iuin-profile-avatar-status--has-text' : ''}${canEdit ? ' iuin-profile-avatar-status--clickable' : ''}`;
     const avatarStatusLabel = avatarStatus?.text || (canEdit ? 'Set status' : undefined);
     const avatarStatusContent = avatarStatus && (
@@ -1030,7 +1116,7 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
             <main className='iuin-profile-shell iuin-profile-display'>
                 <div className='iuin-profile-shell__layout'>
                     <aside className='iuin-profile-academic-sidebar iuin-profile-hui-card iuin-profile-hui-card--profile'>
-                    <div className={`iuin-profile-hui-avatar iuin-profile-hui-avatar--xl${avatarStatus ? ' iuin-profile-hui-avatar--with-status' : ''}${canEdit ? ' iuin-profile-hui-avatar--editable' : ''}`}>
+                    <div className={`iuin-profile-hui-avatar iuin-profile-hui-avatar--xl${hasAvatarFrame ? ' iuin-profile-hui-avatar--framed' : ''}${avatarStatus ? ' iuin-profile-hui-avatar--with-status' : ''}${canEdit ? ' iuin-profile-hui-avatar--editable' : ''}`}>
                         <span
                             className='iuin-profile-hui-avatar__fallback'
                             aria-hidden='true'
@@ -1045,6 +1131,7 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                                 event.currentTarget.style.display = 'none';
                             }}
                         />
+                        <IuinAvatarFrameRing frame={honorSummary?.avatarFrame || null}/>
                         {canEdit && (
                             <>
                                 <input
@@ -1059,10 +1146,10 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                                     className='iuin-profile-avatar-upload'
                                     disabled={avatarUploadState === 'saving'}
                                     aria-label={intl.formatMessage({
-                                        id: 'iuin_profile.avatar_upload',
-                                        defaultMessage: 'Upload avatar',
+                                        id: 'iuin_profile.avatar_manager.open',
+                                        defaultMessage: 'Edit avatar style',
                                     })}
-                                    onClick={openAvatarUploadPicker}
+                                    onClick={openAvatarAppearanceDialog}
                                 >
                                     <i className={`icon ${avatarUploadState === 'saving' ? 'icon-loading icon-spin' : 'icon-pencil-outline'}`}/>
                                     <span>
@@ -1073,8 +1160,8 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                                             />
                                         ) : (
                                             <FormattedMessage
-                                                id='iuin_profile.avatar_upload'
-                                                defaultMessage='Upload avatar'
+                                                id='iuin_profile.avatar_manager.open_short'
+                                                defaultMessage='Edit avatar'
                                             />
                                         )}
                                     </span>
@@ -1116,6 +1203,17 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                             </p>
                         )}
                     </div>
+                    <IuinProfileTitleSidebar
+                        summary={honorSummary}
+                        canEdit={canEdit}
+                        onOpenDialog={openHonorDialog}
+                    />
+                    <IuinProfileHonorSidebar
+                        summary={honorSummary}
+                        canEdit={canEdit}
+                        onOpenDialog={openHonorDialog}
+                        username={user.username}
+                    />
                     {(sectionVisibility.researchFields || canEdit) && (
                         <section className='iuin-profile-academic-sidebar__module iuin-profile-academic-sidebar__module--research-fields'>
                             <div className='iuin-profile-academic-sidebar__module-heading'>
@@ -1260,6 +1358,21 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                     onSave={uploadCroppedAvatar}
                 />
             ), document.body)}
+            {avatarAppearanceDialogOpen && typeof document !== 'undefined' && createPortal((
+                <IuinAvatarAppearanceDialog
+                    userId={user.id}
+                    avatarUrl={avatarUrl}
+                    displayName={displayName}
+                    initials={profileInitials}
+                    currentFrame={honorSummary?.avatarFrame || null}
+                    avatarChanged={avatarAppearanceAvatarChanged}
+                    avatarSaving={avatarUploadState === 'saving'}
+                    avatarError={avatarUploadError}
+                    onUploadAvatar={openAvatarUploadPicker}
+                    onClose={closeAvatarAppearanceDialog}
+                    onSaved={reloadHonorSummary}
+                />
+            ), document.body)}
             {researchFieldsDialogOpen && typeof document !== 'undefined' && createPortal((
                 <IuinResearchFieldsDialog
                     fields={fields}
@@ -1267,6 +1380,27 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                     error={researchFieldsError}
                     onClose={closeResearchFieldsDialog}
                     onSave={saveResearchFields}
+                />
+            ), document.body)}
+            {honorDialog === 'achievements' && typeof document !== 'undefined' && createPortal((
+                <IuinAchievementsDialog
+                    userId={user.id}
+                    onClose={closeHonorDialog}
+                    onSaved={reloadHonorSummary}
+                />
+            ), document.body)}
+            {honorDialog === 'titles' && typeof document !== 'undefined' && createPortal((
+                <IuinTitlesDialog
+                    userId={user.id}
+                    onClose={closeHonorDialog}
+                    onSaved={reloadHonorSummary}
+                />
+            ), document.body)}
+            {honorDialog === 'avatarFrames' && typeof document !== 'undefined' && createPortal((
+                <IuinAvatarFramesDialog
+                    userId={user.id}
+                    onClose={closeHonorDialog}
+                    onSaved={reloadHonorSummary}
                 />
             ), document.body)}
         </>
@@ -1500,18 +1634,49 @@ function IuinResearchFieldsDialog({
     saving: boolean;
     error: string;
     onClose: () => void;
-    onSave: (fields: string[]) => void;
+    onSave: (fields: string[]) => Promise<boolean> | boolean;
 }) {
     const intl = useIntl();
     const [draftFields, setDraftFields] = useState(fields);
     const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null);
     const [researchFieldDraft, setResearchFieldDraft] = useState('');
+    const [closing, setClosing] = useState(false);
+    const closingRef = useRef(false);
+    const closeTimerRef = useRef<number | null>(null);
 
     useEffect(() => {
         setDraftFields(fields);
         setEditingFieldIndex(null);
         setResearchFieldDraft('');
     }, [fields]);
+
+    useEffect(() => {
+        return () => {
+            if (closeTimerRef.current !== null && typeof window !== 'undefined') {
+                window.clearTimeout(closeTimerRef.current);
+            }
+        };
+    }, []);
+
+    const requestClose = useCallback(() => {
+        if (saving || closingRef.current) {
+            return;
+        }
+
+        closingRef.current = true;
+        setClosing(true);
+
+        if (typeof window === 'undefined') {
+            onClose();
+            return;
+        }
+
+        const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        closeTimerRef.current = window.setTimeout(() => {
+            closeTimerRef.current = null;
+            onClose();
+        }, prefersReducedMotion ? 0 : IUIN_PROFILE_DIALOG_EXIT_MS);
+    }, [onClose, saving]);
 
     const getCommittedFields = useCallback(() => {
         const nextFields = [...draftFields];
@@ -1529,22 +1694,38 @@ function IuinResearchFieldsDialog({
     }, [draftFields, editingFieldIndex, researchFieldDraft]);
 
     const commitResearchField = useCallback(() => {
+        if (closing) {
+            return;
+        }
+
         setDraftFields(getCommittedFields());
         setEditingFieldIndex(null);
         setResearchFieldDraft('');
-    }, [getCommittedFields]);
+    }, [closing, getCommittedFields]);
 
     const startAddingResearchField = useCallback(() => {
+        if (closing || saving) {
+            return;
+        }
+
         setEditingFieldIndex(draftFields.length);
         setResearchFieldDraft('');
-    }, [draftFields.length]);
+    }, [closing, draftFields.length, saving]);
 
     const startEditingResearchField = useCallback((index: number) => {
+        if (closing || saving) {
+            return;
+        }
+
         setEditingFieldIndex(index);
         setResearchFieldDraft(draftFields[index] || '');
-    }, [draftFields]);
+    }, [closing, draftFields, saving]);
 
     const removeResearchField = useCallback((index: number) => {
+        if (closing || saving) {
+            return;
+        }
+
         setDraftFields((previous) => previous.filter((_, fieldIndex) => fieldIndex !== index));
         setEditingFieldIndex((previous) => {
             if (previous === null || previous === index) {
@@ -1553,7 +1734,7 @@ function IuinResearchFieldsDialog({
 
             return previous > index ? previous - 1 : previous;
         });
-    }, []);
+    }, [closing, saving]);
 
     const handleResearchFieldKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Enter') {
@@ -1564,22 +1745,40 @@ function IuinResearchFieldsDialog({
 
         if (event.key === 'Escape') {
             event.preventDefault();
+            event.stopPropagation();
             setEditingFieldIndex(null);
             setResearchFieldDraft('');
         }
     }, [commitResearchField]);
 
-    const handleSave = useCallback(() => {
-        onSave(getCommittedFields());
-    }, [getCommittedFields, onSave]);
+    const handleDialogKeyDown = useCallback((event: KeyboardEvent<HTMLElement>) => {
+        if (event.key === 'Escape' && !closing && !saving) {
+            event.preventDefault();
+            requestClose();
+        }
+    }, [closing, requestClose, saving]);
+
+    const handleSave = useCallback(async () => {
+        if (closing || saving) {
+            return;
+        }
+
+        const saved = await onSave(getCommittedFields());
+        if (saved) {
+            requestClose();
+        }
+    }, [closing, getCommittedFields, onSave, requestClose, saving]);
 
     return (
-        <div className='iuin-profile-entry-dialog__backdrop iuin-profile-fields-dialog__backdrop'>
+        <div
+            className={`iuin-profile-entry-dialog__backdrop iuin-profile-fields-dialog__backdrop${closing ? ' iuin-profile-fields-dialog__backdrop--closing' : ''}`}
+        >
             <section
-                className='iuin-profile-entry-dialog iuin-profile-fields-dialog'
+                className={`iuin-profile-entry-dialog iuin-profile-fields-dialog${saving ? ' iuin-profile-fields-dialog--saving' : ''}${closing ? ' iuin-profile-fields-dialog--closing' : ''}`}
                 role='dialog'
                 aria-modal='true'
                 aria-labelledby='iuin-profile-fields-dialog-title'
+                onKeyDown={handleDialogKeyDown}
             >
                 <div className='iuin-profile-entry-dialog__header'>
                     <div>
@@ -1603,8 +1802,8 @@ function IuinResearchFieldsDialog({
                             id: 'iuin_profile.editor.section_dialog_close',
                             defaultMessage: 'Close dialog',
                         })}
-                        disabled={saving}
-                        onClick={onClose}
+                        disabled={saving || closing}
+                        onClick={requestClose}
                     >
                         <i className='icon icon-close'/>
                     </button>
@@ -1620,7 +1819,7 @@ function IuinResearchFieldsDialog({
                                     <input
                                         autoFocus={true}
                                         value={researchFieldDraft}
-                                        disabled={saving}
+                                        disabled={saving || closing}
                                         onBlur={commitResearchField}
                                         onChange={(event) => setResearchFieldDraft(event.target.value)}
                                         onKeyDown={handleResearchFieldKeyDown}
@@ -1652,7 +1851,7 @@ function IuinResearchFieldsDialog({
                                             id: 'iuin_profile.editor.fields_remove',
                                             defaultMessage: 'Remove research field',
                                         })}
-                                        disabled={saving}
+                                        disabled={saving || closing}
                                         onClick={(event) => {
                                             event.stopPropagation();
                                             removeResearchField(index);
@@ -1668,7 +1867,7 @@ function IuinResearchFieldsDialog({
                                 <input
                                     autoFocus={true}
                                     value={researchFieldDraft}
-                                    disabled={saving}
+                                    disabled={saving || closing}
                                     onBlur={commitResearchField}
                                     onChange={(event) => setResearchFieldDraft(event.target.value)}
                                     onKeyDown={handleResearchFieldKeyDown}
@@ -1686,7 +1885,7 @@ function IuinResearchFieldsDialog({
                                     id: 'iuin_profile.editor.fields_add',
                                     defaultMessage: 'Add research field',
                                 })}
-                                disabled={saving}
+                                disabled={saving || closing}
                                 onClick={startAddingResearchField}
                             >
                                 <span aria-hidden={true}>{'+'}</span>
@@ -1703,8 +1902,8 @@ function IuinResearchFieldsDialog({
                     <button
                         type='button'
                         className='iuin-profile-button iuin-profile-button--subtle'
-                        disabled={saving}
-                        onClick={onClose}
+                        disabled={saving || closing}
+                        onClick={requestClose}
                     >
                         <FormattedMessage
                             id='iuin_profile.editor.cancel'
@@ -1714,7 +1913,7 @@ function IuinResearchFieldsDialog({
                     <button
                         type='button'
                         className='iuin-profile-button'
-                        disabled={saving}
+                        disabled={saving || closing}
                         onClick={handleSave}
                     >
                         {saving ? (
