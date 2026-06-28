@@ -34,6 +34,7 @@ Tab 对应的视图在 RHS 内部走两条不同的渲染路径：
 | `sass/layout/_sidebar-right.scss` | 添加 wrapper 和 container 的 flex 布局样式 |
 | `actions/global_actions.tsx` | 进入频道时默认打开 RHS；普通频道默认成员列表，DM/GM 默认置顶帖 |
 | `components/rhs_header_post/rhs_header_post.tsx` | 线程视图关闭按钮改为 goBack() |
+| `actions/views/rhs.ts` | `goBack()` 的无历史兜底不再回到 `channel-info`；普通频道兜底到成员 Tab，DM/GM 兜底到置顶 Tab |
 | `components/search_results_header/search_results_header.tsx` | 搜索结果关闭按钮改为 goBack()；新增 `hideControls` prop 控制返回/关闭按钮显隐 |
 | `components/post_edit_history/edited_post_item/index.ts` | 添加 goBack action |
 | `components/post_edit_history/edited_post_item/edited_post_item.tsx` | 编辑历史关闭改为 goBack() |
@@ -73,6 +74,8 @@ Tab 对应的视图在 RHS 内部走两条不同的渲染路径：
 
 将线程视图（`rhs_header_post.tsx`）、搜索结果（`search_results_header.tsx`）、编辑历史（`edited_post_item.tsx`）的关闭按钮从 `closeRightHandSide()` 改为 `goBack()`。`goBack` 会读取 `previousRhsState`（现有机制），自动恢复到关闭前的 Tab 状态。
 
+入口收口后，`goBack()` 的无历史兜底也同步调整：如果没有 `previousRhsState`，不再回到旧的 `channel-info`；普通公开/私有频道兜底到 `RHSStates.CHANNEL_MEMBERS`，DM/GM 兜底到 `RHSStates.PIN`。这样从频道中直接打开话题并关闭时，不会再落到已隐藏入口的详情页。
+
 ### 5. 移除频道头部按钮
 
 从 `channel_header.tsx` 中移除了 `memberListButton`（成员按钮）、`pinnedButton`（置顶按钮）、文件按钮（`HeaderIconWrapper` + `channelFilesIcon`）和 `ChannelInfoButton`（信息按钮）。成员、置顶、文件由右侧 Tab 栏承担；频道信息功能本体保留，但头部按钮和后续 TabBar 可见入口均已隐藏。
@@ -96,6 +99,8 @@ Tab 对应的视图在 RHS 内部走两条不同的渲染路径：
 #### 9.1 RHS TabBar 隐藏详情入口
 
 `rhs_tab_bar.tsx` 中移除了 `RHSStates.CHANNEL_INFO` 对应的可见 Tab，删除点击 Tab 时调用 `showChannelInfo` 的分支，并清理 DM 进入成员 Tab 时兜底跳详情的 effect。`ChannelInfoRhs`、`showChannelInfo` action 和 `sidebar_right` 中的详情渲染链路仍保留，因此这是入口隐藏，不是功能本体删除。
+
+`actions/views/rhs.ts` 中 `goBack()` 的默认兜底同步从 `channel-info` 改为按频道类型选择：普通频道回成员 Tab，DM/GM 回置顶 Tab，避免从话题/线程关闭时因没有 previous 状态而进入已隐藏入口的详情页。
 
 #### 9.2 公开/私有频道头部菜单收口
 

@@ -17,7 +17,12 @@ import {
     searchPostsWithParams,
     searchFilesWithParams,
 } from 'mattermost-redux/actions/search';
-import {getCurrentChannelId, getCurrentChannelNameForSearchShortcut, getChannel as getChannelSelector} from 'mattermost-redux/selectors/entities/channels';
+import {
+    getCurrentChannelId,
+    getCurrentChannelNameForSearchShortcut,
+    getChannel as getChannelSelector,
+    getCurrentChannel,
+} from 'mattermost-redux/selectors/entities/channels';
 import {getLatestInteractablePostId, getPost} from 'mattermost-redux/selectors/entities/posts';
 import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
 import {getCurrentTimezone} from 'mattermost-redux/selectors/entities/timezone';
@@ -104,8 +109,11 @@ export function openShowEditHistory(post: Post) {
 
 export function goBack(): ActionFuncAsync<boolean> {
     return async (dispatch, getState) => {
-        const prevState = getPreviousRhsState(getState());
-        const defaultTab = 'channel-info';
+        const state = getState();
+        const prevState = getPreviousRhsState(state);
+        const channel = getCurrentChannel(state);
+        const isDirectOrGroupMessage = channel?.type === Constants.DM_CHANNEL || channel?.type === Constants.GM_CHANNEL;
+        const defaultTab = isDirectOrGroupMessage ? RHSStates.PIN : RHSStates.CHANNEL_MEMBERS;
 
         dispatch({
             type: ActionTypes.RHS_GO_BACK,
