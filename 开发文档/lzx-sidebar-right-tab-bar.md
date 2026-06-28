@@ -22,6 +22,9 @@ Tab 对应的视图在 RHS 内部走两条不同的渲染路径：
 | `components/rhs_tab_bar/rhs_tab_bar.tsx` | 垂直 Tab 栏组件；初版为成员/信息/置顶/文件 4 个图标按钮，当前可见入口为成员/置顶/文件 3 个 |
 | `components/rhs_tab_bar/index.ts` | 导出 |
 | `components/rhs_tab_bar/rhs_tab_bar.scss` | Tab 栏样式 |
+| `components/global_header/center_controls/keyboard_shortcuts_button/keyboard_shortcuts_button.tsx` | 顶部搜索框右侧键盘快捷键按钮，使用 `keyboard-outline` 键盘轮廓图标，点击直接打开 `KeyboardShortcutsModal` |
+| `components/global_header/center_controls/keyboard_shortcuts_button/index.ts` | 导出键盘快捷键按钮组件 |
+
 
 ### 修改文件
 
@@ -47,6 +50,7 @@ Tab 对应的视图在 RHS 内部走两条不同的渲染路径：
 | `components/channel_header/channel_header_text.tsx` | 无标题时不再渲染“添加频道标题”入口；有标题时继续显示已有标题 |
 | `components/sidebar/sidebar_channel/sidebar_channel_menu/sidebar_channel_menu.tsx` | 频道列表三点菜单移除静音/取消静音入口 |
 | `components/sidebar/sidebar_channel/sidebar_channel_menu/index.ts` | 清理频道列表三点菜单静音状态和 mute/unmute action 注入 |
+| `components/global_header/center_controls/center_controls.tsx` | 顶部搜索框右侧入口从 `UserGuideDropdown` 替换为 `KeyboardShortcutsButton`，不再显示问号帮助入口 |
 | `components/channel_header_menu/channel_header_menu.tsx` | DM/GM 头部保留头像和名字，但不再渲染下拉菜单容器和箭头；公开/私有频道继续使用原菜单 |
 | `sass/layout/_headers.scss` | 新增静态标题修饰样式，去掉 DM/GM 头部标题 hover 高亮和可点击视觉 |
 
@@ -115,6 +119,29 @@ Tab 对应的视图在 RHS 内部走两条不同的渲染路径：
 
 为避免视觉上仍像可点击入口，`_headers.scss` 新增 `channel-header__trigger--static` 修饰样式，去掉 DM/GM 标题区域 hover 背景，并设置 `cursor: default`。公开/私有频道没有该 static class，仍保留原来的下拉菜单和 hover 反馈。
 
+#### 9.6 顶部帮助入口替换为键盘快捷键入口
+
+`center_controls.tsx` 中顶部搜索框右侧入口从 `UserGuideDropdown` 替换为 `KeyboardShortcutsButton`。因此全局头部不再显示问号帮助图标，也不再能从该入口展开包含用户指南、培训资源、询问社区、报告问题、键盘快捷键等条目的帮助下拉菜单。
+
+新增的 `KeyboardShortcutsButton` 仍复用全局头部图标按钮样式，显示 `keyboard-outline` 键盘轮廓图标，点击后直接通过 `openModal({modalId: ModalIdentifiers.KEYBOARD_SHORTCUTS_MODAL, dialogType: KeyboardShortcutsModal})` 打开键盘快捷键弹窗。原有 `Ctrl+/` 和 macOS `⌘+/` 打开键盘快捷键弹窗的快捷键逻辑未修改。
+
+本次只替换 UI 入口，不删除旧帮助逻辑。旧问号入口和帮助下拉菜单的定位文件如下，作为后续清理参考：
+
+- `components/global_header/center_controls/user_guide_dropdown/user_guide_dropdown.tsx`：旧问号按钮、`MenuWrapper`、帮助下拉菜单和菜单项渲染逻辑。
+- `components/global_header/center_controls/user_guide_dropdown/index.ts`：旧帮助下拉菜单的 Redux connector，读取 `HelpLink`、`EnableAskCommunityLink`、`reportAProblemLink` 和插件菜单项。
+- `components/global_header/center_controls/user_guide_dropdown/user_guide_dropdown.test.tsx`：旧帮助下拉菜单测试。
+- `components/global_header/center_controls/user_guide_dropdown/__snapshots__/user_guide_dropdown.test.tsx.snap`：旧帮助下拉菜单 snapshot。
+- `selectors/plugins.ts` 中的 `getUserGuideDropdownPluginMenuItems`：旧帮助下拉菜单插件项 selector。
+- `reducers/plugins/index.ts` 中的 `UserGuideDropdown: []`：旧帮助下拉菜单插件组件初始状态。
+- `plugins/registry.ts` 中的 `registerUserGuideDropdownMenuAction`：插件注册旧帮助下拉菜单项的 API。
+- `types/store/plugins.ts` 中的 `UserGuideDropdownAction` 和 `UserGuideDropdown` 类型：旧帮助下拉插件项类型定义。
+
+帮助页面本体（`components/help/`）、`popoutHelp()`、帮助路由、旧帮助下拉组件文件、插件扩展点和 i18n 文案均保留。
+
+
 ### 注意事项
 
 本次主要是入口隐藏和 UI 收口，底层 action、Redux 状态、API 和部分功能本体多数保留。前端测试和 snapshot 中可能仍保留旧入口断言，例如 `Add a channel header`、`Mute Channel`、`Unmute Channel`，需要后续按测试策略同步更新。
+
+顶部帮助入口替换为键盘快捷键入口时，仅移除了全局头部的可见 UI 入口；旧 `user_guide_dropdown` 组件、插件扩展点、帮助页面、Help Popout 和相关 i18n 文案仍保留。后续如确认要彻底删除帮助下拉菜单代码，需要再单独清理这些旧逻辑定位文件。
+
