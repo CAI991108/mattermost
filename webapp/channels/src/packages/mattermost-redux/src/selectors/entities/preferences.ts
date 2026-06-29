@@ -200,7 +200,7 @@ export function makeGetStyleFromTheme<Style>(): (state: GlobalState, getStyleFro
     return createSelector(
         'makeGetStyleFromTheme',
         getTheme,
-        (state: GlobalState, getStyleFromTheme: (theme: Theme) => Style) => getStyleFromTheme,
+        (_state: GlobalState, getStyleFromTheme: (theme: Theme) => Style) => getStyleFromTheme,
         (theme, getStyleFromTheme) => {
             return getStyleFromTheme(theme);
         },
@@ -215,26 +215,10 @@ export function shouldShowJoinLeaveMessages(state: GlobalState) {
     return getBool(state, Preferences.CATEGORY_ADVANCED_SETTINGS, Preferences.ADVANCED_FILTER_JOIN_LEAVE, enableJoinLeaveMessage);
 }
 
-// shouldShowUnreadsCategory returns true if the user has unereads grouped separately with the new sidebar enabled.
-export const shouldShowUnreadsCategory: (state: GlobalState, userPreferences?: PreferencesType) => boolean = createSelector(
-    'shouldShowUnreadsCategory',
-    (state: GlobalState, userPreferences?: PreferencesType) => get(state, Preferences.CATEGORY_SIDEBAR_SETTINGS, Preferences.SHOW_UNREAD_SECTION, '', userPreferences),
-    (state: GlobalState, userPreferences?: PreferencesType) => get(state, Preferences.CATEGORY_SIDEBAR_SETTINGS, '', '', userPreferences),
-    (state: GlobalState) => getConfig(state).ExperimentalGroupUnreadChannels,
-    (userPreference: string, oldUserPreference: string, serverDefault?: string): boolean => {
-        // Prefer the show_unread_section user preference over the previous version
-        if (userPreference) {
-            return userPreference === 'true';
-        }
-
-        if (oldUserPreference) {
-            return JSON.parse(oldUserPreference).unreads_at_top === 'true';
-        }
-
-        // The user setting is not set, so use the system default
-        return serverDefault === General.DEFAULT_ON;
-    },
-);
+// shouldShowUnreadsCategory returns true when unread channels should be grouped separately in the sidebar.
+export function shouldShowUnreadsCategory(_state: GlobalState, _userPreferences?: PreferencesType): boolean {
+    return true;
+}
 
 export function getUnreadScrollPositionPreference(state: GlobalState, userPreferences?: PreferencesType): string {
     return get(state, Preferences.CATEGORY_ADVANCED_SETTINGS, Preferences.UNREAD_SCROLL_POSITION, Preferences.UNREAD_SCROLL_POSITION_START_FROM_LEFT, userPreferences);
