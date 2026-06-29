@@ -90,6 +90,15 @@
         }
     }
 
+    &__section-header--fixed {
+        cursor: default;
+
+        &:hover {
+            background: none;
+            color: rgba(var(--sidebar-text-rgb), 0.72);
+        }
+    }
+
     &__section-icon {
         width: 16px;
         flex-shrink: 0;

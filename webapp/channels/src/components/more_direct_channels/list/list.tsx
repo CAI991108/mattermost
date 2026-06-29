@@ -11,6 +11,8 @@ import {openModal} from 'actions/views/modals';
 
 import MultiSelect from 'components/multiselect/multiselect';
 import NewChannelModal from 'components/new_channel_modal/new_channel_modal';
+import NoResultsIndicator from 'components/no_results_indicator/no_results_indicator';
+import {NoResultsVariant} from 'components/no_results_indicator/types';
 
 import {ModalIdentifiers} from 'utils/constants';
 
@@ -131,15 +133,6 @@ const List = React.forwardRef((props: Props, ref?: React.Ref<MultiSelect<OptionV
         return props.options.map(optionValue);
     }, [props.options]);
 
-    const emptySearchMessage = props.searchTerm ? undefined : (
-        <div
-            key='more-direct-channels-empty-search'
-            className='no-channel-message'
-            tabIndex={0}
-        >
-            <p className='primary-message'>{'请输入成员名称、用户名或邮箱进行搜索'}</p>
-        </div>
-    );
 
     return (
         <MultiSelect<OptionValue>
@@ -159,7 +152,12 @@ const List = React.forwardRef((props: Props, ref?: React.Ref<MultiSelect<OptionV
             submitImmediatelyOn={handleSubmitImmediatelyOn}
             saving={props.saving}
             loading={props.loading}
-            customNoOptionsMessage={emptySearchMessage}
+            customNoOptionsMessage={props.searchTerm ? (
+                <NoResultsIndicator
+                    variant={NoResultsVariant.Search}
+                    titleValues={{channelName: props.searchTerm}}
+                />
+            ) : <></>}
             saveButtonPosition='none'
             placeholderText={intl.formatMessage({id: 'multiselect.placeholder', defaultMessage: 'Search for people'})}
         />

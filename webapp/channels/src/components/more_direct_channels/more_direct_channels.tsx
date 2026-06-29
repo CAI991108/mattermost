@@ -17,6 +17,7 @@ import {getHistory} from 'utils/browser_history';
 import Constants from 'utils/constants';
 
 import List from './list';
+import './more_direct_channels.scss';
 import {optionValue} from './types';
 import type {OptionValue} from './types';
 
@@ -286,12 +287,28 @@ export default class MoreDirectChannels extends React.PureComponent<Props, State
             />
         );
 
+        const modalSubheaderText = (
+            <div
+                className='channel-switcher__hint more-direct-channels__hint'
+                id='moreDmHint'
+            >
+                <FormattedMessage
+                    id='more_direct_channels.help'
+                    defaultMessage='Type to find a user. Use <b>UP/DOWN</b> to browse, <b>ENTER</b> to select, <b>ESC</b> to dismiss.'
+                    values={{
+                        b: (chunks) => <b>{chunks}</b>,
+                    }}
+                />
+            </div>
+        );
+
         return (
             <GenericModal
                 id='moreDmModal'
                 className='a11y__modal more-modal more-direct-channels more-direct-channels-generic-modal'
                 show={this.state.show}
                 modalHeaderText={modalHeaderText}
+                modalSubheaderText={modalSubheaderText}
                 onExited={this.handleExit}
                 onHide={this.handleExit}
                 compassDesign={true}
