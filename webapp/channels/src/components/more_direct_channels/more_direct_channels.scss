@@ -3,5 +3,19 @@
 
 
 .more-direct-channels-generic-modal {
-    margin-top: 5vh !important;
+    margin-top: calc(50vh - 240px) !important;
+
+    .filtered-user-list {
+        height: 362px;
+    }
+
+    .more-modal__list {
+        min-height: 0;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .more-modal__options {
+        overflow: auto;
+    }
 }

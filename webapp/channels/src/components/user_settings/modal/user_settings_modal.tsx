@@ -125,7 +125,7 @@ class UserSettingsModal extends React.PureComponent<Props, State> {
         document.removeEventListener('keydown', this.handleKeyDown);
     }
 
-    componentDidUpdate(prevProps: Props, prevState: State) {
+    componentDidUpdate(_prevProps: Props, prevState: State) {
         if (this.state.active_tab !== prevState.active_tab) {
             // Scroll to top if user changes tabs
             if (this.modalBodyRef.current) {
@@ -272,12 +272,13 @@ class UserSettingsModal extends React.PureComponent<Props, State> {
                 icon: 'icon icon-eye-outline',
                 iconTitle: formatMessage({id: 'user.settings.display.icon', defaultMessage: 'Display Settings Icon'}),
             },
-            {
-                name: 'sidebar',
-                uiName: formatMessage({id: 'user.settings.modal.sidebar', defaultMessage: 'Sidebar'}),
-                icon: 'icon icon-dock-left',
-                iconTitle: formatMessage({id: 'user.settings.sidebar.icon', defaultMessage: 'Sidebar Settings Icon'}),
-            },
+            // LZX修改，先移除
+            // {
+            //     name: 'sidebar',
+            //     uiName: formatMessage({id: 'user.settings.modal.sidebar', defaultMessage: 'Sidebar'}),
+            //     icon: 'icon icon-dock-left',
+            //     iconTitle: formatMessage({id: 'user.settings.sidebar.icon', defaultMessage: 'Sidebar Settings Icon'}),
+            // },
             {
                 name: 'advanced',
                 uiName: formatMessage({id: 'user.settings.modal.advanced', defaultMessage: 'Advanced'}),

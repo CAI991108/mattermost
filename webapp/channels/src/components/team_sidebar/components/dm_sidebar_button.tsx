@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback} from 'react';
+import {useIntl} from 'react-intl';
 import {useHistory, useRouteMatch} from 'react-router-dom';
 
 import {WithTooltip} from '@mattermost/shared/components/tooltip';
@@ -28,6 +29,8 @@ const DM_ICON = (
  */
 export default function DmSidebarButton({unreadCount}: Props) {
     const history = useHistory();
+    const intl = useIntl();
+    const directMessagesLabel = intl.formatMessage({id: 'direct_messages.sidebar.title', defaultMessage: 'Direct Messages'});
     const isActive = Boolean(useRouteMatch('/direct_messages'));
 
     const handleClick = useCallback((e: React.MouseEvent) => {
@@ -41,14 +44,14 @@ export default function DmSidebarButton({unreadCount}: Props) {
     return (
         <div className='dm-sidebar-button-wrapper'>
             <WithTooltip
-                title='私信'
+                title={directMessagesLabel}
                 placement='right'
             >
                 <a
                     href='/direct_messages'
                     className={`team-btn dm-sidebar-button${isActive ? ' active' : ''}`}
                     onClick={handleClick}
-                    aria-label='私信'
+                    aria-label={directMessagesLabel}
                     data-testid='dm-sidebar-button'
                 >
                     <TeamIcon

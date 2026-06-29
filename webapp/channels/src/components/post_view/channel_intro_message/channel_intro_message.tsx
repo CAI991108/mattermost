@@ -231,15 +231,17 @@ function createDMIntroMessage(
         const src = teammate ? Utils.imageURLForUser(teammate.id, teammate.last_picture_update) : '';
 
         let pluggableButton = null;
-        let setHeaderButton = null;
+        // LZX: DM intro should not show the Set header action, keep the original button logic commented for traceability.
+        // let setHeaderButton = null;
         if (!teammate?.is_bot) {
             pluggableButton = <PluggableIntroButtons channel={channel}/>;
-            setHeaderButton = createSetHeaderButton(channel);
+            // setHeaderButton = createSetHeaderButton(channel);
         }
 
         const actionButtons = (
             <div className='channel-intro__actions'>
-                {setHeaderButton}
+                {/* LZX: DM intro should not show the Set header action. */}
+                {/* {setHeaderButton} */}
                 {pluggableButton}
             </div>
         );
