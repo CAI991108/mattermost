@@ -230,7 +230,9 @@ function makeMapStateToProps() {
             displayName: getDisplayNameByUser(state, directTeammate),
             teamName,
             isPinnedPosts: rhsState === RHSStates.PIN,
-            clickToReply: get(state, Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.CLICK_TO_REPLY, Preferences.CLICK_TO_REPLY_DEFAULT) === 'true',
+            // LZX: 点击打开话题固定关闭，不再受用户显示设置影响。
+            clickToReply: false,
+            isDMorGM,
             isCommentMention: isPostCommentMention(state, post.id),
             parentPost,
             parentPostUser,

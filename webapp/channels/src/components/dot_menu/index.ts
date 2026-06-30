@@ -51,6 +51,7 @@ import DotMenu from './dot_menu';
 type Props = {
     post: Post;
     location?: ComponentProps<typeof DotMenu>['location'];
+    isDMorGM?: ComponentProps<typeof DotMenu>['isDMorGM'];
 };
 
 function makeMapStateToProps() {

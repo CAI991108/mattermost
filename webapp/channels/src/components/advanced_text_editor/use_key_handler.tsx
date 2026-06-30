@@ -8,6 +8,7 @@ import {useDispatch, useSelector} from 'react-redux';
 import * as UserAgent from '@mattermost/shared/utils/user_agent';
 import type {SchedulingInfo} from '@mattermost/types/schedule_post';
 
+import {General} from 'mattermost-redux/constants';
 import {getBool} from 'mattermost-redux/selectors/entities/preferences';
 
 import {emitShortcutReactToLastPostFrom, unsetEditingPost} from 'actions/post_actions';
@@ -54,6 +55,8 @@ const useKeyHandler = (
     ] => {
     const dispatch = useDispatch();
 
+    const channel = useSelector((state: GlobalState) => state.entities.channels.channels[channelId]);
+    const isDMorGM = channel?.type === General.DM_CHANNEL || channel?.type === General.GM_CHANNEL;
     const ctrlSend = useSelector((state: GlobalState) => getBool(state, Preferences.CATEGORY_ADVANCED_SETTINGS, 'send_on_ctrl_enter'));
     const codeBlockOnCtrlEnter = useSelector((state: GlobalState) => getBool(state, Preferences.CATEGORY_ADVANCED_SETTINGS, 'code_block_ctrl_enter', true));
     const messageHistory = useSelector((state: GlobalState) => state.entities.posts.messagesHistory.messages);
@@ -342,7 +345,8 @@ const useKeyHandler = (
 
         if (!postId) {
             const shiftUpKeyCombo = !ctrlOrMetaKeyPressed && !e.altKey && e.shiftKey && Keyboard.isKeyPressed(e, KeyCodes.UP);
-            if (shiftUpKeyCombo && messageIsEmpty) {
+            // LZX: DM/GM 中禁用 Shift+Up 回复最后一条消息，避免私信产生话题；频道中保留原行为。
+            if (shiftUpKeyCombo && messageIsEmpty && !isDMorGM) {
                 replyToLastPost?.(e);
             }
         }
@@ -365,6 +369,7 @@ const useKeyHandler = (
         toggleEmojiPicker,
         toggleShowPreview,
         isInEditMode,
+        isDMorGM,
         location,
     ]);
 

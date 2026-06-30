@@ -86,6 +86,7 @@ type Props = {
     handleAddReactionClick?: (showEmojiPicker: boolean) => void;
     isMenuOpen?: boolean;
     isReadOnly?: boolean;
+    isDMorGM?: boolean;
     isLicensed?: boolean; // TechDebt: Made non-mandatory while converting to typescript
     postEditTimeLimit?: string; // TechDebt: Made non-mandatory while converting to typescript
     enableEmojiPicker?: boolean; // TechDebt: Made non-mandatory while converting to typescript
@@ -543,7 +544,7 @@ export class DotMenuClass extends React.PureComponent<Props, State> {
             />
         );
 
-        const showReply = !isSystemMessage && !isBurnOnReadPost && this.props.location === Locations.CENTER;
+        const showReply = !this.props.isDMorGM && !isSystemMessage && !isBurnOnReadPost && this.props.location === Locations.CENTER;
         const showForward = this.props.canForward;
         const showReactions = Boolean(isMobile && !isSystemMessage && !this.props.isReadOnly && this.props.enableEmojiPicker);
         const showFollowPost = this.props.canFollowThread;
