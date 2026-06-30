@@ -264,3 +264,91 @@ Mattermost 原本提供一个用户级侧栏设置：`Group unread channels sepa
 - 底层频道、DM、GM、用户 API/Redux 数据结构均不修改
 
 > 本次只调整「查找频道」弹窗的前端建议列表行为：默认不展示列表，搜索时只返回 public/private 频道。底层 DM/GM 能力和其他入口不受影响。
+
+---
+
+## 第五章：隐藏消息快捷常用表情
+
+### 功能介绍
+
+消息列表中每条消息在鼠标悬停或操作菜单打开时，会在消息右上方显示一条横向快捷操作框。
+
+原始操作框中包含：
+
+- 最近/常用快捷表情（最多 3 个 one-click reactions）
+- 表情选择器按钮（Add Reaction）
+- 插件提供的消息操作按钮
+- Apps/Message actions 按钮
+- 回复按钮
+- 三点更多菜单
+
+其中左侧的最多 3 个快捷表情由 `PostRecentReactions` 渲染。它们不是固定写死的 UI，而是来自当前用户最近使用的 emoji preference；如果最近使用数量不足，会使用默认表情补齐。
+
+---
+
+### 前端入口与核心逻辑
+
+| 位置 | 文件 | 说明 |
+|---|---|---|
+| 消息组件入口 | `components/post/post_component.tsx` | 通过 `hover`、`dropdownOpened`、`a11yActive` 等状态控制消息是否处于 hover/active 状态，并渲染 `PostOptions` |
+| 横向快捷操作框 | `components/post/post_options.tsx` | 构建 `<ul className='col post-menu'>`，决定快捷表情、表情选择器、Message actions、回复和三点菜单的渲染顺序 |
+| 快捷常用表情组件 | `components/post_view/post_recent_reactions/post_recent_reactions.tsx` | 渲染最多 3 个快捷 reaction，点击后调用 `toggleReaction(postId, emojiName)` |
+| 单个快捷表情按钮 | `components/post_view/post_recent_reactions/recent_reactions_emoji_item.tsx` | 渲染一个 emoji 按钮，使用 `getEmojiImageUrl(emoji)` 设置背景图 |
+| 表情选择器按钮 | `components/post_view/post_reaction/post_reaction.tsx` | 渲染 Add Reaction 按钮，点击后打开 emoji picker |
+| 最近表情 selector | `selectors/emojis.ts` | `getOneClickReactionEmojis()` 从 `Preferences.RECENT_EMOJIS` 中取最多 3 个最近/常用表情 |
+| 最近表情写入 | `actions/post_actions.ts` / `actions/emoji_actions.js` | 添加 reaction 成功后调用 `addRecentEmoji(emojiName)`，写入用户 preference |
+
+快捷表情的展示条件集中在 `post_options.tsx`：
+
+```ts
+const showRecentlyUsedReactions = (!isMobileView && !isReadOnly && !isEphemeral && !post.failed && !systemMessage && !channelIsArchived && oneClickReactionsEnabled && props.enableEmojiPicker && hoverLocal && !props.shouldDisplayBurnOnReadConcealed);
+```
+
+这个条件同时影响三点菜单位置：当快捷表情原本会显示时，三点菜单会被放到横向操作框末尾。
+
+---
+
+### 本次修改
+
+目标：只隐藏横向快捷操作框左侧的最近/常用快捷表情，让操作框直接从表情选择器按钮开始展示；不修改背后的最近表情计算、存储和 reaction 功能。
+
+#### 修改文件
+
+| 文件 | 改动 |
+|---|---|
+| `components/post/post_options.tsx` | 将渲染处的 `{showRecentReactions}` 改为 JSX 注释，隐藏快捷常用表情展示 |
+| `components/post/post_options.tsx` | 增加 `{showRecentReactions && null}`，保持变量被读取但不渲染任何内容，避免 TypeScript/IDE unused diagnostics |
+
+实际渲染位置改为：
+
+```tsx
+{/* {showRecentReactions} */}
+{showRecentReactions && null}
+{postReaction}
+```
+
+因此 UI 从原来的：
+
+```text
+[快捷表情] [表情选择器] [Message actions] [回复] [三点]
+```
+
+变为：
+
+```text
+[表情选择器] [Message actions] [回复] [三点]
+```
+
+#### 保留不动
+
+- `showRecentlyUsedReactions` 条件判断保留，继续用于维持三点菜单原有位置
+- `PostRecentReactions` 组件及其内部逻辑保留
+- `getOneClickReactionEmojis()` 最近/常用表情筛选逻辑保留
+- `Preferences.RECENT_EMOJIS` 最近表情 preference 保留
+- `addRecentEmoji()` / `addRecentEmojis()` 最近表情写入逻辑保留
+- `toggleReaction()` 添加/移除 reaction 逻辑保留
+- `PostReaction` 表情选择器按钮和 emoji picker 保留
+- 三点更多菜单、Message actions、回复按钮均不修改
+- 后端 API、数据库和 Redux 数据结构均不修改
+
+> 本次只是前端渲染层隐藏快捷常用表情入口。用户仍然可以通过表情选择器添加 reaction，最近表情数据也会继续按原逻辑记录，后续如需恢复快捷表情，只需取消 `post_options.tsx` 中 `{showRecentReactions}` 的 JSX 注释并移除 `{showRecentReactions && null}` 即可。

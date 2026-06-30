@@ -283,12 +283,13 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
             name: Preferences.ONE_CLICK_REACTIONS_ENABLED,
             value: this.state.oneClickReactionsOnPosts,
         };
-        const clickToReplyPreference = {
-            user_id: userId,
-            category: Preferences.CATEGORY_DISPLAY_SETTINGS,
-            name: Preferences.CLICK_TO_REPLY,
-            value: this.state.clickToReply,
-        };
+        // LZX: 点击打开话题固定关闭，不再从显示设置保存该项。
+        // const clickToReplyPreference = {
+        //     user_id: userId,
+        //     category: Preferences.CATEGORY_DISPLAY_SETTINGS,
+        //     name: Preferences.CLICK_TO_REPLY,
+        //     value: this.state.clickToReply,
+        // };
 
         this.setState({isSaving: true});
 
@@ -297,7 +298,8 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
             channelDisplayModePreference,
             messageDisplayPreference,
             collapsedReplyThreadsPreference,
-            clickToReplyPreference,
+            // LZX: 点击打开话题固定关闭，不再保存用户显示设置开关。
+            // clickToReplyPreference,
             collapseDisplayPreference,
             linkPreviewDisplayPreference,
             teammateNameDisplayPreference,
@@ -306,7 +308,7 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
             colorizeUsernamesPreference,
         ];
 
-        await this.props.actions.savePreferences(userId, preferences);
+        this.props.actions.savePreferences(userId, preferences);
 
         this.updateSection('');
     };
@@ -981,38 +983,39 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
             });
         }
 
-        const clickToReply = this.createSection({
-            section: Preferences.CLICK_TO_REPLY,
-            display: 'clickToReply',
-            value: this.state.clickToReply,
-            defaultDisplay: 'true',
-            title: defineMessage({
-                id: 'user.settings.display.clickToReply',
-                defaultMessage: 'Click to open threads',
-            }),
-            firstOption: {
-                value: 'true',
-                radionButtonText: {
-                    label: defineMessage({
-                        id: 'user.settings.sidebar.on',
-                        defaultMessage: 'On',
-                    }),
-                },
-            },
-            secondOption: {
-                value: 'false',
-                radionButtonText: {
-                    label: defineMessage({
-                        id: 'user.settings.sidebar.off',
-                        defaultMessage: 'Off',
-                    }),
-                },
-            },
-            description: defineMessage({
-                id: 'user.settings.display.clickToReplyDescription',
-                defaultMessage: 'When enabled, click anywhere on a message to open the reply thread.',
-            }),
-        });
+        // LZX: 点击打开话题固定关闭，显示设置中不再展示编辑项。
+        // const clickToReply = this.createSection({
+        //     section: Preferences.CLICK_TO_REPLY,
+        //     display: 'clickToReply',
+        //     value: this.state.clickToReply,
+        //     defaultDisplay: 'true',
+        //     title: defineMessage({
+        //         id: 'user.settings.display.clickToReply',
+        //         defaultMessage: 'Click to open threads',
+        //     }),
+        //     firstOption: {
+        //         value: 'true',
+        //         radionButtonText: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.sidebar.on',
+        //                 defaultMessage: 'On',
+        //             }),
+        //         },
+        //     },
+        //     secondOption: {
+        //         value: 'false',
+        //         radionButtonText: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.sidebar.off',
+        //                 defaultMessage: 'Off',
+        //             }),
+        //         },
+        //     },
+        //     description: defineMessage({
+        //         id: 'user.settings.display.clickToReplyDescription',
+        //         defaultMessage: 'When enabled, click anywhere on a message to open the reply thread.',
+        //     }),
+        // });
 
         const channelDisplayModeSection = this.createSection({
             section: Preferences.CHANNEL_DISPLAY_MODE,
@@ -1209,7 +1212,8 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
                     {linkPreviewSection}
                     {collapseSection}
                     {messageDisplaySection}
-                    {clickToReply}
+                    {/* LZX: 点击打开话题固定关闭，不再允许用户编辑。 */}
+                    {/* {clickToReply} */}
                     {channelDisplayModeSection}
                     {oneClickReactionsOnPostsSection}
                     {renderEmoticonsAsEmojiSection}

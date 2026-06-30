@@ -121,6 +121,7 @@ export type Props = {
     replyCount?: number;
     isPinnedPosts?: boolean;
     clickToReply?: boolean;
+    isDMorGM?: boolean;
     isCommentMention?: boolean;
     parentPost?: Post;
     parentPostUser?: UserProfile | null;

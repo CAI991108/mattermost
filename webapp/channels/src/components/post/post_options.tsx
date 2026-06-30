@@ -46,6 +46,7 @@ type Props = {
     hasReplies?: boolean;
     isFirstReply?: boolean;
     canReply?: boolean;
+    isDMorGM?: boolean;
     replyCount?: number;
     location: keyof typeof Locations;
     isLastPost?: boolean;
@@ -124,7 +125,7 @@ const PostOptions = (props: Props): JSX.Element => {
     const isPostDeleted = post && post.state === Posts.POST_DELETED;
     const hoverLocal = props.hover || showEmojiPicker || showDotMenu || showActionsMenu;
     const isBurnOnReadPost = props.isBurnOnReadPost || false;
-    const showCommentIcon = !isBurnOnReadPost && (isFromAutoResponder || (!systemMessage && (isMobileView ||
+    const showCommentIcon = !props.isDMorGM && !isBurnOnReadPost && (isFromAutoResponder || (!systemMessage && (isMobileView ||
             hoverLocal || (!post.root_id && Boolean(props.hasReplies)) ||
             props.isFirstReply) && props.location === Locations.CENTER));
     const commentIconExtraClass = isMobileView ? '' : 'pull-right';
@@ -232,6 +233,7 @@ const PostOptions = (props: Props): JSX.Element => {
                 handleCommentClick={props.handleCommentClick}
                 handleAddReactionClick={toggleEmojiPicker}
                 isReadOnly={isReadOnly || channelIsArchived}
+                isDMorGM={props.isDMorGM}
                 isMenuOpen={showDotMenu}
                 enableEmojiPicker={props.enableEmojiPicker}
                 isChannelAutotranslated={props.isChannelAutotranslated}
@@ -260,7 +262,7 @@ const PostOptions = (props: Props): JSX.Element => {
         options = (
             <ul className='col__controls post-menu'>
                 {dotMenu}
-                {props.canReply && !hasCRTFooter &&
+                {props.canReply && !props.isDMorGM && !hasCRTFooter &&
                 <li>
                     <CommentIcon
                         location={props.location}
@@ -293,7 +295,8 @@ const PostOptions = (props: Props): JSX.Element => {
                 className={classnames('col post-menu', {'post-menu--position': !hoverLocal && showCommentIcon})}
             >
                 {!collapsedThreadsEnabled && !showRecentlyUsedReactions && postMenuActions}
-                {showRecentReactions}
+                {/* {showRecentReactions} */}
+                {showRecentReactions && null}
                 {postReaction}
                 {pluginItems}
                 {actionsMenu}
