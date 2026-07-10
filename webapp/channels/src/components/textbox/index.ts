@@ -15,7 +15,10 @@ import {getAssociatedGroupsForReference} from 'mattermost-redux/selectors/entiti
 import {makeGetProfilesForThread} from 'mattermost-redux/selectors/entities/posts';
 import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
 import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
+import {getChannel} from 'mattermost-redux/selectors/entities/channels';
 import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
+
+import {Constants} from 'utils/constants';
 
 import {autocompleteChannels} from 'actions/channel_actions';
 import {autocompleteUsersInChannel} from 'actions/views/channel';
@@ -43,6 +46,10 @@ const makeMapStateToProps = () => {
         );
         const autocompleteGroups = useGroupMentions ? getAssociatedGroupsForReference(state, teamId, ownProps.channelId) : null;
 
+        const channel = getChannel(state, ownProps.channelId);
+        const channelType = channel?.type ?? '';
+        const isDMChannel = channelType === Constants.DM_CHANNEL || channelType === Constants.GM_CHANNEL;
+
         return {
             currentUserId: getCurrentUserId(state),
             currentTeamId: teamId,
@@ -50,6 +57,7 @@ const makeMapStateToProps = () => {
             priorityProfiles: getProfilesForThread(state, ownProps.rootId ?? ''),
             delayChannelAutocomplete: getConfig(state).DelayChannelAutocomplete === 'true',
             defaultAgent: getDefaultAgent(state),
+            isDMChannel,
         };
     };
 };

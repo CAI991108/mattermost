@@ -324,7 +324,27 @@ Mattermost 原始私信并不是一个独立的全局模块，而是团队频道
 - `webapp/channels/src/components/at_sum_members_mention/notification_from_members_modal.tsx`
   - 成员提醒弹窗中的用户私信入口改为新私信路由。
 
-### 10. 其它辅助修改
+### 10. 禁用私信 @ 提及
+
+私信（DM/GM）场景下，`@here`、`@channel`、`@all` 语义无效，且弹出"频道成员"候选列表与私信体验不符，因此在 DM/GM 中完全禁用 `@` 候选功能。
+
+实现思路：`Textbox` 是类组件，`suggestionProviders` 数组在构造函数里只初始化一次，不随 props 重建。因此不能在构造时有条件地添加 `AtMentionProvider`（否则频道切换后无法恢复），而是始终注册该 provider，让其在 `handlePretextChanged` 内部感知 `isDMChannel` 并 early return。
+
+- `webapp/channels/src/components/textbox/index.ts`
+  - `makeMapStateToProps` 中读取当前 channel type。
+  - channel type 为 `D`（DM）或 `G`（GM）时，计算 `isDMChannel = true` 并注入 Redux props。
+
+- `webapp/channels/src/components/textbox/textbox.tsx`
+  - Props 增加 `isDMChannel?: boolean`。
+  - 构造函数初始化 `AtMentionProvider` 时透传 `isDMChannel`。
+  - `updateSuggestions` 中将 `isDMChannel` 加入 `setProps` 调用，确保频道切换时同步更新。
+
+- `webapp/channels/src/components/suggestion/at_mention_provider/at_mention_provider.tsx`
+  - `Props` 增加 `isDMChannel?: boolean`。
+  - 类字段增加 `public isDMChannel: boolean`，constructor 和 `setProps` 均存储该值。
+  - `handlePretextChanged` 开头增加 `if (this.isDMChannel) return false`，DM/GM 场景下直接跳过所有 `@` 候选逻辑。
+
+### 11. 其它辅助修改
 
 - `webapp/channels/src/types/external/scss.d.ts`
   - 新增 SCSS module/type 声明辅助文件，避免样式导入类型报错。
