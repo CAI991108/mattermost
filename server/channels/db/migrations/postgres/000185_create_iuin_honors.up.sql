@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS IuinTitles (
     Name           TEXT NOT NULL,
     Description    TEXT NOT NULL DEFAULT '',
     IconStorageKey TEXT NOT NULL DEFAULT '',
+    Category       VARCHAR(64) NOT NULL DEFAULT '',
     Rarity         VARCHAR(32) NOT NULL DEFAULT '',
     UnlockHint     TEXT NOT NULL DEFAULT '',
     SortOrder      INTEGER NOT NULL DEFAULT 0,
@@ -112,6 +113,7 @@ CREATE TABLE IF NOT EXISTS IuinAvatarFrames (
     Description       TEXT NOT NULL DEFAULT '',
     FrameStorageKey   TEXT NOT NULL DEFAULT '',
     PreviewStorageKey TEXT NOT NULL DEFAULT '',
+    Category          VARCHAR(64) NOT NULL DEFAULT '',
     Rarity            VARCHAR(32) NOT NULL DEFAULT '',
     UnlockHint        TEXT NOT NULL DEFAULT '',
     SortOrder         INTEGER NOT NULL DEFAULT 0,
@@ -173,31 +175,31 @@ VALUES
 ON CONFLICT (Id) DO NOTHING;
 
 INSERT INTO IuinTitles
-    (Id, Name, Description, IconStorageKey, Rarity, UnlockHint, SortOrder, CreateAt, UpdateAt)
+    (Id, Name, Description, IconStorageKey, Category, Rarity, UnlockHint, SortOrder, CreateAt, UpdateAt)
 VALUES
-    ('title_research_scout', '研究侦察员', '总能先发现问题边界的人。', 'profile/honors/titles/title_research_scout/title-game.png', 'common', '完成第一版研究主页。', 10, 0, 0),
-    ('title_readme_architect', 'README 建筑师', '把个人主页搭成可访问的研究工作室。', 'profile/honors/titles/title_readme_architect/title-game.png', 'common', '整理 README 主页结构。', 20, 0, 0),
-    ('title_repro_keeper', '复现守门员', '对可复现有一点温柔的执念。', 'profile/honors/titles/title_repro_keeper/title-game.png', 'rare', '留下可复现实验记录。', 30, 0, 0),
-    ('title_night_scribe', '凌晨记录者', '在安静时间把想法写成证据。', 'profile/honors/titles/title_night_scribe/title-game.png', 'rare', '留下夜间研究记录。', 40, 0, 0),
-    ('title_bridge_builder', '跨域搭桥人', '让不同角落的人接上同一个问题。', 'profile/honors/titles/title_bridge_builder/title-game.png', 'rare', '获得跨圈层互动。', 50, 0, 0),
-    ('title_lit_cartographer', '文献制图师', '把散乱论文画成可行路线。', 'profile/honors/titles/title_lit_cartographer/title-game.png', 'common', '维护文献关系图。', 60, 0, 0),
-    ('title_lab_anchor', '实验室锚点', '让团队记忆有可以停靠的地方。', 'profile/honors/titles/title_lab_anchor/title-game.png', 'epic', '多次沉淀团队资料。', 70, 0, 0),
-    ('title_question_keeper', '问题保管员', '把暂时无解的问题保管好。', 'profile/honors/titles/title_question_keeper/title-game.png', 'rare', '公开记录未解决问题与下一步。', 80, 0, 0),
-    ('title_review_spark', '读书会点火人', '一篇笔记点燃一次真正的集体阅读。', 'profile/honors/titles/title_review_spark/title-game.png', 'epic', '文献笔记引发多人讨论。', 90, 0, 0),
-    ('title_future_note', '未来脚注', '给未来的自己留下一张可靠纸条。', 'profile/honors/titles/title_future_note/title-game.png', 'hidden', '在主页或研究状态中写下未来注记。', 100, 0, 0)
+    ('title_research_scout', '研究侦察员', '总能先发现问题边界的人。', 'profile/honors/titles/title_research_scout/title-game.png', 'profile', 'common', '完成第一版研究主页。', 10, 0, 0),
+    ('title_readme_architect', 'README 建筑师', '把个人主页搭成可访问的研究工作室。', 'profile/honors/titles/title_readme_architect/title-game.png', 'profile', 'common', '整理 README 主页结构。', 20, 0, 0),
+    ('title_repro_keeper', '复现守门员', '对可复现有一点温柔的执念。', 'profile/honors/titles/title_repro_keeper/title-game.png', 'experiment', 'rare', '留下可复现实验记录。', 30, 0, 0),
+    ('title_night_scribe', '凌晨记录者', '在安静时间把想法写成证据。', 'profile/honors/titles/title_night_scribe/title-game.png', 'collaboration', 'rare', '留下夜间研究记录。', 40, 0, 0),
+    ('title_bridge_builder', '跨域搭桥人', '让不同角落的人接上同一个问题。', 'profile/honors/titles/title_bridge_builder/title-game.png', 'collaboration', 'rare', '获得跨圈层互动。', 50, 0, 0),
+    ('title_lit_cartographer', '文献制图师', '把散乱论文画成可行路线。', 'profile/honors/titles/title_lit_cartographer/title-game.png', 'literature', 'common', '维护文献关系图。', 60, 0, 0),
+    ('title_lab_anchor', '实验室锚点', '让团队记忆有可以停靠的地方。', 'profile/honors/titles/title_lab_anchor/title-game.png', 'meeting', 'epic', '多次沉淀团队资料。', 70, 0, 0),
+    ('title_question_keeper', '问题保管员', '把暂时无解的问题保管好。', 'profile/honors/titles/title_question_keeper/title-game.png', 'experiment', 'rare', '公开记录未解决问题与下一步。', 80, 0, 0),
+    ('title_review_spark', '读书会点火人', '一篇笔记点燃一次真正的集体阅读。', 'profile/honors/titles/title_review_spark/title-game.png', 'literature', 'epic', '文献笔记引发多人讨论。', 90, 0, 0),
+    ('title_future_note', '未来脚注', '给未来的自己留下一张可靠纸条。', 'profile/honors/titles/title_future_note/title-game.png', 'profile', 'hidden', '在主页或研究状态中写下未来注记。', 100, 0, 0)
 ON CONFLICT (Id) DO NOTHING;
 
 INSERT INTO IuinAvatarFrames
-    (Id, Name, Description, FrameStorageKey, PreviewStorageKey, Rarity, UnlockHint, SortOrder, CreateAt, UpdateAt)
+    (Id, Name, Description, FrameStorageKey, PreviewStorageKey, Category, Rarity, UnlockHint, SortOrder, CreateAt, UpdateAt)
 VALUES
-    ('frame_calm_blue', '星海符文', '像游戏里第一枚被点亮的奥术徽环。', 'profile/honors/avatar_frames/frame_calm_blue/frame.png', 'profile/honors/avatar_frames/frame_calm_blue/frame.png', 'common', '默认演示头像框。', 10, 0, 0),
-    ('frame_sage_lab', '翡翠守卫', '低调但带一点守护感，适合长期实验。', 'profile/honors/avatar_frames/frame_sage_lab/frame.png', 'profile/honors/avatar_frames/frame_sage_lab/frame.png', 'common', '默认演示头像框。', 20, 0, 0),
-    ('frame_warm_note', '琥珀炉心', '像一圈稳定燃烧的锻造火光。', 'profile/honors/avatar_frames/frame_warm_note/frame.png', 'profile/honors/avatar_frames/frame_warm_note/frame.png', 'common', '默认演示头像框。', 30, 0, 0),
-    ('frame_clear_mint', '潮汐晶核', '清亮、有流动感，像水系护符。', 'profile/honors/avatar_frames/frame_clear_mint/frame.png', 'profile/honors/avatar_frames/frame_clear_mint/frame.png', 'rare', '默认演示头像框。', 40, 0, 0),
-    ('frame_quiet_rose', '蔷薇契约', '不张扬，但有一点稀有装备的完成感。', 'profile/honors/avatar_frames/frame_quiet_rose/frame.png', 'profile/honors/avatar_frames/frame_quiet_rose/frame.png', 'rare', '默认演示头像框。', 50, 0, 0),
-    ('frame_graphite', '黑曜刻印', '像秘境门口的一圈黑曜石铭文。', 'profile/honors/avatar_frames/frame_graphite/frame.png', 'profile/honors/avatar_frames/frame_graphite/frame.png', 'common', '后续解锁。', 60, 0, 0),
-    ('frame_sunrise', '日冕勋章', '阶段性推进时会亮起来的金色边框。', 'profile/honors/avatar_frames/frame_sunrise/frame.png', 'profile/honors/avatar_frames/frame_sunrise/frame.png', 'rare', '后续解锁。', 70, 0, 0),
-    ('frame_tide', '霜蓝回路', '像技能冷却完成时闪过的一圈蓝光。', 'profile/honors/avatar_frames/frame_tide/frame.png', 'profile/honors/avatar_frames/frame_tide/frame.png', 'rare', '后续解锁。', 80, 0, 0),
-    ('frame_olive', '古树王冠', '稳稳托住长期主义的史诗绿金边框。', 'profile/honors/avatar_frames/frame_olive/frame.png', 'profile/honors/avatar_frames/frame_olive/frame.png', 'epic', '后续解锁。', 90, 0, 0),
-    ('frame_signal', '虚空信标', '像一次被正确接收的紫色研究广播。', 'profile/honors/avatar_frames/frame_signal/frame.png', 'profile/honors/avatar_frames/frame_signal/frame.png', 'epic', '后续解锁。', 100, 0, 0)
+    ('frame_calm_blue', '星海符文', '像游戏里第一枚被点亮的奥术徽环。', 'profile/honors/avatar_frames/frame_calm_blue/frame.png', 'profile/honors/avatar_frames/frame_calm_blue/frame.png', 'profile', 'common', '默认演示头像框。', 10, 0, 0),
+    ('frame_sage_lab', '翡翠守卫', '低调但带一点守护感，适合长期实验。', 'profile/honors/avatar_frames/frame_sage_lab/frame.png', 'profile/honors/avatar_frames/frame_sage_lab/frame.png', 'experiment', 'common', '默认演示头像框。', 20, 0, 0),
+    ('frame_warm_note', '琥珀炉心', '像一圈稳定燃烧的锻造火光。', 'profile/honors/avatar_frames/frame_warm_note/frame.png', 'profile/honors/avatar_frames/frame_warm_note/frame.png', 'meeting', 'common', '默认演示头像框。', 30, 0, 0),
+    ('frame_clear_mint', '潮汐晶核', '清亮、有流动感，像水系护符。', 'profile/honors/avatar_frames/frame_clear_mint/frame.png', 'profile/honors/avatar_frames/frame_clear_mint/frame.png', 'literature', 'rare', '默认演示头像框。', 40, 0, 0),
+    ('frame_quiet_rose', '蔷薇契约', '不张扬，但有一点稀有装备的完成感。', 'profile/honors/avatar_frames/frame_quiet_rose/frame.png', 'profile/honors/avatar_frames/frame_quiet_rose/frame.png', 'collaboration', 'rare', '默认演示头像框。', 50, 0, 0),
+    ('frame_graphite', '黑曜刻印', '像秘境门口的一圈黑曜石铭文。', 'profile/honors/avatar_frames/frame_graphite/frame.png', 'profile/honors/avatar_frames/frame_graphite/frame.png', 'experiment', 'common', '后续解锁。', 60, 0, 0),
+    ('frame_sunrise', '日冕勋章', '阶段性推进时会亮起来的金色边框。', 'profile/honors/avatar_frames/frame_sunrise/frame.png', 'profile/honors/avatar_frames/frame_sunrise/frame.png', 'meeting', 'rare', '后续解锁。', 70, 0, 0),
+    ('frame_tide', '霜蓝回路', '像技能冷却完成时闪过的一圈蓝光。', 'profile/honors/avatar_frames/frame_tide/frame.png', 'profile/honors/avatar_frames/frame_tide/frame.png', 'literature', 'rare', '后续解锁。', 80, 0, 0),
+    ('frame_olive', '古树王冠', '稳稳托住长期主义的史诗绿金边框。', 'profile/honors/avatar_frames/frame_olive/frame.png', 'profile/honors/avatar_frames/frame_olive/frame.png', 'profile', 'epic', '后续解锁。', 90, 0, 0),
+    ('frame_signal', '虚空信标', '像一次被正确接收的紫色研究广播。', 'profile/honors/avatar_frames/frame_signal/frame.png', 'profile/honors/avatar_frames/frame_signal/frame.png', 'collaboration', 'epic', '后续解锁。', 100, 0, 0)
 ON CONFLICT (Id) DO NOTHING;

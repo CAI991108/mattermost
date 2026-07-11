@@ -1,0 +1,5 @@
+ALTER TABLE IuinTitles
+    DROP COLUMN IF EXISTS Category;
+
+ALTER TABLE IuinAvatarFrames
+    DROP COLUMN IF EXISTS Category;
