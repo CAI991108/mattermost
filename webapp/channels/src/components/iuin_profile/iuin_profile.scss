@@ -15025,3 +15025,36 @@ body.app__body:has(.iuin-profile-page--customization-only) *::-webkit-scrollbar 
 .iuin-profile-title-inspector {
     padding-top: 18px;
 }
+
+/* File and folder rows share the same Overleaf-style action-menu behavior. */
+.iuin-readme-workbench__tree-row--file > span:not(.iuin-readme-workbench__main-document-badge) {
+    flex: 1 1 auto;
+}
+
+.iuin-readme-workbench__main-document-badge {
+    flex: 0 0 auto;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--iuin-readme-channel-surface-hover, rgba(var(--center-channel-color-rgb), 0.08));
+    color: var(--iuin-readme-channel-muted, rgba(var(--center-channel-color-rgb), 0.72));
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+}
+
+.iuin-readme-workbench__tree-document-row .iuin-readme-workbench__tree-menu {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.iuin-readme-workbench__tree-document-row:hover .iuin-readme-workbench__tree-menu,
+.iuin-readme-workbench__tree-document-row:focus-within .iuin-readme-workbench__tree-menu,
+.iuin-readme-workbench__tree-document-row.active .iuin-readme-workbench__tree-menu,
+.iuin-readme-workbench__tree-document-row.menu-open .iuin-readme-workbench__tree-menu {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.iuin-readme-workbench__tree-document-row.menu-open {
+    background: var(--iuin-readme-channel-surface-hover, rgba(var(--center-channel-color-rgb), 0.08));
+}

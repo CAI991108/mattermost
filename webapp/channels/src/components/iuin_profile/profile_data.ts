@@ -1,8 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import type {UserProfile} from '@mattermost/types/users';
 import marked from 'marked';
+
+import type {UserProfile} from '@mattermost/types/users';
 
 export const IUIN_PROFILE_PROPS = {
     homepageHtml: 'iuin_profile_homepage_html',
@@ -184,8 +185,8 @@ export function parseIuinReadmeWorkspace(value: string, fallbackReadme = '', roo
         const files = migrateLegacyReadmeFolderPlaceholders(Array.isArray(parsed.files) ? parsed.files.
             map(normalizeReadmeFile).
             filter((file): file is IuinReadmeFile => Boolean(file?.path)) : []);
-        const nextFiles = files.some((file) => file.path === IUIN_README_MAIN_FILE) ? files : [fallbackFile, ...files];
-        const activePath = parsed.activePath && nextFiles.some((file) => file.path === parsed.activePath && file.type !== 'folder') ? parsed.activePath : IUIN_README_MAIN_FILE;
+        const nextFiles = ensureReadmeMainDocument(files, fallbackFile);
+        const activePath = getReadmeMainDocumentPath(nextFiles, parsed.activePath);
 
         return {
             rootName: sanitizeReadmePath(parsed.rootName || rootName || 'profile-readme').replace(/\//g, '-') || 'profile-readme',
@@ -203,14 +204,15 @@ export function parseIuinReadmeWorkspace(value: string, fallbackReadme = '', roo
 }
 
 export function serializeIuinReadmeWorkspace(workspace: IuinReadmeWorkspace): string {
-    const files = migrateLegacyReadmeFolderPlaceholders(workspace.files.
+    const normalizedFiles = migrateLegacyReadmeFolderPlaceholders(workspace.files.
         map(normalizeReadmeFile).
         filter((file): file is IuinReadmeFile => Boolean(file?.path)));
+    const files = ensureReadmeMainDocument(normalizedFiles, getDefaultReadmeFile(''));
     const normalized = {
         rootName: sanitizeReadmePath(workspace.rootName || 'profile-readme').replace(/\//g, '-') || 'profile-readme',
-        activePath: files.some((file) => file.path === workspace.activePath && file.type !== 'folder') ? workspace.activePath : IUIN_README_MAIN_FILE,
+        activePath: getReadmeMainDocumentPath(files, workspace.activePath),
         githubRenderedHtml: typeof workspace.githubRenderedHtml === 'string' ? workspace.githubRenderedHtml : '',
-        files: files.some((file) => file.path === IUIN_README_MAIN_FILE) ? files : [getDefaultReadmeFile(''), ...files],
+        files,
     };
 
     return JSON.stringify(normalized);
@@ -220,14 +222,27 @@ export function getReadmeFileContent(workspace: IuinReadmeWorkspace, path = IUIN
     return workspace.files.find((file) => file.path === path)?.content || '';
 }
 
+export function getReadmeRelativePath(fromDirectory: string, targetPath: string): string {
+    const fromParts = sanitizeReadmePath(fromDirectory).split('/').filter(Boolean);
+    const targetParts = sanitizeReadmePath(targetPath).split('/').filter(Boolean);
+    let commonLength = 0;
+    while (commonLength < fromParts.length && commonLength < targetParts.length && fromParts[commonLength] === targetParts[commonLength]) {
+        commonLength += 1;
+    }
+
+    return [
+        ...fromParts.slice(commonLength).map(() => '..'),
+        ...targetParts.slice(commonLength),
+    ].join('/');
+}
+
 export function setReadmeFileContent(workspace: IuinReadmeWorkspace, path: string, content: string, type?: IuinReadmeFile['type']): IuinReadmeWorkspace {
     const nextPath = sanitizeReadmePath(path) || IUIN_README_MAIN_FILE;
     const existing = workspace.files.find((file) => file.path === nextPath);
 
     return {
         ...workspace,
-        activePath: nextPath,
-        githubRenderedHtml: nextPath === IUIN_README_MAIN_FILE ? '' : workspace.githubRenderedHtml,
+        githubRenderedHtml: nextPath === workspace.activePath ? '' : workspace.githubRenderedHtml,
         files: upsertReadmeFile(workspace.files, {
             path: nextPath,
             content,
@@ -238,16 +253,131 @@ export function setReadmeFileContent(workspace: IuinReadmeWorkspace, path: strin
 }
 
 export function removeReadmeFile(workspace: IuinReadmeWorkspace, path: string): IuinReadmeWorkspace {
-    if (path === IUIN_README_MAIN_FILE) {
+    const normalizedPath = sanitizeReadmePath(path);
+    const existing = workspace.files.find((file) => file.path === normalizedPath && file.type !== 'folder');
+    if (!existing) {
         return workspace;
     }
 
-    const files = workspace.files.filter((file) => file.path !== path);
+    const files = ensureReadmeMainDocument(workspace.files.filter((file) => file.path !== normalizedPath), getDefaultReadmeFile(''));
+    const removedMainDocument = workspace.activePath === normalizedPath;
 
     return {
         ...workspace,
-        activePath: workspace.activePath === path ? IUIN_README_MAIN_FILE : workspace.activePath,
+        activePath: getReadmeMainDocumentPath(files, removedMainDocument ? '' : workspace.activePath),
+        githubRenderedHtml: removedMainDocument ? '' : workspace.githubRenderedHtml,
         files,
+    };
+}
+
+export function isReadmeMainDocumentCandidate(file: IuinReadmeFile | undefined): boolean {
+    return Boolean(file && file.type === 'markdown' && (/\.(md|markdown)$/i).test(file.path));
+}
+
+export function setReadmeMainDocument(workspace: IuinReadmeWorkspace, path: string): IuinReadmeWorkspace {
+    const normalizedPath = sanitizeReadmePath(path);
+    const file = workspace.files.find((candidate) => candidate.path === normalizedPath);
+    if (!isReadmeMainDocumentCandidate(file) || workspace.activePath === normalizedPath) {
+        return workspace;
+    }
+
+    return {
+        ...workspace,
+        activePath: normalizedPath,
+        githubRenderedHtml: '',
+    };
+}
+
+export function renameReadmeFile(workspace: IuinReadmeWorkspace, previousPath: string, nextPath: string): IuinReadmeWorkspace {
+    const normalizedPrevious = sanitizeReadmePath(previousPath);
+    const normalizedNext = sanitizeReadmePath(nextPath);
+    if (!normalizedPrevious || !normalizedNext || normalizedPrevious === normalizedNext || workspace.files.some((file) => file.path === normalizedNext)) {
+        return workspace;
+    }
+
+    const existing = workspace.files.find((file) => file.path === normalizedPrevious && file.type !== 'folder');
+    if (!existing) {
+        return workspace;
+    }
+
+    const renamedFile = normalizeReadmeFile({
+        ...existing,
+        path: normalizedNext,
+        type: getReadmeFileType(normalizedNext, existing.content),
+        updatedAt: Date.now(),
+    });
+    if (!renamedFile) {
+        return workspace;
+    }
+
+    const files = ensureReadmeMainDocument(
+        workspace.files.map((file) => (file.path === normalizedPrevious ? renamedFile : file)),
+        getDefaultReadmeFile(''),
+    );
+    const renamedMainDocument = workspace.activePath === normalizedPrevious;
+
+    return {
+        ...workspace,
+        activePath: getReadmeMainDocumentPath(files, renamedMainDocument ? normalizedNext : workspace.activePath),
+        githubRenderedHtml: renamedMainDocument ? '' : workspace.githubRenderedHtml,
+        files,
+    };
+}
+
+export function removeReadmeFolder(workspace: IuinReadmeWorkspace, folderPath: string): IuinReadmeWorkspace {
+    const normalizedFolder = sanitizeReadmePath(folderPath);
+    if (!normalizedFolder) {
+        return workspace;
+    }
+
+    const isInsideFolder = (path: string) => path === normalizedFolder || path.startsWith(`${normalizedFolder}/`);
+    if (!workspace.files.some((file) => isInsideFolder(file.path))) {
+        return workspace;
+    }
+
+    const files = ensureReadmeMainDocument(workspace.files.filter((file) => !isInsideFolder(file.path)), getDefaultReadmeFile(''));
+    const removedMainDocument = isInsideFolder(workspace.activePath);
+
+    return {
+        ...workspace,
+        activePath: getReadmeMainDocumentPath(files, removedMainDocument ? '' : workspace.activePath),
+        githubRenderedHtml: removedMainDocument ? '' : workspace.githubRenderedHtml,
+        files,
+    };
+}
+
+export function renameReadmeFolder(workspace: IuinReadmeWorkspace, previousFolderPath: string, nextFolderPath: string): IuinReadmeWorkspace {
+    const normalizedPrevious = sanitizeReadmePath(previousFolderPath);
+    const normalizedNext = sanitizeReadmePath(nextFolderPath);
+    if (!normalizedPrevious || !normalizedNext || normalizedPrevious === normalizedNext) {
+        return workspace;
+    }
+
+    const isInsidePreviousFolder = (path: string) => path === normalizedPrevious || path.startsWith(`${normalizedPrevious}/`);
+    const renamedPath = (path: string) => (path === normalizedPrevious ? normalizedNext : `${normalizedNext}${path.slice(normalizedPrevious.length)}`);
+    const pathsOutsideFolder = new Set(workspace.files.filter((file) => !isInsidePreviousFolder(file.path)).map((file) => file.path));
+    const filesInsideFolder = workspace.files.filter((file) => isInsidePreviousFolder(file.path));
+    if (filesInsideFolder.length === 0 || filesInsideFolder.some((file) => pathsOutsideFolder.has(renamedPath(file.path)))) {
+        return workspace;
+    }
+
+    const renamedMainDocument = isInsidePreviousFolder(workspace.activePath);
+
+    return {
+        ...workspace,
+        activePath: renamedMainDocument ? renamedPath(workspace.activePath) : workspace.activePath,
+        githubRenderedHtml: renamedMainDocument ? '' : workspace.githubRenderedHtml,
+        files: workspace.files.map((file) => {
+            if (!isInsidePreviousFolder(file.path)) {
+                return file;
+            }
+
+            return {
+                ...file,
+                path: renamedPath(file.path),
+                updatedAt: Date.now(),
+            };
+        }),
     };
 }
 
@@ -358,6 +488,28 @@ function getDefaultReadmeFile(content: string): IuinReadmeFile {
     };
 }
 
+function ensureReadmeMainDocument(files: IuinReadmeFile[], fallbackFile: IuinReadmeFile): IuinReadmeFile[] {
+    if (files.some((file) => isReadmeMainDocumentCandidate(file))) {
+        return files;
+    }
+
+    return upsertReadmeFile(files, fallbackFile);
+}
+
+function getReadmeMainDocumentPath(files: IuinReadmeFile[], preferredPath?: string): string {
+    const preferred = files.find((file) => file.path === sanitizeReadmePath(preferredPath || ''));
+    if (preferred && isReadmeMainDocumentCandidate(preferred)) {
+        return preferred.path;
+    }
+
+    const defaultMainDocument = files.find((file) => file.path === IUIN_README_MAIN_FILE);
+    if (defaultMainDocument && isReadmeMainDocumentCandidate(defaultMainDocument)) {
+        return defaultMainDocument.path;
+    }
+
+    return files.find(isReadmeMainDocumentCandidate)?.path || IUIN_README_MAIN_FILE;
+}
+
 function normalizeReadmeFile(file: Partial<IuinReadmeFile> | null | undefined): IuinReadmeFile | null {
     if (!file || typeof file.path !== 'string') {
         return null;
@@ -370,10 +522,16 @@ function normalizeReadmeFile(file: Partial<IuinReadmeFile> | null | undefined): 
 
     const content = typeof file.content === 'string' ? file.content : '';
     const type = file.type === 'asset' || file.type === 'text' || file.type === 'markdown' || file.type === 'folder' ? file.type : getReadmeFileType(path, content);
+    let normalizedContent = content;
+    if (type === 'folder') {
+        normalizedContent = '';
+    } else if (type === 'markdown') {
+        normalizedContent = normalizeLegacyReadmeMarkdown(content);
+    }
 
     return {
         path,
-        content: type === 'folder' ? '' : type === 'markdown' ? normalizeLegacyReadmeMarkdown(content) : content,
+        content: normalizedContent,
         type,
         updatedAt: typeof file.updatedAt === 'number' ? file.updatedAt : Date.now(),
     };
@@ -468,8 +626,8 @@ function getStringProp(props: Record<string, string>, key: string, defaultValue:
 
 function normalizeLegacyReadmeMarkdown(content: string): string {
     const trimmed = content.trim();
-    const looksLikeLegacySummaryHtml = /<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/i.test(trimmed) &&
-        (/<p[^>]*class=(["'])[^"']*iuin-profile-lead[^"']*\1[^>]*>[\s\S]*?<\/p>/i.test(trimmed) || /^<h[1-6][^>]*>[\s\S]*<\/p>\s*$/i.test(trimmed));
+    const looksLikeLegacySummaryHtml = (/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/i).test(trimmed) &&
+        ((/<p[^>]*class=(["'])[^"']*iuin-profile-lead[^"']*\1[^>]*>[\s\S]*?<\/p>/i).test(trimmed) || (/^<h[1-6][^>]*>[\s\S]*<\/p>\s*$/i).test(trimmed));
 
     if (!looksLikeLegacySummaryHtml) {
         return content;

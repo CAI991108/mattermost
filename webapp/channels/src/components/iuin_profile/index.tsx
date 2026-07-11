@@ -49,17 +49,23 @@ import {
     getIuinProfileData,
     getProfilePatch,
     getReadmeFileContent,
+    getReadmeRelativePath,
     getReadmeRootName,
     IUIN_README_MAIN_FILE,
+    isReadmeMainDocumentCandidate,
     type IuinProfileData,
     type IuinReadmeFile,
     type IuinReadmeWorkspace,
     parseIuinReadmeWorkspace,
+    removeReadmeFolder,
     removeReadmeFile,
+    renameReadmeFolder,
+    renameReadmeFile,
     renderIuinReadmeMarkdown,
     sanitizeIuinProfileHtml,
     serializeIuinReadmeWorkspace,
     setReadmeFileContent,
+    setReadmeMainDocument,
     splitProfileList,
 } from './profile_data';
 import {useIuinJoinedTeamLabels} from './use_joined_channels';
@@ -786,7 +792,7 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
         ...readmeWorkspace,
         githubRenderedHtml: overviewGithubRenderedHtml,
     } : readmeWorkspace, [overviewGithubRenderedHtml, readmeWorkspace]);
-    const readmeContent = useMemo(() => getReadmeFileContent(renderedReadmeWorkspace, IUIN_README_MAIN_FILE), [renderedReadmeWorkspace]);
+    const readmeContent = useMemo(() => getReadmeFileContent(renderedReadmeWorkspace, renderedReadmeWorkspace.activePath), [renderedReadmeWorkspace]);
     const readmeHtml = useMemo(() => renderReadmeWorkspacePreview(readmeContent, renderedReadmeWorkspace), [readmeContent, renderedReadmeWorkspace]);
     const joinedAt = new Intl.DateTimeFormat(undefined, {
         month: 'short',
@@ -2482,43 +2488,6 @@ function getReadmePathWithRenamedFolder(path: string, previousFolderPath: string
     return normalizedPath;
 }
 
-function renameReadmeFolder(workspace: IuinReadmeWorkspace, previousFolderPath: string, nextFolderPath: string): IuinReadmeWorkspace {
-    const normalizedPrevious = normalizeReadmeRelativePath(previousFolderPath);
-    const normalizedNext = normalizeReadmeRelativePath(nextFolderPath);
-    if (!normalizedPrevious || !normalizedNext || normalizedPrevious === normalizedNext) {
-        return workspace;
-    }
-
-    return {
-        ...workspace,
-        activePath: isReadmePathInsideFolder(workspace.activePath, normalizedPrevious) ? getReadmePathWithRenamedFolder(workspace.activePath, normalizedPrevious, normalizedNext) : workspace.activePath,
-        files: workspace.files.map((file) => {
-            if (!isReadmePathInsideFolder(file.path, normalizedPrevious)) {
-                return file;
-            }
-
-            return {
-                ...file,
-                path: getReadmePathWithRenamedFolder(file.path, normalizedPrevious, normalizedNext),
-                updatedAt: Date.now(),
-            };
-        }),
-    };
-}
-
-function removeReadmeFolder(workspace: IuinReadmeWorkspace, folderPath: string): IuinReadmeWorkspace {
-    const normalizedFolder = normalizeReadmeRelativePath(folderPath);
-    if (!normalizedFolder) {
-        return workspace;
-    }
-
-    return {
-        ...workspace,
-        activePath: isReadmePathInsideFolder(workspace.activePath, normalizedFolder) ? IUIN_README_MAIN_FILE : workspace.activePath,
-        files: workspace.files.filter((file) => !isReadmePathInsideFolder(file.path, normalizedFolder)),
-    };
-}
-
 function getProfileInitials(displayName: string, username: string): string {
     const source = displayName.trim() || username.trim() || 'IUIN';
     const words = source.split(/\s+/).filter(Boolean);
@@ -2944,7 +2913,7 @@ async function importGitHubReadmeWorkspace(repository: GitHubRepositoryReference
 }
 
 function getDraftWithReadmeWorkspace(draft: IuinProfileData, workspace: IuinReadmeWorkspace): IuinProfileData {
-    const homepageReadme = getReadmeFileContent(workspace, IUIN_README_MAIN_FILE) || draft.homepageHtml;
+    const homepageReadme = getReadmeFileContent(workspace, workspace.activePath);
 
     return {
         ...draft,
@@ -2954,7 +2923,7 @@ function getDraftWithReadmeWorkspace(draft: IuinProfileData, workspace: IuinRead
 }
 
 function renderReadmeWorkspacePreview(markdown: string, workspace: IuinReadmeWorkspace): string {
-    if (workspace.githubRenderedHtml) {
+    if (workspace.activePath === IUIN_README_MAIN_FILE && workspace.githubRenderedHtml) {
         const resolvedHtml = resolveReadmeWorkspaceAssetReferences(extractGitHubRenderedReadmeBody(workspace.githubRenderedHtml), workspace);
 
         return sanitizeIuinProfileHtml(resolvedHtml);
@@ -2966,13 +2935,15 @@ function renderReadmeWorkspacePreview(markdown: string, workspace: IuinReadmeWor
 }
 
 function resolveReadmeWorkspaceAssetReferences(content: string, workspace: IuinReadmeWorkspace): string {
+    const mainDocumentDirectory = getReadmeDirectory(workspace.activePath);
+
     return workspace.files.reduce((nextContent, file) => {
         const isResolvedAsset = file.content.startsWith('data:') || file.content.startsWith('http://') || file.content.startsWith('https://');
         if (file.type === 'folder' || file.type !== 'asset' || !isResolvedAsset) {
             return nextContent;
         }
 
-        const sourcePattern = getReadmePreviewReferenceAliases(file.path).map(escapeRegExp).join('|');
+        const sourcePattern = getReadmePreviewReferenceAliases(file.path, mainDocumentDirectory).map(escapeRegExp).join('|');
         if (!sourcePattern) {
             return nextContent;
         }
@@ -2995,19 +2966,20 @@ function extractGitHubRenderedReadmeBody(html: string): string {
     return article?.innerHTML || doc.body.innerHTML || html;
 }
 
-function getReadmePreviewReferenceAliases(path: string): string[] {
+function getReadmePreviewReferenceAliases(path: string, mainDocumentDirectory = ''): string[] {
     const normalized = normalizeReadmeRelativePath(path);
     if (!normalized) {
         return [];
     }
 
-    const encoded = normalized.split('/').map(encodeURIComponent).join('/');
-    const aliases = [
-        normalized,
-        `./${normalized}`,
-        encoded,
-        `./${encoded}`,
-    ];
+    const relative = getReadmeRelativePath(mainDocumentDirectory, normalized);
+    const paths = Array.from(new Set([normalized, relative].filter(Boolean)));
+    const aliases = paths.flatMap((candidate) => {
+        const encoded = candidate.split('/').map(encodeURIComponent).join('/');
+        const optionalDotPrefix = candidate.startsWith('../') ? [] : [`./${candidate}`, `./${encoded}`];
+
+        return [candidate, encoded, ...optionalDotPrefix];
+    });
 
     return Array.from(new Set(aliases));
 }
@@ -3116,19 +3088,24 @@ type IuinReadmeAdvancedEditorProps = {
     setDraft?: Dispatch<SetStateAction<IuinProfileData>>;
 };
 
+type ReadmeTreeMenu = {
+    type: 'file' | 'folder';
+    path: string;
+};
+
 function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: controlledDraft, setDraft: setControlledDraft}: IuinReadmeAdvancedEditorProps) {
     const intl = useIntl();
     const dispatch = useDispatch();
     const uploadInputRef = useRef<HTMLInputElement | null>(null);
     const uploadTargetDirectoryRef = useRef('');
     const [localDraft, setLocalDraft] = useState(() => getIuinProfileData(currentUser));
-    const [activePath, setActivePath] = useState(IUIN_README_MAIN_FILE);
+    const [selectedPath, setSelectedPath] = useState(IUIN_README_MAIN_FILE);
     const [githubUrl, setGithubUrl] = useState('');
     const [importing, setImporting] = useState(false);
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set(['assets', 'images', 'docs']));
-    const [folderMenuPath, setFolderMenuPath] = useState<string | null>(null);
+    const [treeMenu, setTreeMenu] = useState<ReadmeTreeMenu | null>(null);
     const hydratedGithubPreviewRootsRef = useRef<Set<string>>(new Set());
     const draft = controlledDraft || localDraft;
     const setReadmeDraft = useCallback((nextDraft: SetStateAction<IuinProfileData>) => {
@@ -3140,9 +3117,9 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         setLocalDraft(nextDraft);
     }, [setControlledDraft]);
     const workspace = useMemo(() => parseIuinReadmeWorkspace(draft.readmeWorkspace, draft.homepageHtml, getReadmeRootName(currentUser)), [currentUser, draft.homepageHtml, draft.readmeWorkspace]);
-    const selectedFile = workspace.files.find((file) => file.path === activePath && file.type !== 'folder') || workspace.files.find((file) => file.type !== 'folder') || workspace.files[0];
-    const readmeFile = workspace.files.find((file) => file.path === IUIN_README_MAIN_FILE);
-    const readmeContent = getReadmeFileContent(workspace, IUIN_README_MAIN_FILE);
+    const selectedFile = workspace.files.find((file) => file.path === selectedPath && file.type !== 'folder') || workspace.files.find((file) => file.path === workspace.activePath) || workspace.files.find((file) => file.type !== 'folder') || workspace.files[0];
+    const mainDocument = workspace.files.find((file) => file.path === workspace.activePath);
+    const readmeContent = getReadmeFileContent(workspace, workspace.activePath);
     const readmeHtml = useMemo(() => renderReadmeWorkspacePreview(readmeContent, workspace), [readmeContent, workspace]);
     const fileTree = useMemo(() => createReadmeFileTree(workspace.files), [workspace.files]);
     const readmeToasts = useMemo<ProfileToast[]>(() => {
@@ -3173,10 +3150,14 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         if (!setControlledDraft) {
             setReadmeDraft(nextDraft);
         }
-        setActivePath(nextWorkspace.activePath || IUIN_README_MAIN_FILE);
+        setSelectedPath(nextWorkspace.activePath || IUIN_README_MAIN_FILE);
         setError('');
         setNotice('');
     }, [currentUser, setControlledDraft, setReadmeDraft]);
+
+    useEffect(() => {
+        setSelectedPath(workspace.activePath);
+    }, [workspace.activePath]);
 
     useEffect(() => {
         if (readmeToasts.length === 0) {
@@ -3193,14 +3174,14 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
     }, [readmeToasts]);
 
     useEffect(() => {
-        if (!folderMenuPath) {
+        if (!treeMenu) {
             return undefined;
         }
 
-        const closeMenu = () => setFolderMenuPath(null);
+        const closeMenu = () => setTreeMenu(null);
         const closeMenuOnEscape = (event: globalThis.KeyboardEvent) => {
             if (event.key === 'Escape') {
-                setFolderMenuPath(null);
+                setTreeMenu(null);
             }
         };
 
@@ -3211,13 +3192,13 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
             window.removeEventListener('click', closeMenu);
             window.removeEventListener('keydown', closeMenuOnEscape);
         };
-    }, [folderMenuPath]);
+    }, [treeMenu]);
 
     const updateWorkspace = useCallback((updater: (workspace: IuinReadmeWorkspace) => IuinReadmeWorkspace) => {
         setReadmeDraft((previous) => {
             const currentWorkspace = parseIuinReadmeWorkspace(previous.readmeWorkspace, previous.homepageHtml, getReadmeRootName(currentUser));
             const nextWorkspace = updater(currentWorkspace);
-            const homepageReadme = getReadmeFileContent(nextWorkspace, IUIN_README_MAIN_FILE) || previous.homepageHtml;
+            const homepageReadme = getReadmeFileContent(nextWorkspace, nextWorkspace.activePath);
 
             return {
                 ...previous,
@@ -3229,7 +3210,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
     }, [currentUser, setReadmeDraft]);
 
     useEffect(() => {
-        if (workspace.githubRenderedHtml) {
+        if (workspace.activePath !== IUIN_README_MAIN_FILE || workspace.githubRenderedHtml) {
             return undefined;
         }
 
@@ -3251,9 +3232,15 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 const metadata = await fetchGitHubJson<GitHubRepositoryMetadata>(`${GITHUB_API_BASE}/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.repo)}`);
                 const renderedHtml = await tryFetchGitHubRenderedReadmeHtml(repository.owner, repository.repo, IUIN_README_MAIN_FILE, metadata.default_branch || 'main');
                 if (!cancelled && renderedHtml) {
-                    updateWorkspace((previous) => previous.githubRenderedHtml ? previous : {
-                        ...previous,
-                        githubRenderedHtml: renderedHtml,
+                    updateWorkspace((previous) => {
+                        if (previous.githubRenderedHtml) {
+                            return previous;
+                        }
+
+                        return {
+                            ...previous,
+                            githubRenderedHtml: renderedHtml,
+                        };
                     });
                 }
             } catch {
@@ -3266,15 +3253,11 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         return () => {
             cancelled = true;
         };
-    }, [updateWorkspace, workspace.githubRenderedHtml, workspace.rootName]);
+    }, [updateWorkspace, workspace.activePath, workspace.githubRenderedHtml, workspace.rootName]);
 
     const selectReadmeFile = useCallback((path: string) => {
-        setActivePath(path);
-        updateWorkspace((previous) => ({
-            ...previous,
-            activePath: path,
-        }));
-    }, [updateWorkspace]);
+        setSelectedPath(path);
+    }, []);
 
     const updateSelectedFile = useCallback((content: string) => {
         if (!selectedFile) {
@@ -3289,7 +3272,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         const preferredPath = [normalizedDirectory, 'untitled.md'].filter(Boolean).join('/');
         const path = getUniqueReadmePath(workspace.files, preferredPath);
         updateWorkspace((previous) => setReadmeFileContent(previous, path, '', 'markdown'));
-        setActivePath(path);
+        setSelectedPath(path);
         if (normalizedDirectory) {
             setExpandedFolders((previous) => {
                 const next = new Set(previous);
@@ -3301,7 +3284,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
             id: 'iuin_profile.readme.file_created',
             defaultMessage: 'New README file created.',
         }));
-        setFolderMenuPath(null);
+        setTreeMenu(null);
     }, [intl, updateWorkspace, workspace.files]);
 
     const createReadmeFile = useCallback(() => {
@@ -3328,7 +3311,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
             id: 'iuin_profile.readme.folder_created',
             defaultMessage: 'New folder created.',
         }));
-        setFolderMenuPath(null);
+        setTreeMenu(null);
     }, [intl, updateWorkspace, workspace.files]);
 
     const createReadmeFolder = useCallback(() => {
@@ -3342,16 +3325,19 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         }
 
         const currentName = getReadmeBasename(normalizedFolder);
+
+        // Keep the existing lightweight rename interaction used by this workbench.
+        // eslint-disable-next-line no-alert
         const nextName = window.prompt('Rename folder', currentName);
         if (!nextName) {
-            setFolderMenuPath(null);
+            setTreeMenu(null);
             return;
         }
 
         const normalizedName = normalizeReadmeRelativePath(nextName);
         const nextBasename = getReadmeBasename(normalizedName);
         if (!nextBasename || nextBasename === currentName) {
-            setFolderMenuPath(null);
+            setTreeMenu(null);
             return;
         }
 
@@ -3361,7 +3347,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         const nextFolderPath = getUniqueReadmeFolderPath(filesOutsideFolder, preferredPath);
 
         updateWorkspace((previous) => renameReadmeFolder(previous, normalizedFolder, nextFolderPath));
-        setActivePath((previous) => isReadmePathInsideFolder(previous, normalizedFolder) ? getReadmePathWithRenamedFolder(previous, normalizedFolder, nextFolderPath) : previous);
+        setSelectedPath((previous) => (isReadmePathInsideFolder(previous, normalizedFolder) ? getReadmePathWithRenamedFolder(previous, normalizedFolder, nextFolderPath) : previous));
         setExpandedFolders((previous) => {
             const next = new Set<string>();
             previous.forEach((path) => {
@@ -3374,7 +3360,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
             id: 'iuin_profile.readme.folder_renamed',
             defaultMessage: 'Folder renamed.',
         }));
-        setFolderMenuPath(null);
+        setTreeMenu(null);
     }, [intl, updateWorkspace, workspace.files]);
 
     const removeReadmeFolderAtPath = useCallback((folderPath: string) => {
@@ -3383,8 +3369,9 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
             return;
         }
 
-        updateWorkspace((previous) => removeReadmeFolder(previous, normalizedFolder));
-        setActivePath((previous) => isReadmePathInsideFolder(previous, normalizedFolder) ? IUIN_README_MAIN_FILE : previous);
+        const nextWorkspace = removeReadmeFolder(workspace, normalizedFolder);
+        updateWorkspace(() => nextWorkspace);
+        setSelectedPath((previous) => (isReadmePathInsideFolder(previous, normalizedFolder) ? nextWorkspace.activePath : previous));
         setExpandedFolders((previous) => {
             const next = new Set<string>();
             previous.forEach((path) => {
@@ -3398,28 +3385,82 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
             id: 'iuin_profile.readme.folder_deleted',
             defaultMessage: 'Folder deleted.',
         }));
-        setFolderMenuPath(null);
-    }, [intl, updateWorkspace]);
+        setTreeMenu(null);
+    }, [intl, updateWorkspace, workspace]);
 
     const uploadReadmeFileToFolder = useCallback((folderPath: string) => {
         uploadTargetDirectoryRef.current = normalizeReadmeRelativePath(folderPath);
-        setFolderMenuPath(null);
+        setTreeMenu(null);
         uploadInputRef.current?.click();
     }, []);
 
-    const removeSelectedFile = useCallback(() => {
-        if (!selectedFile || selectedFile.path === IUIN_README_MAIN_FILE) {
+    const renameReadmeFileAtPath = useCallback((filePath: string) => {
+        const file = workspace.files.find((candidate) => candidate.path === filePath && candidate.type !== 'folder');
+        if (!file) {
             return;
         }
 
-        updateWorkspace((previous) => removeReadmeFile(previous, selectedFile.path));
-        setActivePath(IUIN_README_MAIN_FILE);
-    }, [selectedFile, updateWorkspace]);
+        const currentName = getReadmeBasename(file.path);
 
-    const openFolderMenu = useCallback((event: ReactMouseEvent<HTMLElement>, path: string) => {
+        // Keep file and folder rename behavior consistent.
+        // eslint-disable-next-line no-alert
+        const nextName = window.prompt('Rename file', currentName);
+        if (!nextName) {
+            setTreeMenu(null);
+            return;
+        }
+
+        const nextBasename = getReadmeBasename(normalizeReadmeRelativePath(nextName));
+        if (!nextBasename || nextBasename === currentName) {
+            setTreeMenu(null);
+            return;
+        }
+
+        const directory = getReadmeDirectory(file.path);
+        const preferredPath = [directory, nextBasename].filter(Boolean).join('/');
+        const nextPath = getUniqueReadmePath(workspace.files.filter((candidate) => candidate.path !== file.path), preferredPath);
+        updateWorkspace((previous) => renameReadmeFile(previous, file.path, nextPath));
+        setSelectedPath((previous) => (previous === file.path ? nextPath : previous));
+        setNotice(intl.formatMessage({
+            id: 'iuin_profile.readme.file_renamed',
+            defaultMessage: 'File renamed.',
+        }));
+        setTreeMenu(null);
+    }, [intl, updateWorkspace, workspace.files]);
+
+    const removeReadmeFileAtPath = useCallback((filePath: string) => {
+        const nextWorkspace = removeReadmeFile(workspace, filePath);
+        updateWorkspace(() => nextWorkspace);
+        setSelectedPath((previous) => (previous === filePath ? nextWorkspace.activePath : previous));
+        setNotice(intl.formatMessage({
+            id: 'iuin_profile.readme.file_deleted',
+            defaultMessage: 'File deleted.',
+        }));
+        setTreeMenu(null);
+    }, [intl, updateWorkspace, workspace]);
+
+    const removeSelectedFile = useCallback(() => {
+        if (selectedFile) {
+            removeReadmeFileAtPath(selectedFile.path);
+        }
+    }, [removeReadmeFileAtPath, selectedFile]);
+
+    const setMainDocumentAtPath = useCallback((filePath: string) => {
+        updateWorkspace((previous) => setReadmeMainDocument(previous, filePath));
+        setNotice(intl.formatMessage({
+            id: 'iuin_profile.readme.main_document_set',
+            defaultMessage: '{name} is now the main document.',
+        }, {name: getReadmeBasename(filePath)}));
+        setTreeMenu(null);
+    }, [intl, updateWorkspace]);
+
+    const openTreeMenu = useCallback((event: ReactMouseEvent<HTMLElement>, type: ReadmeTreeMenu['type'], path: string) => {
         event.preventDefault();
         event.stopPropagation();
-        setFolderMenuPath((previous) => previous === path ? null : path);
+        if (type === 'file') {
+            setSelectedPath(path);
+        }
+        setTreeMenu({type, path});
     }, []);
 
     const toggleReadmeFolder = useCallback((path: string) => {
@@ -3436,16 +3477,16 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
     }, []);
 
     const renderReadmeTreeNode = useCallback((node: ReadmeFileTreeNode, depth = 0): React.ReactNode => {
-        const indent = 12 + depth * 17;
+        const indent = 12 + (depth * 17);
         if (node.type === 'folder') {
             const isExpanded = expandedFolders.has(node.path);
-            const isMenuOpen = folderMenuPath === node.path;
+            const isMenuOpen = treeMenu?.type === 'folder' && treeMenu.path === node.path;
 
             return (
                 <React.Fragment key={`folder-${node.path}`}>
                     <div
                         className={`iuin-readme-workbench__tree-file-row iuin-readme-workbench__tree-folder-row${isMenuOpen ? ' menu-open' : ''}`}
-                        onContextMenu={(event) => openFolderMenu(event, node.path)}
+                        onContextMenu={(event) => openTreeMenu(event, 'folder', node.path)}
                     >
                         <button
                             type='button'
@@ -3461,7 +3502,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                         <button
                             type='button'
                             className='iuin-readme-workbench__tree-menu'
-                            onClick={(event) => openFolderMenu(event, node.path)}
+                            onClick={(event) => openTreeMenu(event, 'folder', node.path)}
                             aria-label={`Open ${node.name} folder actions`}
                             title='Folder actions'
                         >
@@ -3474,12 +3515,42 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                 onClick={(event) => event.stopPropagation()}
                                 onContextMenu={(event) => event.preventDefault()}
                             >
-                                <button type='button' role='menuitem' onClick={() => renameReadmeFolderAtPath(node.path)}>{'Rename'}</button>
-                                <button type='button' role='menuitem' onClick={() => removeReadmeFolderAtPath(node.path)}>{'Delete'}</button>
+                                <button
+                                    type='button'
+                                    role='menuitem'
+                                    onClick={() => renameReadmeFolderAtPath(node.path)}
+                                >
+                                    {'Rename'}
+                                </button>
+                                <button
+                                    type='button'
+                                    role='menuitem'
+                                    onClick={() => removeReadmeFolderAtPath(node.path)}
+                                >
+                                    {'Delete'}
+                                </button>
                                 <span className='iuin-readme-workbench__tree-context-divider'/>
-                                <button type='button' role='menuitem' onClick={() => createReadmeFileInDirectory(node.path)}>{'New file'}</button>
-                                <button type='button' role='menuitem' onClick={() => createReadmeFolderInDirectory(node.path)}>{'New folder'}</button>
-                                <button type='button' role='menuitem' onClick={() => uploadReadmeFileToFolder(node.path)}>{'Upload'}</button>
+                                <button
+                                    type='button'
+                                    role='menuitem'
+                                    onClick={() => createReadmeFileInDirectory(node.path)}
+                                >
+                                    {'New file'}
+                                </button>
+                                <button
+                                    type='button'
+                                    role='menuitem'
+                                    onClick={() => createReadmeFolderInDirectory(node.path)}
+                                >
+                                    {'New folder'}
+                                </button>
+                                <button
+                                    type='button'
+                                    role='menuitem'
+                                    onClick={() => uploadReadmeFileToFolder(node.path)}
+                                >
+                                    {'Upload'}
+                                </button>
                             </div>
                         )}
                     </div>
@@ -3493,11 +3564,14 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         }
 
         const isActive = node.file.path === selectedFile?.path;
+        const isMainDocument = node.file.path === workspace.activePath;
+        const isMenuOpen = treeMenu?.type === 'file' && treeMenu.path === node.file.path;
 
         return (
             <div
                 key={node.file.path}
-                className={`iuin-readme-workbench__tree-file-row${isActive ? ' active' : ''}`}
+                className={`iuin-readme-workbench__tree-file-row iuin-readme-workbench__tree-document-row${isActive ? ' active' : ''}${isMenuOpen ? ' menu-open' : ''}`}
+                onContextMenu={(event) => openTreeMenu(event, 'file', node.file!.path)}
             >
                 <button
                     type='button'
@@ -3507,24 +3581,66 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 >
                     <i className={`icon ${getReadmeFileIcon(node.file)}`}/>
                     <span>{node.name}</span>
+                    {isMainDocument && <span className='iuin-readme-workbench__main-document-badge'>{'Main'}</span>}
                 </button>
-                {isActive && (
-                    <button
-                        type='button'
-                        className='iuin-readme-workbench__tree-menu'
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            downloadReadmeFile(node.file!);
-                        }}
-                        aria-label='Download selected file'
-                        title='Download selected file'
+                <button
+                    type='button'
+                    className='iuin-readme-workbench__tree-menu'
+                    onClick={(event) => openTreeMenu(event, 'file', node.file!.path)}
+                    aria-label={`Open ${node.name} file actions`}
+                    title='File actions'
+                >
+                    <i className='icon icon-dots-vertical'/>
+                </button>
+                {isMenuOpen && (
+                    <div
+                        className='iuin-readme-workbench__tree-context-menu'
+                        role='menu'
+                        onClick={(event) => event.stopPropagation()}
+                        onContextMenu={(event) => event.preventDefault()}
                     >
-                        <i className='icon icon-dots-vertical'/>
-                    </button>
+                        <button
+                            type='button'
+                            role='menuitem'
+                            onClick={() => renameReadmeFileAtPath(node.file!.path)}
+                        >
+                            {'Rename'}
+                        </button>
+                        <button
+                            type='button'
+                            role='menuitem'
+                            onClick={() => {
+                                downloadReadmeFile(node.file!);
+                                setTreeMenu(null);
+                            }}
+                        >
+                            {'Download'}
+                        </button>
+                        {isReadmeMainDocumentCandidate(node.file) && !isMainDocument && (
+                            <>
+                                <span className='iuin-readme-workbench__tree-context-divider'/>
+                                <button
+                                    type='button'
+                                    role='menuitem'
+                                    onClick={() => setMainDocumentAtPath(node.file!.path)}
+                                >
+                                    {'Set as main document'}
+                                </button>
+                            </>
+                        )}
+                        <span className='iuin-readme-workbench__tree-context-divider'/>
+                        <button
+                            type='button'
+                            role='menuitem'
+                            onClick={() => removeReadmeFileAtPath(node.file!.path)}
+                        >
+                            {'Delete'}
+                        </button>
+                    </div>
                 )}
             </div>
         );
-    }, [createReadmeFileInDirectory, createReadmeFolderInDirectory, expandedFolders, folderMenuPath, openFolderMenu, removeReadmeFolderAtPath, renameReadmeFolderAtPath, selectReadmeFile, selectedFile?.path, toggleReadmeFolder, uploadReadmeFileToFolder]);
+    }, [createReadmeFileInDirectory, createReadmeFolderInDirectory, expandedFolders, openTreeMenu, removeReadmeFileAtPath, removeReadmeFolderAtPath, renameReadmeFileAtPath, renameReadmeFolderAtPath, selectReadmeFile, selectedFile?.path, setMainDocumentAtPath, toggleReadmeFolder, treeMenu, uploadReadmeFileToFolder, workspace.activePath]);
 
     const handleReadmeUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files || []);
@@ -3547,11 +3663,17 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 const path = getUploadedReadmePath(file, targetDirectory);
                 const isImage = file.type.startsWith('image/') && !file.type.includes('svg');
                 const content = isImage ? await readFileAsDataUrl(file) : await file.text();
+                let type: IuinReadmeFile['type'] = 'text';
+                if (isImage) {
+                    type = 'asset';
+                } else if ((/\.(md|markdown)$/i).test(path)) {
+                    type = 'markdown';
+                }
 
                 return {
                     path,
                     content,
-                    type: isImage ? 'asset' : path.toLowerCase().endsWith('.md') ? 'markdown' : 'text',
+                    type,
                     updatedAt: Date.now(),
                 };
             }));
@@ -3563,9 +3685,8 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                     file.content,
                     file.type,
                 ), previous),
-                activePath: uploadedFiles[0]?.path || previous.activePath,
             }));
-            setActivePath(uploadedFiles[0]?.path || activePath);
+            setSelectedPath(uploadedFiles[0]?.path || selectedPath);
             setExpandedFolders((previous) => {
                 const next = new Set(previous);
                 if (targetDirectory) {
@@ -3589,27 +3710,29 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 defaultMessage: 'Could not upload file.',
             }));
         }
-    }, [activePath, intl, updateWorkspace]);
+    }, [intl, selectedPath, updateWorkspace]);
 
     const insertSelectedFileIntoReadme = useCallback(() => {
-        if (!selectedFile || selectedFile.path === IUIN_README_MAIN_FILE || selectedFile.type === 'folder') {
+        if (!selectedFile || selectedFile.path === workspace.activePath || selectedFile.type === 'folder') {
             return;
         }
 
         const label = getReadmeBasename(selectedFile.path).replace(/\.[^.]+$/, '');
-        const snippet = selectedFile.type === 'asset' ? `\n\n![${label}](./${selectedFile.path})\n` : `\n\n[${label}](./${selectedFile.path})\n`;
+        const relativePath = getReadmeRelativePath(getReadmeDirectory(workspace.activePath), selectedFile.path);
+        const referencePath = relativePath.startsWith('../') ? relativePath : `./${relativePath}`;
+        const snippet = selectedFile.type === 'asset' ? `\n\n![${label}](${referencePath})\n` : `\n\n[${label}](${referencePath})\n`;
         updateWorkspace((previous) => setReadmeFileContent(
             previous,
-            IUIN_README_MAIN_FILE,
-            `${getReadmeFileContent(previous, IUIN_README_MAIN_FILE).trimEnd()}${snippet}`,
+            previous.activePath,
+            `${getReadmeFileContent(previous, previous.activePath).trimEnd()}${snippet}`,
             'markdown',
         ));
-        setActivePath(IUIN_README_MAIN_FILE);
+        setSelectedPath(workspace.activePath);
         setNotice(intl.formatMessage({
             id: 'iuin_profile.readme.inserted',
-            defaultMessage: 'Reference inserted into README.md.',
+            defaultMessage: 'Reference inserted into the main document.',
         }));
-    }, [intl, selectedFile, updateWorkspace]);
+    }, [intl, selectedFile, updateWorkspace, workspace.activePath]);
 
     const importFromGitHub = useCallback(async () => {
         const repository = parseGitHubRepositoryUrl(githubUrl);
@@ -3635,7 +3758,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
             };
             const nextDraft = getDraftWithReadmeWorkspace(draft, importedWorkspace);
             setReadmeDraft(nextDraft);
-            setActivePath(IUIN_README_MAIN_FILE);
+            setSelectedPath(IUIN_README_MAIN_FILE);
             setGithubUrl('');
             setExpandedFolders((previous) => {
                 const next = new Set(previous);
@@ -3698,9 +3821,12 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 <aside className='iuin-readme-workbench__sidebar'>
                     <section className='iuin-readme-workbench__sidebar-panel iuin-readme-workbench__sidebar-panel--tree'>
                         <div className='iuin-readme-workbench__sidebar-header'>
-                            <button type='button' className='iuin-readme-workbench__sidebar-title'>
+                            <button
+                                type='button'
+                                className='iuin-readme-workbench__sidebar-title'
+                            >
                                 <i className='icon icon-chevron-down'/>
-                                <span>File tree</span>
+                                <span>{'File tree'}</span>
                             </button>
                             <div className='iuin-readme-workbench__tree-actions'>
                                 <button
@@ -3736,9 +3862,12 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
 
                     <section className='iuin-readme-workbench__sidebar-panel iuin-readme-workbench__sidebar-panel--github'>
                         <div className='iuin-readme-workbench__sidebar-header'>
-                            <button type='button' className='iuin-readme-workbench__sidebar-title'>
+                            <button
+                                type='button'
+                                className='iuin-readme-workbench__sidebar-title'
+                            >
                                 <i className='icon icon-github-circle'/>
-                                <span>GitHub import</span>
+                                <span>{'GitHub import'}</span>
                             </button>
                         </div>
                         <div className='iuin-readme-workbench__github-panel'>
@@ -3775,7 +3904,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                             <span>{selectedFile?.path || IUIN_README_MAIN_FILE}</span>
                         </div>
                         <div className='iuin-readme-workbench__file-actions'>
-                            {selectedFile && selectedFile.path !== IUIN_README_MAIN_FILE && (
+                            {selectedFile && selectedFile.path !== workspace.activePath && (
                                 <>
                                     <button
                                         type='button'
@@ -3783,7 +3912,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                         onClick={insertSelectedFileIntoReadme}
                                     >
                                         <i className='icon icon-link-variant'/>
-                                        <span>Insert into README</span>
+                                        <span>{'Insert into main document'}</span>
                                     </button>
                                     <button
                                         type='button'
@@ -3791,7 +3920,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                         onClick={removeSelectedFile}
                                     >
                                         <i className='icon icon-trash-can-outline'/>
-                                        <span>Delete</span>
+                                        <span>{'Delete'}</span>
                                     </button>
                                 </>
                             )}
@@ -3819,17 +3948,17 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 <section className='iuin-readme-workbench__preview'>
                     <div className='iuin-readme-workbench__preview-toolbar'>
                         <div className='iuin-readme-workbench__preview-title'>
-                            <span>Preview</span>
-                            <strong>{workspace.rootName}</strong>
+                            <span>{'Preview'}</span>
+                            <strong>{workspace.activePath}</strong>
                         </div>
                         <div className='iuin-readme-workbench__preview-actions'>
-                            {readmeFile && (
+                            {mainDocument && (
                                 <button
                                     type='button'
-                                    onClick={() => downloadReadmeFile(readmeFile)}
+                                    onClick={() => downloadReadmeFile(mainDocument)}
                                 >
                                     <i className='icon icon-download-outline'/>
-                                    <span>Download</span>
+                                    <span>{'Download'}</span>
                                 </button>
                             )}
                         </div>
@@ -3874,7 +4003,7 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
     const [visualDeleteAnchor, setVisualDeleteAnchor] = useState<VisualDeleteAnchor | null>(null);
     const visualStageRef = useRef<HTMLDivElement | null>(null);
     const readmeWorkspace = useMemo(() => parseIuinReadmeWorkspace(draft.readmeWorkspace, draft.homepageHtml, getReadmeRootName(currentUser)), [currentUser, draft.homepageHtml, draft.readmeWorkspace]);
-    const readmeContent = useMemo(() => getReadmeFileContent(readmeWorkspace, IUIN_README_MAIN_FILE), [readmeWorkspace]);
+    const readmeContent = useMemo(() => getReadmeFileContent(readmeWorkspace, readmeWorkspace.activePath), [readmeWorkspace]);
     const readmeHtml = useMemo(() => renderReadmeWorkspacePreview(readmeContent, readmeWorkspace), [readmeContent, readmeWorkspace]);
     const researchFields = useMemo(() => splitProfileList(draft.researchFields), [draft.researchFields]);
     const sectionVisibility = useMemo(() => parseSectionVisibility(draft.sectionVisibility), [draft.sectionVisibility]);
@@ -3935,11 +4064,11 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
                 return;
             }
 
-            const homepageReadme = getReadmeFileContent(workspace, IUIN_README_MAIN_FILE) || '';
+            const homepageReadme = getReadmeFileContent(workspace, workspace.activePath) || '';
 
             setDraft((previous) => ({
                 ...previous,
-                homepageHtml: homepageReadme || previous.homepageHtml,
+                homepageHtml: homepageReadme,
                 readmeWorkspace: serializeIuinReadmeWorkspace(workspace),
             }));
         }).catch(() => {
@@ -3979,7 +4108,7 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
             ...(() => {
                 const currentWorkspace = parseIuinReadmeWorkspace(previous.readmeWorkspace, previous.homepageHtml, getReadmeRootName(currentUser));
                 const nextWorkspace = updater(currentWorkspace);
-                const homepageReadme = getReadmeFileContent(nextWorkspace, IUIN_README_MAIN_FILE) || previous.homepageHtml;
+                const homepageReadme = getReadmeFileContent(nextWorkspace, nextWorkspace.activePath);
 
                 return {
                     homepageHtml: homepageReadme,
@@ -3993,14 +4122,14 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
     const updateHomepageHtml = useCallback((updater: (html: string) => string) => {
         updateReadmeWorkspace((workspace) => setReadmeFileContent(
             workspace,
-            IUIN_README_MAIN_FILE,
-            updater(getReadmeFileContent(workspace, IUIN_README_MAIN_FILE)),
+            workspace.activePath,
+            updater(getReadmeFileContent(workspace, workspace.activePath)),
             'markdown',
         ));
     }, [updateReadmeWorkspace]);
 
     const setMainReadmeContent = useCallback((value: string) => {
-        updateReadmeWorkspace((workspace) => setReadmeFileContent(workspace, IUIN_README_MAIN_FILE, value, 'markdown'));
+        updateReadmeWorkspace((workspace) => setReadmeFileContent(workspace, workspace.activePath, value, 'markdown'));
     }, [updateReadmeWorkspace]);
 
     const scheduleVisualPreviewLayoutResolve = useCallback(() => {

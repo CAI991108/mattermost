@@ -464,11 +464,11 @@ func normalizeIuinProfileWorkspacePayload(userID string, workspaceID string, now
 	}
 
 	activePath := sanitizeIuinProfileWorkspacePath(payload.ActivePath)
-	if activePath == "" || pendingByPath[activePath] == nil || pendingByPath[activePath].Type == "folder" {
-		if pendingByPath[iuinProfileWorkspaceMainFile] != nil && pendingByPath[iuinProfileWorkspaceMainFile].Type != "folder" {
+	if activePath == "" || !isIuinProfileMainDocumentEntry(pendingByPath[activePath]) {
+		if isIuinProfileMainDocumentEntry(pendingByPath[iuinProfileWorkspaceMainFile]) {
 			activePath = iuinProfileWorkspaceMainFile
 		} else {
-			activePath = firstIuinProfileNonFolderPath(pendingByPath)
+			activePath = firstIuinProfileMainDocumentPath(pendingByPath)
 		}
 	}
 
@@ -657,10 +657,19 @@ func detectIuinProfileMimeType(entryPath string, content []byte) string {
 	return "application/octet-stream"
 }
 
-func firstIuinProfileNonFolderPath(entries map[string]*pendingIuinProfileEntry) string {
+func isIuinProfileMainDocumentEntry(entry *pendingIuinProfileEntry) bool {
+	if entry == nil || entry.Type != "markdown" {
+		return false
+	}
+
+	extension := strings.ToLower(pathpkg.Ext(entry.Path))
+	return extension == ".md" || extension == ".markdown"
+}
+
+func firstIuinProfileMainDocumentPath(entries map[string]*pendingIuinProfileEntry) string {
 	paths := make([]string, 0, len(entries))
 	for entryPath, entry := range entries {
-		if entry.Type != "folder" {
+		if isIuinProfileMainDocumentEntry(entry) {
 			paths = append(paths, entryPath)
 		}
 	}
