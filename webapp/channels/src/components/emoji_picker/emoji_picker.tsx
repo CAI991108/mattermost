@@ -21,8 +21,6 @@ import EmojiPickerSearch from 'components/emoji_picker/components/emoji_picker_s
 import EmojiPickerSkin from 'components/emoji_picker/components/emoji_picker_skin';
 import {
     CATEGORIES,
-    RECENT_EMOJI_CATEGORY,
-    RECENT,
     SMILEY_EMOTION,
     SEARCH_RESULTS,
     EMOJI_PER_ROW,
@@ -36,16 +34,16 @@ import {createCategoryAndEmojiRows, getCursorProperties, getUpdatedCategoriesAnd
 import NoResultsIndicator from 'components/no_results_indicator';
 import {NoResultsVariant} from 'components/no_results_indicator/types';
 
-import type {IuinSticker} from 'utils/iuin_stickers';
-import {listIuinRecentEmojis, listIuinStickers, uploadIuinSticker} from 'utils/iuin_stickers';
+import type {IuinEmoji} from 'utils/iuin_emojis';
+import {listIuinEmojis, listIuinRecentEmojis, uploadIuinEmoji} from 'utils/iuin_emojis';
 
 import type {PropsFromRedux} from './index';
 
 export interface Props extends PropsFromRedux {
     filter: string;
     onEmojiClick: (emoji: Emoji) => void;
-    enableIuinStickers?: boolean;
-    onStickerClick?: (sticker: IuinSticker) => void;
+    enableIuinEmojiLibrary?: boolean;
+    onIuinEmojiClick?: (sticker: IuinEmoji) => void;
     handleFilterChange: (filter: string) => void;
     handleEmojiPickerClose: () => void;
     onAddCustomEmojiClick?: () => void;
@@ -56,8 +54,8 @@ export interface Props extends PropsFromRedux {
 const EmojiPicker = ({
     filter,
     onEmojiClick,
-    enableIuinStickers,
-    onStickerClick,
+    enableIuinEmojiLibrary,
+    onIuinEmojiClick,
     handleFilterChange,
     handleEmojiPickerClose,
     onAddCustomEmojiClick,
@@ -70,17 +68,18 @@ const EmojiPicker = ({
     userSkinTone,
     actions: {
         getCustomEmojis,
+        loadCustomEmojisIfNeeded,
         searchCustomEmojis,
         incrementEmojiPickerPage,
         setUserSkinTone,
     },
 }: Props) => {
-    type IuinPanel = 'stickers' | 'recent' | 'emoji';
+    type IuinPanel = 'library' | 'recent' | 'emoji';
 
-    const getInitialActiveCategory = () => (recentEmojis.length ? RECENT : SMILEY_EMOTION);
+    const getInitialActiveCategory = () => SMILEY_EMOTION;
     const [activeCategory, setActiveCategory] = useState<EmojiCategory>(getInitialActiveCategory);
-    const [iuinPanel, setIuinPanel] = useState<IuinPanel>(enableIuinStickers ? 'stickers' : 'emoji');
-    const [iuinStickers, setIuinStickers] = useState<IuinSticker[]>([]);
+    const [iuinPanel, setIuinPanel] = useState<IuinPanel>(enableIuinEmojiLibrary ? 'library' : 'emoji');
+    const [iuinEmojis, setIuinEmojis] = useState<IuinEmoji[]>([]);
     const [iuinRecentEmojiNames, setIuinRecentEmojiNames] = useState<string[]>([]);
     const [iuinPanelError, setIuinPanelError] = useState('');
 
@@ -91,8 +90,7 @@ const EmojiPicker = ({
     });
 
     // On the first load, categories doesnt contain emojiIds until later when getUpdatedCategoriesAndAllEmojis is called
-    const getInitialCategories = () => (recentEmojis.length ? {...RECENT_EMOJI_CATEGORY, ...CATEGORIES} : CATEGORIES);
-    const [categories, setCategories] = useState<Categories>(getInitialCategories);
+    const [categories, setCategories] = useState<Categories>(CATEGORIES);
 
     const [allEmojis, setAllEmojis] = useState<Record<string, Emoji>>({});
 
@@ -102,7 +100,7 @@ const EmojiPicker = ({
     const [emojiPositions, setEmojiPositionsArray] = useState<EmojiPosition[]>([]);
 
     const searchInputRef = useRef<HTMLInputElement>(null);
-    const stickerUploadInputRef = useRef<HTMLInputElement>(null);
+    const emojiUploadInputRef = useRef<HTMLInputElement>(null);
 
     const infiniteLoaderRef = React.useRef<InfiniteLoader & {_listRef: FixedSizeList<CategoryOrEmojiRow[]>}>(null);
 
@@ -143,9 +141,7 @@ const EmojiPicker = ({
 
         const [updatedCategoryOrEmojisRows, updatedEmojiPositions] = createCategoryAndEmojiRows(allEmojis, categories, filter, userSkinTone);
 
-        if (activeCategory !== 'custom') {
-            selectFirstEmoji(updatedEmojiPositions);
-        }
+        selectFirstEmoji(updatedEmojiPositions);
 
         setCategoryOrEmojisRows(updatedCategoryOrEmojisRows);
         setEmojiPositionsArray(updatedEmojiPositions);
@@ -158,20 +154,21 @@ const EmojiPicker = ({
 
     useEffect(() => {
         let mounted = true;
-        if (enableIuinStickers) {
+        if (enableIuinEmojiLibrary) {
             Promise.all([
-                listIuinStickers(),
+                listIuinEmojis(),
                 listIuinRecentEmojis(),
-            ]).then(([stickers, recentEmojiNames]) => {
+            ]).then(([libraryEmojis, recentEmojiNames]) => {
                 if (!mounted) {
                     return;
                 }
-                setIuinStickers(stickers);
+                setIuinEmojis(libraryEmojis);
                 setIuinRecentEmojiNames(recentEmojiNames);
+                loadCustomEmojisIfNeeded([...recentEmojiNames, ...libraryEmojis.map((emoji) => emoji.name)]);
                 setIuinPanelError('');
             }).catch(() => {
                 if (mounted) {
-                    setIuinPanelError('Unable to load stickers.');
+                    setIuinPanelError('Unable to load your emoji library.');
                 }
             });
         }
@@ -179,7 +176,7 @@ const EmojiPicker = ({
         return () => {
             mounted = false;
         };
-    }, [enableIuinStickers]);
+    }, [enableIuinEmojiLibrary, loadCustomEmojisIfNeeded]);
 
     // clear out the active category on search input
     useEffect(() => {
@@ -406,11 +403,11 @@ const EmojiPicker = ({
         }
     };
 
-    const handleStickerUploadClick = useCallback(() => {
-        stickerUploadInputRef.current?.click();
+    const handleEmojiUploadClick = useCallback(() => {
+        emojiUploadInputRef.current?.click();
     }, []);
 
-    const handleStickerFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleEmojiFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         event.target.value = '';
         if (!file) {
@@ -418,17 +415,18 @@ const EmojiPicker = ({
         }
 
         try {
-            const sticker = await uploadIuinSticker(file);
-            setIuinStickers((current) => [sticker, ...current.filter((item) => item.id !== sticker.id)]);
+            const sticker = await uploadIuinEmoji(file);
+            setIuinEmojis((current) => [sticker, ...current.filter((item) => item.id !== sticker.id)]);
+            loadCustomEmojisIfNeeded([sticker.name]);
             setIuinPanelError('');
         } catch (error) {
-            setIuinPanelError('Unable to upload this sticker.');
+            setIuinPanelError('Unable to upload this emoji.');
         }
-    }, []);
+    }, [loadCustomEmojisIfNeeded]);
 
-    const handleStickerClick = useCallback((sticker: IuinSticker) => {
-        onStickerClick?.(sticker);
-    }, [onStickerClick]);
+    const handleLibraryEmojiClick = useCallback((sticker: IuinEmoji) => {
+        onIuinEmojiClick?.(sticker);
+    }, [onIuinEmojiClick]);
 
     const iuinRecentEmojis = useMemo(() => {
         return iuinRecentEmojiNames.map((emojiName) => emojiMap.get(emojiName)).filter(Boolean) as Emoji[];
@@ -448,7 +446,7 @@ const EmojiPicker = ({
     const areSearchResultsEmpty = filter.length !== 0 && categoryOrEmojisRows.length === 1 && categoryOrEmojisRows?.[0]?.items?.[0]?.categoryName === SEARCH_RESULTS;
 
     const renderIuinTabs = () => {
-        if (!enableIuinStickers) {
+        if (!enableIuinEmojiLibrary) {
             return null;
         }
 
@@ -456,9 +454,9 @@ const EmojiPicker = ({
             <div className='emoji-picker__iuin-tabs'>
                 <button
                     type='button'
-                    className={classNames('emoji-picker__iuin-tab', {'emoji-picker__iuin-tab--active': iuinPanel === 'stickers'})}
-                    aria-label='Favorite stickers'
-                    onClick={() => setIuinPanel('stickers')}
+                    className={classNames('emoji-picker__iuin-tab', {'emoji-picker__iuin-tab--active': iuinPanel === 'library'})}
+                    aria-label='My emoji library'
+                    onClick={() => setIuinPanel('library')}
                 >
                     <i className='icon-heart-outline'/>
                 </button>
@@ -468,7 +466,10 @@ const EmojiPicker = ({
                     aria-label='Recently used emoji'
                     onClick={() => {
                         setIuinPanel('recent');
-                        listIuinRecentEmojis().then(setIuinRecentEmojiNames).catch(() => undefined);
+                        listIuinRecentEmojis().then((recentEmojiNames) => {
+                            setIuinRecentEmojiNames(recentEmojiNames);
+                            loadCustomEmojisIfNeeded(recentEmojiNames);
+                        }).catch(() => undefined);
                     }}
                 >
                     <i className='icon-clock-outline'/>
@@ -485,31 +486,31 @@ const EmojiPicker = ({
         );
     };
 
-    const renderIuinStickerPanel = () => (
+    const renderIuinLibraryPanel = () => (
         <div className='emoji-picker__iuin-panel'>
             <input
-                ref={stickerUploadInputRef}
+                ref={emojiUploadInputRef}
                 type='file'
                 accept='image/png,image/jpeg,image/gif,image/webp'
                 className='emoji-picker__iuin-file-input'
-                onChange={handleStickerFileChange}
+                onChange={handleEmojiFileChange}
             />
             <div className='emoji-picker__iuin-sticker-grid'>
                 <button
                     type='button'
                     className='emoji-picker__iuin-sticker-upload'
-                    aria-label='Upload sticker'
-                    onClick={handleStickerUploadClick}
+                    aria-label='Upload emoji'
+                    onClick={handleEmojiUploadClick}
                 >
                     <i className='icon-plus'/>
                 </button>
-                {iuinStickers.map((sticker) => (
+                {iuinEmojis.map((sticker) => (
                     <button
                         key={sticker.id}
                         type='button'
                         className='emoji-picker__iuin-sticker'
                         title={sticker.filename}
-                        onClick={() => handleStickerClick(sticker)}
+                        onClick={() => handleLibraryEmojiClick(sticker)}
                     >
                         <img
                             src={sticker.imageUrl}
@@ -603,7 +604,6 @@ const EmojiPicker = ({
                 {customEmojiButtonLabel && onAddCustomEmojiClick && (
                     <EmojiPickerCustomEmojiButton
                         buttonLabel={customEmojiButtonLabel}
-                        customEmojisEnabled={customEmojisEnabled}
                         disabled={customEmojiButtonDisabled}
                         onClick={onAddCustomEmojiClickInner}
                     />
@@ -627,7 +627,7 @@ const EmojiPicker = ({
                 />
             </div>
             {renderIuinTabs()}
-            {iuinPanel === 'stickers' && renderIuinStickerPanel()}
+            {iuinPanel === 'library' && renderIuinLibraryPanel()}
             {iuinPanel === 'recent' && renderIuinRecentPanel()}
             {iuinPanel === 'emoji' && renderEmojiPanel()}
         </>

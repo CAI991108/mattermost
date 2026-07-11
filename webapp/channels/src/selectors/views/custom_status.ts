@@ -68,7 +68,7 @@ export const getRecentCustomStatuses: (state: GlobalState) => UserCustomStatus[]
         }
 
         let recentCustomStatuses: UserCustomStatus[] = JSON.parse(value);
-        recentCustomStatuses = recentCustomStatuses.filter((customStatus) => emojiMap.has(customStatus.emoji));
+        recentCustomStatuses = recentCustomStatuses.filter((customStatus) => customStatus.icon_id || emojiMap.has(customStatus.emoji));
 
         return recentCustomStatuses;
     },

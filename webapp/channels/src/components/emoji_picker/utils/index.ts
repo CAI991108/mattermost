@@ -13,7 +13,6 @@ import {
     EMOJIS_ROW,
     SEARCH_RESULTS,
     RECENT,
-    RECENT_EMOJI_CATEGORY,
     CATEGORIES,
 } from 'components/emoji_picker/constants';
 import type {
@@ -116,33 +115,17 @@ function getEmojisByCategory(
 
 export function getUpdatedCategoriesAndAllEmojis(
     emojiMap: EmojiMap,
-    recentEmojis: string[],
+    _recentEmojis: string[],
     userSkinTone: string,
     allEmojis: Record<string, Emoji>,
 ): [Categories, Record<string, Emoji>] {
-    const customEmojiMap = emojiMap.customEmojis;
-    const categories: Categories = recentEmojis.length ? {...RECENT_EMOJI_CATEGORY, ...CATEGORIES} : CATEGORIES;
+    const categories: Categories = CATEGORIES;
 
     Object.keys(categories).forEach((categoryName) => {
         let categoryEmojis: Emoji[] = [];
 
-        if (categoryName === 'recent' && recentEmojis.length) {
-            categoryEmojis = [...recentEmojis].
-                reverse().
-                filter((name) => {
-                    return emojiMap.has(name);
-                }).
-                map((name) => {
-                    return emojiMap.get(name)!;
-                });
-        } else {
-            const indices = (EmojiIndicesByCategory.get(userSkinTone) as Map<string, number[]>).get(categoryName) || [];
-            categoryEmojis = indices.map((index) => EmojisJson[index]);
-
-            if (categoryName === 'custom') {
-                categoryEmojis = categoryEmojis.concat([...customEmojiMap.values()]);
-            }
-        }
+        const indices = (EmojiIndicesByCategory.get(userSkinTone) as Map<string, number[]>).get(categoryName) || [];
+        categoryEmojis = indices.map((index) => EmojisJson[index]);
 
         // populate each category with emojiIds
         categories[categoryName as EmojiCategory].emojiIds = categoryEmojis.

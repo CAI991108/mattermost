@@ -106,7 +106,8 @@ const PostOptions = (props: Props): JSX.Element => {
     const isEphemeral = isPostEphemeral(post);
     const systemMessage = isSystemMessage(post);
     const isFromAutoResponder = fromAutoResponder(post);
-    const iuinStickerId = typeof post.props?.iuin_sticker_id === 'string' ? post.props.iuin_sticker_id : '';
+    const legacyStickerId = typeof post.props?.iuin_sticker_id === 'string' ? post.props.iuin_sticker_id : '';
+    const iuinStickerId = typeof post.props?.iuin_emoji_id === 'string' ? post.props.iuin_emoji_id : legacyStickerId;
 
     function removePost() {
         props.removePost(props.post);

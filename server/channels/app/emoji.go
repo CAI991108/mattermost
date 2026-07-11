@@ -5,6 +5,7 @@ package app
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path"
+	"strings"
 
 	"github.com/mattermost/mattermost/server/v8/channels/app/imaging"
 	_ "golang.org/x/image/webp"
@@ -275,6 +277,30 @@ func (a *App) GetEmojiImage(rctx request.CTX, emojiId string) ([]byte, string, *
 			return nil, "", model.NewAppError("GetEmojiImage", "app.emoji.get.no_result", nil, "", http.StatusNotFound).Wrap(storeErr)
 		default:
 			return nil, "", model.NewAppError("GetEmojiImage", "app.emoji.get.app_error", nil, "", http.StatusInternalServerError).Wrap(storeErr)
+		}
+	}
+
+	// IUIN user emojis keep one deduplicated physical asset and use the core
+	// Emoji row only as the Mattermost-compatible identity. Resolve that asset
+	// first so inline emoji, reactions, and sticker-mode posts all read the same
+	// file. Legacy Emoji files remain as a fallback.
+	var assetPath string
+	var assetMimeType string
+	db := a.Srv().Store().GetInternalReplicaDB()
+	if db != nil {
+		err := db.QueryRowContext(rctx.Context(), `
+			SELECT FilePath, MimeType
+			  FROM IuinEmojiAssets
+			 WHERE EmojiId = $1 AND DeleteAt = 0`, emojiId).Scan(&assetPath, &assetMimeType)
+		if err == nil {
+			img, appErr := a.ReadFile(assetPath)
+			if appErr != nil {
+				return nil, "", model.NewAppError("getEmojiImage", "api.emoji.get_image.read.app_error", nil, "", http.StatusNotFound).Wrap(appErr)
+			}
+			return img, strings.TrimPrefix(assetMimeType, "image/"), nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			a.Log().Warn("Unable to resolve IUIN emoji asset; falling back to legacy emoji storage", mlog.String("emoji_id", emojiId), mlog.Err(err))
 		}
 	}
 

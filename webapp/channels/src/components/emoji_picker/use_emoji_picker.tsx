@@ -23,7 +23,7 @@ import type {Emoji} from '@mattermost/types/emojis';
 import {getIsMobileView} from 'selectors/views/browser';
 
 import {RootHtmlPortalId} from 'utils/constants';
-import type {IuinSticker} from 'utils/iuin_stickers';
+import type {IuinEmoji} from 'utils/iuin_emojis';
 
 import EmojiPickerTabs from './emoji_picker_tabs';
 
@@ -38,8 +38,8 @@ type UseEmojiPickerOptions = {
     customEmojiButtonDisabled?: boolean;
     customEmojiButtonLabel?: ReactNode;
     onEmojiClick: (emoji: Emoji) => void;
-    enableIuinStickers?: boolean;
-    onStickerClick?: (sticker: IuinSticker) => void;
+    enableIuinEmojiLibrary?: boolean;
+    onIuinEmojiClick?: (sticker: IuinEmoji) => void;
     onGifClick?: (gif: string) => void;
 
     /**
@@ -62,8 +62,8 @@ export default function useEmojiPicker({
     customEmojiButtonDisabled,
     customEmojiButtonLabel,
     onEmojiClick,
-    enableIuinStickers,
-    onStickerClick,
+    enableIuinEmojiLibrary,
+    onIuinEmojiClick,
 
     overrideMiddleware,
 }: UseEmojiPickerOptions): UseEmojiPickerReturn {
@@ -113,8 +113,8 @@ export default function useEmojiPicker({
             customEmojiButtonLabel={customEmojiButtonLabel}
             onEmojiClose={hideEmojiPicker}
             onEmojiClick={onEmojiClick}
-            enableIuinStickers={enableIuinStickers}
-            onStickerClick={onStickerClick}
+            enableIuinEmojiLibrary={enableIuinEmojiLibrary}
+            onIuinEmojiClick={onIuinEmojiClick}
         />
     );
 

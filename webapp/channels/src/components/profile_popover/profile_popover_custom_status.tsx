@@ -61,7 +61,7 @@ const ProfilePopoverCustomStatus = ({
         dispatch(openModal(customStatusInputModalData));
     }, [hide, returnFocus]);
 
-    const customStatusSet = (customStatus?.text || customStatus?.emoji) && !isCustomStatusExpired;
+    const customStatusSet = (customStatus?.text || customStatus?.emoji || customStatus?.icon_id) && !isCustomStatusExpired;
     const showExpiryTime = customStatusSet && customStatus.expires_at && customStatus.duration !== CustomStatusDuration.DONT_CLEAR;
     const canSetCustomStatus = user.id === currentUserId;
     const shouldShowCustomStatus = isCustomStatusEnabled && !haveOverrideProp && !hideStatus && (customStatusSet || canSetCustomStatus);

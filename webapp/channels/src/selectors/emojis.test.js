@@ -93,6 +93,25 @@ describe('getRecentEmojisData', () => {
         expect(Selectors.getRecentEmojisData(state)).toEqual(recentEmojis);
     });
 
+    test('should exclude status-only images from emoji history', () => {
+        const recentEmojis = [
+            {name: 'smile', usageCount: 1},
+            {name: 'status_mql5sbyt_certificate', usageCount: 2},
+            {name: 'iuin-status-image:r7pjf8bqybf7pqupp73ywmj9so', usageCount: 3},
+        ];
+        const state = mergeObjects(baseState, {
+            entities: {
+                preferences: {
+                    myPreferences: makeRecentEmojisPreferences(recentEmojis),
+                },
+            },
+        });
+
+        expect(Selectors.getRecentEmojisData(state)).toEqual([
+            {name: 'smile', usageCount: 1},
+        ]);
+    });
+
     test('should return the names of missing emojis so that they can be loaded later', () => {
         const recentEmojis = [
             {name: 'strawberry', usageCount: 1},

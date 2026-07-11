@@ -13,6 +13,7 @@ import {Preferences} from 'utils/constants';
 import {EmojiIndicesByAlias, Emojis} from 'utils/emoji';
 import EmojiMap from 'utils/emoji_map';
 import {convertEmojiSkinTone} from 'utils/emoji_utils';
+import {isIuinStatusImageToken} from 'utils/iuin_status_images';
 
 import type {GlobalState} from 'types/store';
 
@@ -52,6 +53,10 @@ export function normalizeRecentEmojisData(data: RecentEmojiData[], userSkinTone:
     const usageCounts = new Map<string, number>();
 
     for (const recentEmoji of data) {
+        if (recentEmoji.name.startsWith('status_') || isIuinStatusImageToken(recentEmoji.name)) {
+            continue;
+        }
+
         const emojiIndex = EmojiIndicesByAlias.get(recentEmoji.name) ?? -1;
         const systemEmoji = Emojis[emojiIndex];
 

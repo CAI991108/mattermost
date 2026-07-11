@@ -6,7 +6,7 @@ import React, {useCallback, useState} from 'react';
 import {EmoticonPlusOutlineIcon} from '@mattermost/compass-icons/components';
 import {WithTooltip} from '@mattermost/shared/components/tooltip';
 
-import {favoriteIuinSticker} from 'utils/iuin_stickers';
+import {addIuinEmojiToLibrary} from 'utils/iuin_emojis';
 
 type Props = {
     postId: string;
@@ -23,7 +23,7 @@ export default function AddIuinStickerFavoriteButton({postId, stickerId}: Props)
 
         setSaving(true);
         try {
-            await favoriteIuinSticker(stickerId);
+            await addIuinEmojiToLibrary(stickerId);
         } catch (error) {
             // Keep the hover toolbar quiet; the backend enforces duplicate and limit rules.
             // eslint-disable-next-line no-console

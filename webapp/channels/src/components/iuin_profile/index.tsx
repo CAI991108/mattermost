@@ -27,6 +27,7 @@ import {getHistory} from 'utils/browser_history';
 import {AcceptedProfileImageTypes, ModalIdentifiers} from 'utils/constants';
 import type {IuinHonorSummary} from 'utils/iuin_honors';
 import {getIuinHonorSummaryCached} from 'utils/iuin_honors';
+import {getIuinStatusImageUrl, getIuinStatusImageUrlById, isIuinStatusImageToken} from 'utils/iuin_status_images';
 import {isValidPassword} from 'utils/password';
 
 import type {GlobalState} from 'types/store';
@@ -3036,7 +3037,7 @@ function getActiveUserCustomStatus(user: UserProfile): UserCustomStatus | null {
 
     try {
         const customStatus = JSON.parse(customStatusValue) as UserCustomStatus;
-        if (!customStatus?.emoji && !customStatus?.text) {
+        if (!customStatus?.emoji && !customStatus?.icon_id && !customStatus?.text) {
             return null;
         }
 
@@ -3056,9 +3057,10 @@ function getActiveUserCustomStatus(user: UserProfile): UserCustomStatus | null {
 function getProfileAvatarStatus(user: UserProfile, profile: IuinProfileData): ProfileAvatarStatus | null {
     const customStatus = getActiveUserCustomStatus(user);
     if (customStatus) {
+        const statusImage = customStatus.icon_id ? getIuinStatusImageUrlById(customStatus.icon_id) : (isIuinStatusImageToken(customStatus.emoji) ? getIuinStatusImageUrl(customStatus.emoji) : '');
         return {
-            emoji: customStatus.emoji || 'speech_balloon',
-            image: '',
+            emoji: statusImage ? '' : customStatus.emoji || 'speech_balloon',
+            image: statusImage,
             text: customStatus.text || '',
         };
     }
