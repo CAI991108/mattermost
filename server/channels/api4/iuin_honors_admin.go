@@ -33,12 +33,14 @@ import (
 )
 
 const (
-	iuinHonorAdminAssetReadLimit = 25 * 1024 * 1024
-	iuinHonorAdminAssetMaxBytes  = 10 * 1024 * 1024
-	iuinHonorAdminAuditPageSize  = 100
-	iuinHonorFrameCanvasSize     = 512
-	iuinHonorImageCanvasWidth    = 512
-	iuinHonorImageCanvasHeight   = 512
+	iuinHonorAdminAssetReadLimit       = 25 * 1024 * 1024
+	iuinHonorAdminAssetMaxBytes        = 10 * 1024 * 1024
+	iuinHonorAdminAuditPageSize        = 100
+	iuinHonorFrameCanvasSize           = 512
+	iuinHonorImageCanvasWidth          = 512
+	iuinHonorImageCanvasHeight         = 512
+	iuinHonorAdminDraftStatusDraft     = "draft"
+	iuinHonorAdminDraftStatusSubmitted = "submitted"
 )
 
 var iuinHonorAdminUsers = map[string]bool{
@@ -110,6 +112,7 @@ type iuinHonorAdminDraft struct {
 	OwnerUserID   string             `json:"ownerUserId"`
 	OwnerUsername string             `json:"ownerUsername"`
 	Kind          string             `json:"kind"`
+	Status        string             `json:"status"`
 	Item          iuinHonorAdminItem `json:"item"`
 	CreateAt      int64              `json:"createAt"`
 	UpdateAt      int64              `json:"updateAt"`
@@ -167,10 +170,12 @@ func (api *API) InitIuinHonorAdmin() {
 	iuin.Handle("/honors_admin/items/{kind:[A-Za-z_]+}/order", api.APISessionRequired(reorderIuinHonorAdminItems)).Methods(http.MethodPut)
 	iuin.Handle("/honors_admin/items/{kind:[A-Za-z_]+}/{item_id:[A-Za-z0-9_-]+}", api.APISessionRequired(updateIuinHonorAdminItem)).Methods(http.MethodPut)
 	iuin.Handle("/honors_admin/items/{kind:[A-Za-z_]+}/{item_id:[A-Za-z0-9_-]+}", api.APISessionRequired(deleteIuinHonorAdminItem)).Methods(http.MethodDelete)
+	iuin.Handle("/honors_admin/submissions", api.APISessionRequired(listIuinHonorAdminSubmissions)).Methods(http.MethodGet)
 	iuin.Handle("/honors_admin/drafts", api.APISessionRequired(listIuinHonorAdminDrafts)).Methods(http.MethodGet)
 	iuin.Handle("/honors_admin/drafts", api.APISessionRequired(createIuinHonorAdminDraft)).Methods(http.MethodPost)
 	iuin.Handle("/honors_admin/drafts/{draft_id:[A-Za-z0-9]+}", api.APISessionRequired(updateIuinHonorAdminDraft)).Methods(http.MethodPut)
 	iuin.Handle("/honors_admin/drafts/{draft_id:[A-Za-z0-9]+}", api.APISessionRequired(deleteIuinHonorAdminDraft)).Methods(http.MethodDelete)
+	iuin.Handle("/honors_admin/drafts/{draft_id:[A-Za-z0-9]+}/submit", api.APISessionRequired(submitIuinHonorAdminDraft)).Methods(http.MethodPost)
 	iuin.Handle("/honors_admin/drafts/{draft_id:[A-Za-z0-9]+}/publish", api.APISessionRequired(publishIuinHonorAdminDraft)).Methods(http.MethodPost)
 	iuin.Handle("/honors_admin/assets", api.APISessionRequired(uploadIuinHonorAdminAsset, handlerParamFileAPI)).Methods(http.MethodPost)
 	iuin.Handle("/honors_admin/audits", api.APISessionRequired(listIuinHonorAdminAudits)).Methods(http.MethodGet)
@@ -394,6 +399,20 @@ func listIuinHonorAdminDrafts(c *Context, w http.ResponseWriter, r *http.Request
 	writeIuinHonorsJSON(c, w, iuinHonorAdminDraftListResponse{Drafts: drafts})
 }
 
+func listIuinHonorAdminSubmissions(c *Context, w http.ResponseWriter, r *http.Request) {
+	if _, ok := requireIuinHonorAdmin(c, false); !ok {
+		return
+	}
+
+	submissions, appErr := selectIuinHonorAdminSubmissions(r.Context(), c.App.Srv().Store().GetInternalReplicaDB())
+	if appErr != nil {
+		c.Err = appErr
+		return
+	}
+
+	writeIuinHonorsJSON(c, w, iuinHonorAdminDraftListResponse{Drafts: submissions})
+}
+
 func createIuinHonorAdminDraft(c *Context, w http.ResponseWriter, r *http.Request) {
 	actor, ok := requireIuinHonorAdmin(c, false)
 	if !ok {
@@ -482,7 +501,7 @@ func deleteIuinHonorAdminDraft(c *Context, w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func publishIuinHonorAdminDraft(c *Context, w http.ResponseWriter, r *http.Request) {
+func submitIuinHonorAdminDraft(c *Context, w http.ResponseWriter, r *http.Request) {
 	actor, ok := requireIuinHonorAdmin(c, false)
 	if !ok {
 		return
@@ -491,6 +510,33 @@ func publishIuinHonorAdminDraft(c *Context, w http.ResponseWriter, r *http.Reque
 	draftID := strings.TrimSpace(mux.Vars(r)["draft_id"])
 	db := c.App.Srv().Store().GetInternalMasterDB()
 	draft, appErr := selectIuinHonorAdminDraft(r.Context(), db, actor.Id, draftID)
+	if appErr != nil {
+		c.Err = appErr
+		return
+	}
+	if appErr := validateIuinHonorAdminItem(draft.Kind, draft.Item, true); appErr != nil {
+		c.Err = appErr
+		return
+	}
+	if appErr := submitIuinHonorAdminDraftRow(r.Context(), db, actor, draft); appErr != nil {
+		c.Err = appErr
+		return
+	}
+
+	draft.Status = iuinHonorAdminDraftStatusSubmitted
+	draft.UpdateAt = model.GetMillis()
+	writeIuinHonorsJSON(c, w, draft)
+}
+
+func publishIuinHonorAdminDraft(c *Context, w http.ResponseWriter, r *http.Request) {
+	actor, ok := requireIuinHonorAdmin(c, false)
+	if !ok {
+		return
+	}
+
+	draftID := strings.TrimSpace(mux.Vars(r)["draft_id"])
+	db := c.App.Srv().Store().GetInternalMasterDB()
+	draft, appErr := selectIuinHonorAdminSubmission(r.Context(), db, draftID)
 	if appErr != nil {
 		c.Err = appErr
 		return
@@ -732,9 +778,9 @@ func selectIuinHonorAdminItems(ctx context.Context, db *sql.DB, kind string) ([]
 	case "achievements":
 		query = `SELECT Id, Name, Description, IconStorageKey, Category, Rarity, UnlockHint, '', '', SortOrder, ContributorUserId, ContributorUsername FROM IuinAchievements WHERE DeleteAt = 0 ORDER BY SortOrder, Id`
 	case "titles":
-		query = `SELECT Id, Name, Description, IconStorageKey, '', Rarity, UnlockHint, '', '', SortOrder, ContributorUserId, ContributorUsername FROM IuinTitles WHERE DeleteAt = 0 ORDER BY SortOrder, Id`
+		query = `SELECT Id, Name, Description, IconStorageKey, Category, Rarity, UnlockHint, '', '', SortOrder, ContributorUserId, ContributorUsername FROM IuinTitles WHERE DeleteAt = 0 ORDER BY SortOrder, Id`
 	case "avatar_frames":
-		query = `SELECT Id, Name, Description, '', '', Rarity, UnlockHint, FrameStorageKey, PreviewStorageKey, SortOrder, ContributorUserId, ContributorUsername FROM IuinAvatarFrames WHERE DeleteAt = 0 ORDER BY SortOrder, Id`
+		query = `SELECT Id, Name, Description, '', Category, Rarity, UnlockHint, FrameStorageKey, PreviewStorageKey, SortOrder, ContributorUserId, ContributorUsername FROM IuinAvatarFrames WHERE DeleteAt = 0 ORDER BY SortOrder, Id`
 	default:
 		return nil, model.NewAppError("selectIuinHonorAdminItems", "api.iuin_honors_admin.invalid_kind.app_error", nil, "", http.StatusBadRequest)
 	}
@@ -832,6 +878,7 @@ func decodeIuinHonorAdminDraftRequest(r *http.Request, owner *model.User, draftI
 		OwnerUserID:   owner.Id,
 		OwnerUsername: owner.Username,
 		Kind:          kind,
+		Status:        iuinHonorAdminDraftStatusDraft,
 		Item:          item,
 		CreateAt:      now,
 		UpdateAt:      now,
@@ -840,11 +887,11 @@ func decodeIuinHonorAdminDraftRequest(r *http.Request, owner *model.User, draftI
 
 func selectIuinHonorAdminDrafts(ctx context.Context, db *sql.DB, ownerUserID string) ([]iuinHonorAdminDraft, *model.AppError) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT Id, OwnerUserId, OwnerUsername, Kind, ItemId, Name, Description, IconStorageKey, Category, Rarity, UnlockHint, FrameStorageKey, PreviewStorageKey, SortOrder, CreateAt, UpdateAt
+		SELECT Id, OwnerUserId, OwnerUsername, Kind, Status, ItemId, Name, Description, IconStorageKey, Category, Rarity, UnlockHint, FrameStorageKey, PreviewStorageKey, SortOrder, CreateAt, UpdateAt
 		FROM IuinHonorAdminDrafts
-		WHERE OwnerUserId = $1 AND DeleteAt = 0
+		WHERE OwnerUserId = $1 AND Status = $2 AND DeleteAt = 0
 		ORDER BY UpdateAt DESC, Id DESC
-	`, ownerUserID)
+	`, ownerUserID, iuinHonorAdminDraftStatusDraft)
 	if err != nil {
 		return nil, newIuinHonorsAppError("selectIuinHonorAdminDrafts", http.StatusInternalServerError, err)
 	}
@@ -853,7 +900,7 @@ func selectIuinHonorAdminDrafts(ctx context.Context, db *sql.DB, ownerUserID str
 	drafts := []iuinHonorAdminDraft{}
 	for rows.Next() {
 		var draft iuinHonorAdminDraft
-		if err := rows.Scan(&draft.DraftID, &draft.OwnerUserID, &draft.OwnerUsername, &draft.Kind, &draft.Item.ID, &draft.Item.Name, &draft.Item.Description, &draft.Item.IconStorageKey, &draft.Item.Category, &draft.Item.Rarity, &draft.Item.UnlockHint, &draft.Item.FrameStorageKey, &draft.Item.PreviewStorageKey, &draft.Item.SortOrder, &draft.CreateAt, &draft.UpdateAt); err != nil {
+		if err := rows.Scan(&draft.DraftID, &draft.OwnerUserID, &draft.OwnerUsername, &draft.Kind, &draft.Status, &draft.Item.ID, &draft.Item.Name, &draft.Item.Description, &draft.Item.IconStorageKey, &draft.Item.Category, &draft.Item.Rarity, &draft.Item.UnlockHint, &draft.Item.FrameStorageKey, &draft.Item.PreviewStorageKey, &draft.Item.SortOrder, &draft.CreateAt, &draft.UpdateAt); err != nil {
 			return nil, newIuinHonorsAppError("selectIuinHonorAdminDrafts.scan", http.StatusInternalServerError, err)
 		}
 		drafts = append(drafts, draft)
@@ -862,6 +909,32 @@ func selectIuinHonorAdminDrafts(ctx context.Context, db *sql.DB, ownerUserID str
 		return nil, newIuinHonorsAppError("selectIuinHonorAdminDrafts.rows", http.StatusInternalServerError, err)
 	}
 	return drafts, nil
+}
+
+func selectIuinHonorAdminSubmissions(ctx context.Context, db *sql.DB) ([]iuinHonorAdminDraft, *model.AppError) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT Id, OwnerUserId, OwnerUsername, Kind, Status, ItemId, Name, Description, IconStorageKey, Category, Rarity, UnlockHint, FrameStorageKey, PreviewStorageKey, SortOrder, CreateAt, UpdateAt
+		FROM IuinHonorAdminDrafts
+		WHERE Status = $1 AND DeleteAt = 0
+		ORDER BY UpdateAt DESC, Id DESC
+	`, iuinHonorAdminDraftStatusSubmitted)
+	if err != nil {
+		return nil, newIuinHonorsAppError("selectIuinHonorAdminSubmissions", http.StatusInternalServerError, err)
+	}
+	defer rows.Close()
+
+	submissions := []iuinHonorAdminDraft{}
+	for rows.Next() {
+		var draft iuinHonorAdminDraft
+		if err := rows.Scan(&draft.DraftID, &draft.OwnerUserID, &draft.OwnerUsername, &draft.Kind, &draft.Status, &draft.Item.ID, &draft.Item.Name, &draft.Item.Description, &draft.Item.IconStorageKey, &draft.Item.Category, &draft.Item.Rarity, &draft.Item.UnlockHint, &draft.Item.FrameStorageKey, &draft.Item.PreviewStorageKey, &draft.Item.SortOrder, &draft.CreateAt, &draft.UpdateAt); err != nil {
+			return nil, newIuinHonorsAppError("selectIuinHonorAdminSubmissions.scan", http.StatusInternalServerError, err)
+		}
+		submissions = append(submissions, draft)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, newIuinHonorsAppError("selectIuinHonorAdminSubmissions.rows", http.StatusInternalServerError, err)
+	}
+	return submissions, nil
 }
 
 func selectIuinHonorAdminDraft(ctx context.Context, db *sql.DB, ownerUserID string, draftID string) (*iuinHonorAdminDraft, *model.AppError) {
@@ -878,13 +951,27 @@ func selectIuinHonorAdminDraft(ctx context.Context, db *sql.DB, ownerUserID stri
 	return nil, model.NewAppError("selectIuinHonorAdminDraft", "api.iuin_honors_admin.draft_not_found.app_error", nil, "", http.StatusNotFound)
 }
 
+func selectIuinHonorAdminSubmission(ctx context.Context, db *sql.DB, draftID string) (*iuinHonorAdminDraft, *model.AppError) {
+	rows, appErr := selectIuinHonorAdminSubmissions(ctx, db)
+	if appErr != nil {
+		return nil, appErr
+	}
+	for _, draft := range rows {
+		if draft.DraftID == draftID {
+			return &draft, nil
+		}
+	}
+
+	return nil, model.NewAppError("selectIuinHonorAdminSubmission", "api.iuin_honors_admin.submission_not_found.app_error", nil, "", http.StatusNotFound)
+}
+
 func insertIuinHonorAdminDraft(ctx context.Context, db *sql.DB, draft iuinHonorAdminDraft) *model.AppError {
 	if _, err := db.ExecContext(ctx, `
 		INSERT INTO IuinHonorAdminDrafts
-			(Id, OwnerUserId, OwnerUsername, Kind, ItemId, Name, Description, IconStorageKey, Category, Rarity, UnlockHint, FrameStorageKey, PreviewStorageKey, SortOrder, CreateAt, UpdateAt, DeleteAt)
+			(Id, OwnerUserId, OwnerUsername, Kind, Status, ItemId, Name, Description, IconStorageKey, Category, Rarity, UnlockHint, FrameStorageKey, PreviewStorageKey, SortOrder, CreateAt, UpdateAt, DeleteAt)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15, 0)
-	`, draft.DraftID, draft.OwnerUserID, draft.OwnerUsername, draft.Kind, draft.Item.ID, strings.TrimSpace(draft.Item.Name), strings.TrimSpace(draft.Item.Description), draft.Item.IconStorageKey, draft.Item.Category, draft.Item.Rarity, strings.TrimSpace(draft.Item.UnlockHint), draft.Item.FrameStorageKey, draft.Item.PreviewStorageKey, draft.Item.SortOrder, draft.CreateAt); err != nil {
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16, 0)
+	`, draft.DraftID, draft.OwnerUserID, draft.OwnerUsername, draft.Kind, draft.Status, draft.Item.ID, strings.TrimSpace(draft.Item.Name), strings.TrimSpace(draft.Item.Description), draft.Item.IconStorageKey, strings.TrimSpace(draft.Item.Category), draft.Item.Rarity, strings.TrimSpace(draft.Item.UnlockHint), draft.Item.FrameStorageKey, draft.Item.PreviewStorageKey, draft.Item.SortOrder, draft.CreateAt); err != nil {
 		return newIuinHonorsAppError("insertIuinHonorAdminDraft", http.StatusInternalServerError, err)
 	}
 	return nil
@@ -894,9 +981,9 @@ func updateIuinHonorAdminDraftRow(ctx context.Context, db *sql.DB, draft iuinHon
 	now := model.GetMillis()
 	result, err := db.ExecContext(ctx, `
 		UPDATE IuinHonorAdminDrafts
-		SET Kind = $3, ItemId = $4, Name = $5, Description = $6, IconStorageKey = $7, Category = $8, Rarity = $9, UnlockHint = $10, FrameStorageKey = $11, PreviewStorageKey = $12, SortOrder = $13, UpdateAt = $14
-		WHERE Id = $1 AND OwnerUserId = $2 AND DeleteAt = 0
-	`, draft.DraftID, draft.OwnerUserID, draft.Kind, draft.Item.ID, strings.TrimSpace(draft.Item.Name), strings.TrimSpace(draft.Item.Description), draft.Item.IconStorageKey, draft.Item.Category, draft.Item.Rarity, strings.TrimSpace(draft.Item.UnlockHint), draft.Item.FrameStorageKey, draft.Item.PreviewStorageKey, draft.Item.SortOrder, now)
+		SET Kind = $3, Status = $4, ItemId = $5, Name = $6, Description = $7, IconStorageKey = $8, Category = $9, Rarity = $10, UnlockHint = $11, FrameStorageKey = $12, PreviewStorageKey = $13, SortOrder = $14, UpdateAt = $15
+		WHERE Id = $1 AND OwnerUserId = $2 AND Status = 'draft' AND DeleteAt = 0
+	`, draft.DraftID, draft.OwnerUserID, draft.Kind, iuinHonorAdminDraftStatusDraft, draft.Item.ID, strings.TrimSpace(draft.Item.Name), strings.TrimSpace(draft.Item.Description), draft.Item.IconStorageKey, strings.TrimSpace(draft.Item.Category), draft.Item.Rarity, strings.TrimSpace(draft.Item.UnlockHint), draft.Item.FrameStorageKey, draft.Item.PreviewStorageKey, draft.Item.SortOrder, now)
 	if err != nil {
 		return newIuinHonorsAppError("updateIuinHonorAdminDraftRow", http.StatusInternalServerError, err)
 	}
@@ -930,6 +1017,29 @@ func softDeleteIuinHonorAdminDraft(ctx context.Context, exec iuinHonorAdminExecu
 	return nil
 }
 
+func submitIuinHonorAdminDraftRow(ctx context.Context, db *sql.DB, actor *model.User, draft *iuinHonorAdminDraft) *model.AppError {
+	now := model.GetMillis()
+	result, err := db.ExecContext(ctx, `
+		UPDATE IuinHonorAdminDrafts
+		SET Status = $3, UpdateAt = $4
+		WHERE Id = $1 AND OwnerUserId = $2 AND Status = 'draft' AND DeleteAt = 0
+	`, draft.DraftID, actor.Id, iuinHonorAdminDraftStatusSubmitted, now)
+	if err != nil {
+		return newIuinHonorsAppError("submitIuinHonorAdminDraftRow", http.StatusInternalServerError, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return newIuinHonorsAppError("submitIuinHonorAdminDraftRow.rows", http.StatusInternalServerError, err)
+	}
+	if rows == 0 {
+		return model.NewAppError("submitIuinHonorAdminDraftRow", "api.iuin_honors_admin.draft_not_found.app_error", nil, "", http.StatusNotFound)
+	}
+	if appErr := insertIuinHonorAdminAudit(ctx, db, actor, "submit", "draft", draft.DraftID, "Submitted "+draft.Item.Name, mustMarshalIuinHonorAdminJSON(draft), mustMarshalIuinHonorAdminJSON(draft.Item)); appErr != nil {
+		return appErr
+	}
+	return nil
+}
+
 func publishIuinHonorAdminDraftRow(ctx context.Context, db *sql.DB, actor *model.User, draft *iuinHonorAdminDraft) *model.AppError {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -940,10 +1050,11 @@ func publishIuinHonorAdminDraftRow(ctx context.Context, db *sql.DB, actor *model
 	if appErr := ensureIuinHonorAdminIDAvailable(ctx, tx, draft.Kind, draft.Item.ID); appErr != nil {
 		return appErr
 	}
-	if appErr := insertIuinHonorAdminItem(ctx, tx, draft.Kind, draft.Item, actor); appErr != nil {
+	contributor := &model.User{Id: draft.OwnerUserID, Username: draft.OwnerUsername}
+	if appErr := insertIuinHonorAdminItem(ctx, tx, draft.Kind, draft.Item, contributor); appErr != nil {
 		return appErr
 	}
-	if appErr := softDeleteIuinHonorAdminDraft(ctx, tx, actor.Id, draft.DraftID); appErr != nil {
+	if appErr := softDeleteIuinHonorAdminDraft(ctx, tx, draft.OwnerUserID, draft.DraftID); appErr != nil {
 		return appErr
 	}
 	if appErr := insertIuinHonorAdminAudit(ctx, tx, actor, "publish", draft.Kind, draft.Item.ID, "Published "+draft.Item.Name, mustMarshalIuinHonorAdminJSON(draft), mustMarshalIuinHonorAdminJSON(draft.Item)); appErr != nil {
@@ -1022,21 +1133,21 @@ func insertIuinHonorAdminItem(ctx context.Context, exec iuinHonorAdminExecutor, 
 				(Id, Name, Description, IconStorageKey, Category, Rarity, UnlockHint, SortOrder, ContributorUserId, ContributorUsername, CreateAt, UpdateAt, DeleteAt)
 			VALUES
 				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, 0)
-		`, item.ID, strings.TrimSpace(item.Name), strings.TrimSpace(item.Description), item.IconStorageKey, item.Category, item.Rarity, strings.TrimSpace(item.UnlockHint), item.SortOrder, contributorID, contributorUsername, now)
+		`, item.ID, strings.TrimSpace(item.Name), strings.TrimSpace(item.Description), item.IconStorageKey, strings.TrimSpace(item.Category), item.Rarity, strings.TrimSpace(item.UnlockHint), item.SortOrder, contributorID, contributorUsername, now)
 	case "titles":
 		_, err = exec.ExecContext(ctx, `
 			INSERT INTO IuinTitles
-				(Id, Name, Description, IconStorageKey, Rarity, UnlockHint, SortOrder, ContributorUserId, ContributorUsername, CreateAt, UpdateAt, DeleteAt)
+				(Id, Name, Description, IconStorageKey, Category, Rarity, UnlockHint, SortOrder, ContributorUserId, ContributorUsername, CreateAt, UpdateAt, DeleteAt)
 			VALUES
-				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, 0)
-		`, item.ID, strings.TrimSpace(item.Name), strings.TrimSpace(item.Description), item.IconStorageKey, item.Rarity, strings.TrimSpace(item.UnlockHint), item.SortOrder, contributorID, contributorUsername, now)
+				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, 0)
+		`, item.ID, strings.TrimSpace(item.Name), strings.TrimSpace(item.Description), item.IconStorageKey, strings.TrimSpace(item.Category), item.Rarity, strings.TrimSpace(item.UnlockHint), item.SortOrder, contributorID, contributorUsername, now)
 	case "avatar_frames":
 		_, err = exec.ExecContext(ctx, `
 			INSERT INTO IuinAvatarFrames
-				(Id, Name, Description, FrameStorageKey, PreviewStorageKey, Rarity, UnlockHint, SortOrder, ContributorUserId, ContributorUsername, CreateAt, UpdateAt, DeleteAt)
+				(Id, Name, Description, FrameStorageKey, PreviewStorageKey, Category, Rarity, UnlockHint, SortOrder, ContributorUserId, ContributorUsername, CreateAt, UpdateAt, DeleteAt)
 			VALUES
-				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, 0)
-		`, item.ID, strings.TrimSpace(item.Name), strings.TrimSpace(item.Description), item.FrameStorageKey, item.PreviewStorageKey, item.Rarity, strings.TrimSpace(item.UnlockHint), item.SortOrder, contributorID, contributorUsername, now)
+				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12, 0)
+		`, item.ID, strings.TrimSpace(item.Name), strings.TrimSpace(item.Description), item.FrameStorageKey, item.PreviewStorageKey, strings.TrimSpace(item.Category), item.Rarity, strings.TrimSpace(item.UnlockHint), item.SortOrder, contributorID, contributorUsername, now)
 	}
 	if err != nil {
 		return newIuinHonorsAppError("insertIuinHonorAdminItem", http.StatusInternalServerError, err)
@@ -1066,7 +1177,7 @@ func updateIuinHonorAdminItemRow(ctx context.Context, db *sql.DB, kind string, p
 			UPDATE IuinAchievements
 			SET Id = $2, Name = $3, Description = $4, IconStorageKey = $5, Category = $6, Rarity = $7, UnlockHint = $8, SortOrder = $9, UpdateAt = $10, DeleteAt = 0
 			WHERE Id = $1
-		`, previousID, item.ID, strings.TrimSpace(item.Name), strings.TrimSpace(item.Description), item.IconStorageKey, item.Category, item.Rarity, strings.TrimSpace(item.UnlockHint), item.SortOrder, now)
+		`, previousID, item.ID, strings.TrimSpace(item.Name), strings.TrimSpace(item.Description), item.IconStorageKey, strings.TrimSpace(item.Category), item.Rarity, strings.TrimSpace(item.UnlockHint), item.SortOrder, now)
 		if err == nil && previousID != item.ID {
 			err = updateIuinHonorAdminReferences(ctx, tx, "IuinUserAchievements", "AchievementId", previousID, item.ID)
 		}
@@ -1076,9 +1187,9 @@ func updateIuinHonorAdminItemRow(ctx context.Context, db *sql.DB, kind string, p
 	case "titles":
 		result, err = tx.ExecContext(ctx, `
 			UPDATE IuinTitles
-			SET Id = $2, Name = $3, Description = $4, IconStorageKey = $5, Rarity = $6, UnlockHint = $7, SortOrder = $8, UpdateAt = $9, DeleteAt = 0
+			SET Id = $2, Name = $3, Description = $4, IconStorageKey = $5, Category = $6, Rarity = $7, UnlockHint = $8, SortOrder = $9, UpdateAt = $10, DeleteAt = 0
 			WHERE Id = $1
-		`, previousID, item.ID, strings.TrimSpace(item.Name), strings.TrimSpace(item.Description), item.IconStorageKey, item.Rarity, strings.TrimSpace(item.UnlockHint), item.SortOrder, now)
+		`, previousID, item.ID, strings.TrimSpace(item.Name), strings.TrimSpace(item.Description), item.IconStorageKey, strings.TrimSpace(item.Category), item.Rarity, strings.TrimSpace(item.UnlockHint), item.SortOrder, now)
 		if err == nil && previousID != item.ID {
 			err = updateIuinHonorAdminReferences(ctx, tx, "IuinUserTitles", "TitleId", previousID, item.ID)
 		}
@@ -1088,9 +1199,9 @@ func updateIuinHonorAdminItemRow(ctx context.Context, db *sql.DB, kind string, p
 	case "avatar_frames":
 		result, err = tx.ExecContext(ctx, `
 			UPDATE IuinAvatarFrames
-			SET Id = $2, Name = $3, Description = $4, FrameStorageKey = $5, PreviewStorageKey = $6, Rarity = $7, UnlockHint = $8, SortOrder = $9, UpdateAt = $10, DeleteAt = 0
+			SET Id = $2, Name = $3, Description = $4, FrameStorageKey = $5, PreviewStorageKey = $6, Category = $7, Rarity = $8, UnlockHint = $9, SortOrder = $10, UpdateAt = $11, DeleteAt = 0
 			WHERE Id = $1
-		`, previousID, item.ID, strings.TrimSpace(item.Name), strings.TrimSpace(item.Description), item.FrameStorageKey, item.PreviewStorageKey, item.Rarity, strings.TrimSpace(item.UnlockHint), item.SortOrder, now)
+		`, previousID, item.ID, strings.TrimSpace(item.Name), strings.TrimSpace(item.Description), item.FrameStorageKey, item.PreviewStorageKey, strings.TrimSpace(item.Category), item.Rarity, strings.TrimSpace(item.UnlockHint), item.SortOrder, now)
 		if err == nil && previousID != item.ID {
 			err = updateIuinHonorAdminReferences(ctx, tx, "IuinUserAvatarFrames", "AvatarFrameId", previousID, item.ID)
 		}
