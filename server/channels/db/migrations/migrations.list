@@ -387,3 +387,13 @@ channels/db/migrations/postgres/000194_drop_iuin_avatar_frame_style_payload.down
 channels/db/migrations/postgres/000194_drop_iuin_avatar_frame_style_payload.up.sql
 channels/db/migrations/postgres/000195_drop_iuin_honor_css_icon_fields.down.sql
 channels/db/migrations/postgres/000195_drop_iuin_honor_css_icon_fields.up.sql
+channels/db/migrations/postgres/000196_add_iuin_title_frame_categories.down.sql
+channels/db/migrations/postgres/000196_add_iuin_title_frame_categories.up.sql
+channels/db/migrations/postgres/000197_add_iuin_honor_admin_draft_status.down.sql
+channels/db/migrations/postgres/000197_add_iuin_honor_admin_draft_status.up.sql
+channels/db/migrations/postgres/000198_create_iuin_status_images.down.sql
+channels/db/migrations/postgres/000198_create_iuin_status_images.up.sql
+channels/db/migrations/postgres/000199_unify_iuin_emoji_assets.down.sql
+channels/db/migrations/postgres/000199_unify_iuin_emoji_assets.up.sql
+channels/db/migrations/postgres/000200_drop_legacy_iuin_stickers.down.sql
+channels/db/migrations/postgres/000200_drop_legacy_iuin_stickers.up.sql

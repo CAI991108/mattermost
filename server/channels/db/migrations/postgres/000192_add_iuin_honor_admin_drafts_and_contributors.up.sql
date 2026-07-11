@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS IuinHonorAdminDrafts (
     OwnerUserId       VARCHAR(26) NOT NULL,
     OwnerUsername     VARCHAR(64) NOT NULL DEFAULT '',
     Kind              VARCHAR(32) NOT NULL,
+    Status            VARCHAR(16) NOT NULL DEFAULT 'draft',
     ItemId            VARCHAR(64) NOT NULL DEFAULT '',
     Name              TEXT NOT NULL DEFAULT '',
     Description       TEXT NOT NULL DEFAULT '',
@@ -31,9 +32,13 @@ CREATE TABLE IF NOT EXISTS IuinHonorAdminDrafts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_iuinhonoradmindrafts_owner_update
-    ON IuinHonorAdminDrafts (OwnerUserId, UpdateAt DESC, Id DESC)
+    ON IuinHonorAdminDrafts (OwnerUserId, Status, UpdateAt DESC, Id DESC)
     WHERE DeleteAt = 0;
 
 CREATE INDEX IF NOT EXISTS idx_iuinhonoradmindrafts_kind_item
     ON IuinHonorAdminDrafts (Kind, ItemId)
+    WHERE DeleteAt = 0;
+
+CREATE INDEX IF NOT EXISTS idx_iuinhonoradmindrafts_status_update
+    ON IuinHonorAdminDrafts (Status, UpdateAt DESC, Id DESC)
     WHERE DeleteAt = 0;
