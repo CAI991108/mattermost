@@ -22,6 +22,7 @@ export type IuinTitleItem = {
     name: string;
     description: string;
     iconStorageKey: string;
+    category: string;
     rarity: string;
     unlockHint: string;
     sortOrder: number;
@@ -35,6 +36,7 @@ export type IuinAvatarFrameItem = {
     description: string;
     frameStorageKey: string;
     previewStorageKey: string;
+    category: string;
     rarity: string;
     unlockHint: string;
     sortOrder: number;

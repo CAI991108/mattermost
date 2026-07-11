@@ -12,12 +12,13 @@ import IuinHonorRarityTag from 'components/iuin_honor_rarity_tag';
 import AdminHeader from 'components/widgets/admin_console/admin_header';
 import AdminPanel from 'components/widgets/admin_console/admin_panel';
 
+import type {IuinAchievementItem, IuinAvatarFrameItem, IuinTitleItem} from 'utils/iuin_honors';
 import {IUIN_HONOR_RARITIES, getIuinHonorAssetUrl} from 'utils/iuin_honors';
 
 import './iuin_honors_admin.scss';
 
 type HonorKind = 'avatar_frames' | 'titles' | 'achievements';
-type ActiveTab = HonorKind | 'drafts' | 'audit';
+type ActiveTab = HonorKind | 'drafts' | 'submissions' | 'audit';
 
 type HonorAdminSession = {
     username: string;
@@ -57,6 +58,7 @@ type HonorAdminDraft = {
     ownerUserId: string;
     ownerUsername: string;
     kind: HonorKind;
+    status: string;
     item: HonorAdminItem;
     createAt: number;
     updateAt: number;
@@ -137,7 +139,12 @@ const AUDIT_PANEL_COPY = {
 
 const DRAFT_PANEL_COPY = {
     title: defineMessage({id: 'iuin.honors_admin.drafts.title', defaultMessage: '我的草稿'}),
-    subtitle: defineMessage({id: 'iuin.honors_admin.drafts.subtitle', defaultMessage: '保存未发布资源，发布后才会进入正式荣誉系统。'}),
+    subtitle: defineMessage({id: 'iuin.honors_admin.drafts.subtitle', defaultMessage: '保存未完成资源，提交后进入发布列表。'}),
+};
+
+const PUBLICATION_PANEL_COPY = {
+    title: defineMessage({id: 'iuin.honors_admin.submissions.title', defaultMessage: '发布'}),
+    subtitle: defineMessage({id: 'iuin.honors_admin.submissions.subtitle', defaultMessage: '预览已提交作品，确认后发布到正式荣誉系统。'}),
 };
 
 export default function IuinHonorsAdminPage(props: RouteComponentProps) {
@@ -151,6 +158,7 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
         achievements: [],
     });
     const [drafts, setDrafts] = useState<HonorAdminDraft[]>([]);
+    const [submissions, setSubmissions] = useState<HonorAdminDraft[]>([]);
     const [audits, setAudits] = useState<HonorAdminAudit[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -164,10 +172,17 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
     const [assetDraft, setAssetDraft] = useState<AssetDraft | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<{kind: HonorKind; item: HonorAdminItem} | null>(null);
     const [draftDeleteTarget, setDraftDeleteTarget] = useState<HonorAdminDraft | null>(null);
+    const [previewSubmission, setPreviewSubmission] = useState<HonorAdminDraft | null>(null);
+    const [categoryFilters, setCategoryFilters] = useState<Record<HonorKind, string>>({
+        avatar_frames: '',
+        titles: '',
+        achievements: '',
+    });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const activeKind = activeTab === 'audit' || activeTab === 'drafts' ? null : activeTab;
-    const activeItems = activeKind ? itemsByKind[activeKind] : [];
+    const activeKind = activeTab === 'audit' || activeTab === 'drafts' || activeTab === 'submissions' ? null : activeTab;
+    const activeCategoryFilter = activeKind ? categoryFilters[activeKind] : '';
+    const activeItems = activeKind ? filterHonorAdminItemsByCategory(itemsByKind[activeKind], activeCategoryFilter) : [];
 
     const loadSession = useCallback(async () => {
         const response = await fetchHonorAdmin(`${HONOR_ADMIN_API_BASE}/session`, Client4.getOptions({method: 'GET'}));
@@ -179,10 +194,15 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
 
     const loadSampleAvatarUrl = useCallback(async () => {
         try {
-            const currentUser = await Client4.getMe() as AvatarSampleUser;
-            return currentUser.id ? Client4.getProfilePictureUrl(currentUser.id, currentUser.last_picture_update || 0) : '';
+            const sampleUser = await Client4.getUserByUsername('litangchao') as AvatarSampleUser;
+            return sampleUser.id ? Client4.getProfilePictureUrl(sampleUser.id, sampleUser.last_picture_update || 0) : '';
         } catch {
-            return '';
+            try {
+                const currentUser = await Client4.getMe() as AvatarSampleUser;
+                return currentUser.id ? Client4.getProfilePictureUrl(currentUser.id, currentUser.last_picture_update || 0) : '';
+            } catch {
+                return '';
+            }
         }
     }, []);
 
@@ -213,6 +233,15 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
         return body.drafts;
     }, []);
 
+    const loadSubmissions = useCallback(async () => {
+        const response = await fetchHonorAdmin(`${HONOR_ADMIN_API_BASE}/submissions`, Client4.getOptions({method: 'GET'}));
+        if (!response.ok) {
+            throw new Error('无法加载发布列表。');
+        }
+        const body = await response.json() as {drafts: HonorAdminDraft[]};
+        return body.drafts;
+    }, []);
+
     const refreshKind = useCallback(async (kind: HonorKind) => {
         const items = await loadItems(kind);
         setItemsByKind((previous) => ({...previous, [kind]: items}));
@@ -222,17 +251,22 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
         setDrafts(await loadDrafts());
     }, [loadDrafts]);
 
+    const refreshSubmissions = useCallback(async () => {
+        setSubmissions(await loadSubmissions());
+    }, [loadSubmissions]);
+
     const refreshAll = useCallback(async () => {
         setLoading(true);
         setError('');
         try {
             const nextSession = await loadSession();
             setSession(nextSession);
-            const [avatarFrames, titles, achievements, nextDrafts, nextSampleAvatarUrl] = await Promise.all([
+            const [avatarFrames, titles, achievements, nextDrafts, nextSubmissions, nextSampleAvatarUrl] = await Promise.all([
                 loadItems('avatar_frames'),
                 loadItems('titles'),
                 loadItems('achievements'),
                 loadDrafts(),
+                loadSubmissions(),
                 loadSampleAvatarUrl(),
             ]);
             setItemsByKind({
@@ -241,6 +275,7 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
                 achievements,
             });
             setDrafts(nextDrafts);
+            setSubmissions(nextSubmissions);
             setSampleAvatarUrl(nextSampleAvatarUrl);
             if (nextSession.canAudit) {
                 setAudits(await loadAudits());
@@ -252,7 +287,7 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
         } finally {
             setLoading(false);
         }
-    }, [loadAudits, loadDrafts, loadItems, loadSampleAvatarUrl, loadSession]);
+    }, [loadAudits, loadDrafts, loadItems, loadSampleAvatarUrl, loadSession, loadSubmissions]);
 
     useEffect(() => {
         refreshAll();
@@ -280,10 +315,10 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
         setEditingOriginalId('');
         setEditingDraftId('');
         setEditorVisible(true);
-        setDraft({...EMPTY_ITEM, id: generateHonorAdminId(kind), rarity: 'common', sortOrder: nextSortOrder(itemsByKind[kind])});
+        setDraft({...EMPTY_ITEM, id: generateHonorAdminId(kind), category: categoryFilters[kind], rarity: 'common', sortOrder: nextSortOrder(itemsByKind[kind])});
         setAssetDraft(null);
         setError('');
-    }, [itemsByKind]);
+    }, [categoryFilters, itemsByKind]);
 
     const startEdit = useCallback((kind: HonorKind, item: HonorAdminItem) => {
         setEditingKind(kind);
@@ -381,7 +416,15 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
         return payload;
     }, [assetDraft, draft, editingDraftId, editingKind, editingOriginalId]);
 
-    const publishEditor = useCallback(async (event: FormEvent) => {
+    const submitDraftById = useCallback(async (draftId: string) => {
+        const response = await fetchHonorAdmin(`${HONOR_ADMIN_API_BASE}/drafts/${encodeURIComponent(draftId)}/submit`, Client4.getOptions({method: 'POST'}));
+        if (!response.ok) {
+            throw new Error(await readErrorMessage(response));
+        }
+        return response.json() as Promise<HonorAdminDraft>;
+    }, []);
+
+    const submitEditor = useCallback(async (event: FormEvent) => {
         event.preventDefault();
         if (saving) {
             return;
@@ -390,45 +433,52 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
         setError('');
         try {
             const payload = await prepareEditorPayload(true);
-            if (editingDraftId) {
-                const draftResponse = await fetchHonorAdmin(`${HONOR_ADMIN_API_BASE}/drafts/${encodeURIComponent(editingDraftId)}`, Client4.getOptions({
+            if (editingOriginalId) {
+                const response = await fetchHonorAdmin(`${HONOR_ADMIN_API_BASE}/items/${editingKind}/${encodeURIComponent(editingOriginalId)}`, Client4.getOptions({
                     method: 'PUT',
-                    body: JSON.stringify({kind: editingKind, item: payload}),
-                }));
-                if (!draftResponse.ok) {
-                    throw new Error(await readErrorMessage(draftResponse));
-                }
-                const publishResponse = await fetchHonorAdmin(`${HONOR_ADMIN_API_BASE}/drafts/${encodeURIComponent(editingDraftId)}/publish`, Client4.getOptions({method: 'POST'}));
-                if (!publishResponse.ok) {
-                    throw new Error(await readErrorMessage(publishResponse));
-                }
-            } else {
-                const creating = editingOriginalId === '';
-                const url = creating ?
-                    `${HONOR_ADMIN_API_BASE}/items/${editingKind}` :
-                    `${HONOR_ADMIN_API_BASE}/items/${editingKind}/${encodeURIComponent(editingOriginalId)}`;
-                const response = await fetchHonorAdmin(url, Client4.getOptions({
-                    method: creating ? 'POST' : 'PUT',
                     body: JSON.stringify(payload),
                 }));
                 if (!response.ok) {
                     throw new Error(await readErrorMessage(response));
                 }
+                await refreshKind(editingKind);
+                setActiveTab(editingKind);
+            } else {
+                let submittedDraftId = editingDraftId;
+                const draftResponse = await fetchHonorAdmin(submittedDraftId ? `${HONOR_ADMIN_API_BASE}/drafts/${encodeURIComponent(submittedDraftId)}` : `${HONOR_ADMIN_API_BASE}/drafts`, Client4.getOptions({
+                    method: submittedDraftId ? 'PUT' : 'POST',
+                    body: JSON.stringify({kind: editingKind, item: payload}),
+                }));
+                if (!draftResponse.ok) {
+                    throw new Error(await readErrorMessage(draftResponse));
+                }
+                if (!submittedDraftId) {
+                    const body = await draftResponse.json() as HonorAdminDraft;
+                    submittedDraftId = body.draftId;
+                }
+                if (!submittedDraftId) {
+                    throw new Error('提交失败，未拿到草稿 ID。');
+                }
+                await submitDraftById(submittedDraftId);
+                await refreshDrafts();
+                await refreshSubmissions();
+                setActiveTab('submissions');
             }
 
-            await refreshKind(editingKind);
-            await refreshDrafts();
             if (session?.canAudit) {
                 setAudits(await loadAudits());
             }
-            setActiveTab(editingKind);
             closeEditor();
         } catch (saveError) {
-            setError(saveError instanceof Error ? saveError.message : '保存失败。');
+            if (saveError instanceof Error) {
+                setError(saveError.message);
+            } else {
+                setError(editingOriginalId ? '保存失败。' : '提交失败。');
+            }
         } finally {
             setSaving(false);
         }
-    }, [closeEditor, editingDraftId, editingKind, editingOriginalId, loadAudits, prepareEditorPayload, refreshDrafts, refreshKind, saving, session?.canAudit]);
+    }, [closeEditor, editingDraftId, editingKind, editingOriginalId, loadAudits, prepareEditorPayload, refreshDrafts, refreshKind, refreshSubmissions, saving, session?.canAudit, submitDraftById]);
 
     const storeEditorDraft = useCallback(async () => {
         if (saving) {
@@ -487,29 +537,52 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
         }
     }, [closeEditor, deleteTarget, editingOriginalId, loadAudits, refreshKind, saving, session?.canAudit]);
 
-    const publishDraft = useCallback(async (nextDraft: HonorAdminDraft) => {
+    const submitDraft = useCallback(async (nextDraft: HonorAdminDraft) => {
         if (saving) {
             return;
         }
         setSaving(true);
         setError('');
         try {
-            const response = await fetchHonorAdmin(`${HONOR_ADMIN_API_BASE}/drafts/${encodeURIComponent(nextDraft.draftId)}/publish`, Client4.getOptions({method: 'POST'}));
-            if (!response.ok) {
-                throw new Error(await readErrorMessage(response));
-            }
-            await refreshKind(nextDraft.kind);
+            await submitDraftById(nextDraft.draftId);
             await refreshDrafts();
+            await refreshSubmissions();
             if (session?.canAudit) {
                 setAudits(await loadAudits());
             }
-            setActiveTab(nextDraft.kind);
-        } catch (publishError) {
-            setError(publishError instanceof Error ? publishError.message : '发布草稿失败。');
+            setActiveTab('submissions');
+        } catch (submitError) {
+            setError(submitError instanceof Error ? submitError.message : '提交草稿失败。');
         } finally {
             setSaving(false);
         }
-    }, [loadAudits, refreshDrafts, refreshKind, saving, session?.canAudit]);
+    }, [loadAudits, refreshDrafts, refreshSubmissions, saving, session?.canAudit, submitDraftById]);
+
+    const publishSubmission = useCallback(async (submission: HonorAdminDraft) => {
+        if (saving) {
+            return;
+        }
+        setSaving(true);
+        setError('');
+        try {
+            const response = await fetchHonorAdmin(`${HONOR_ADMIN_API_BASE}/drafts/${encodeURIComponent(submission.draftId)}/publish`, Client4.getOptions({method: 'POST'}));
+            if (!response.ok) {
+                throw new Error(await readErrorMessage(response));
+            }
+            await refreshKind(submission.kind);
+            await refreshDrafts();
+            await refreshSubmissions();
+            if (session?.canAudit) {
+                setAudits(await loadAudits());
+            }
+            setPreviewSubmission(null);
+            setActiveTab(submission.kind);
+        } catch (publishError) {
+            setError(publishError instanceof Error ? publishError.message : '发布失败。');
+        } finally {
+            setSaving(false);
+        }
+    }, [loadAudits, refreshDrafts, refreshKind, refreshSubmissions, saving, session?.canAudit]);
 
     const confirmDraftDelete = useCallback(async () => {
         if (!draftDeleteTarget || saving) {
@@ -575,13 +648,16 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
     let activePanel = (
         <ResourcePanel
             kind={activeTab as HonorKind}
+            allItems={activeKind ? itemsByKind[activeKind] : []}
             items={activeItems}
+            selectedCategory={activeCategoryFilter}
             saving={saving}
             sampleAvatarUrl={sampleAvatarUrl}
             onCreate={startCreate}
             onEdit={startEdit}
             onDelete={(kind, item) => setDeleteTarget({kind, item})}
             onReorder={reorderItems}
+            onCategoryFilterChange={(kind, category) => setCategoryFilters((previous) => ({...previous, [kind]: category}))}
         />
     );
     if (activeTab === 'audit') {
@@ -593,8 +669,18 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
                 saving={saving}
                 sampleAvatarUrl={sampleAvatarUrl}
                 onEdit={startEditDraft}
-                onPublish={publishDraft}
+                onSubmit={submitDraft}
                 onDelete={setDraftDeleteTarget}
+            />
+        );
+    } else if (activeTab === 'submissions') {
+        activePanel = (
+            <PublicationPanel
+                submissions={submissions}
+                saving={saving}
+                sampleAvatarUrl={sampleAvatarUrl}
+                onPreview={setPreviewSubmission}
+                onPublish={publishSubmission}
             />
         );
     }
@@ -605,7 +691,7 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
                 className='iuin-honors-admin'
                 data-route={routePathname}
             >
-                <div className='wrapper--fixed iuin-honors-admin__shell'>
+                <div className='iuin-honors-admin__shell'>
                     <AdminHeader>
                         <span>{'荣誉管理台'}</span>
                     </AdminHeader>
@@ -626,7 +712,7 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
                 className='iuin-honors-admin'
                 data-route={routePathname}
             >
-                <div className='wrapper--fixed iuin-honors-admin__shell'>
+                <div className='iuin-honors-admin__shell'>
                     <AdminHeader>
                         <span>{'荣誉管理台'}</span>
                     </AdminHeader>
@@ -647,7 +733,7 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
             className='iuin-honors-admin'
             data-route={routePathname}
         >
-            <div className='wrapper--fixed iuin-honors-admin__shell'>
+            <div className='iuin-honors-admin__shell'>
                 <AdminHeader>
                     <div className='iuin-honors-admin__header-title'>
                         <span>{'荣誉管理台'}</span>
@@ -681,6 +767,15 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
                                     <i className='icon icon-file-document-edit-outline'/>
                                     <span>{'我的草稿'}</span>
                                     <strong>{drafts.length}</strong>
+                                </button>
+                                <button
+                                    type='button'
+                                    className={activeTab === 'submissions' ? 'iuin-honors-admin__nav-item iuin-honors-admin__nav-item--no-icon iuin-honors-admin__nav-item--active' : 'iuin-honors-admin__nav-item iuin-honors-admin__nav-item--no-icon'}
+                                    title='发布'
+                                    onClick={() => setActiveTab('submissions')}
+                                >
+                                    <span>{'发布'}</span>
+                                    <strong>{submissions.length}</strong>
                                 </button>
                                 {canShowAudit && (
                                     <button
@@ -722,7 +817,7 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
                     onAssetDraftChange={setAssetDraft}
                     onClose={closeEditor}
                     onSaveDraft={storeEditorDraft}
-                    onSubmit={publishEditor}
+                    onSubmit={submitEditor}
                 />
             )}
             <input
@@ -748,32 +843,69 @@ export default function IuinHonorsAdminPage(props: RouteComponentProps) {
                     onConfirm={confirmDraftDelete}
                 />
             )}
+            {previewSubmission && (
+                <HonorPublicationPreviewDialog
+                    draft={previewSubmission}
+                    sampleAvatarUrl={sampleAvatarUrl}
+                    saving={saving}
+                    onClose={() => setPreviewSubmission(null)}
+                    onPublish={() => publishSubmission(previewSubmission)}
+                />
+            )}
         </main>
     );
 }
 
 function ResourcePanel({
     kind,
+    allItems,
     items,
+    selectedCategory,
     saving,
     sampleAvatarUrl,
     onCreate,
     onEdit,
     onDelete,
     onReorder,
+    onCategoryFilterChange,
 }: {
     kind: HonorKind;
+    allItems: HonorAdminItem[];
     items: HonorAdminItem[];
+    selectedCategory: string;
     saving: boolean;
     sampleAvatarUrl: string;
     onCreate: (kind: HonorKind) => void;
     onEdit: (kind: HonorKind, item: HonorAdminItem) => void;
     onDelete: (kind: HonorKind, item: HonorAdminItem) => void;
     onReorder: (kind: HonorKind, ids: string[]) => void;
+    onCategoryFilterChange: (kind: HonorKind, category: string) => void;
 }) {
     const panelCopy = RESOURCE_PANEL_COPY[kind];
     const [draggingItemId, setDraggingItemId] = useState('');
     const [dropTargetId, setDropTargetId] = useState('');
+    const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+    const categoryMenuRef = useRef<HTMLDivElement>(null);
+    const categoryOptions = useMemo(() => getHonorAdminCategoryOptions(allItems), [allItems]);
+
+    useEffect(() => {
+        setCategoryMenuOpen(false);
+    }, [kind]);
+
+    useEffect(() => {
+        if (!categoryMenuOpen) {
+            return undefined;
+        }
+
+        const closeOnOutsideClick = (event: MouseEvent) => {
+            if (!categoryMenuRef.current?.contains(event.target as Node)) {
+                setCategoryMenuOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', closeOnOutsideClick);
+        return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+    }, [categoryMenuOpen]);
 
     const handleDragStart = useCallback((event: DragEvent<HTMLButtonElement>, itemID: string) => {
         if (saving) {
@@ -802,11 +934,11 @@ function ResourcePanel({
         if (!sourceID || sourceID === targetID) {
             return;
         }
-        const nextIDs = moveHonorAdminID(items.map((item) => item.id), sourceID, targetID);
-        if (nextIDs.length === items.length) {
-            onReorder(kind, nextIDs);
+        const nextVisibleIDs = moveHonorAdminID(items.map((item) => item.id), sourceID, targetID);
+        if (nextVisibleIDs.length === items.length) {
+            onReorder(kind, mergeFilteredHonorAdminOrder(allItems, nextVisibleIDs));
         }
-    }, [draggingItemId, items, kind, onReorder]);
+    }, [allItems, draggingItemId, items, kind, onReorder]);
 
     const handleDragEnd = useCallback(() => {
         setDraggingItemId('');
@@ -835,6 +967,52 @@ function ResourcePanel({
                     <div className='iuin-honors-admin-table__header'>
                         <span>{'顺序'}</span>
                         <span>{kindLabel(kind)}</span>
+                        <div
+                            ref={categoryMenuRef}
+                            className='iuin-honors-admin-table__category-filter'
+                        >
+                            <button
+                                type='button'
+                                className={selectedCategory ? 'iuin-honors-admin-table__category-button iuin-honors-admin-table__category-button--active' : 'iuin-honors-admin-table__category-button'}
+                                aria-haspopup='listbox'
+                                aria-expanded={categoryMenuOpen}
+                                onClick={() => setCategoryMenuOpen((open) => !open)}
+                            >
+                                <span>{'种类'}</span>
+                                {selectedCategory && <strong>{selectedCategory}</strong>}
+                                <i className='icon icon-chevron-down'/>
+                            </button>
+                            {categoryMenuOpen && (
+                                <div
+                                    className='iuin-honors-admin-table__category-menu'
+                                    role='listbox'
+                                >
+                                    <button
+                                        type='button'
+                                        className={selectedCategory ? 'iuin-honors-admin-table__category-menu-item' : 'iuin-honors-admin-table__category-menu-item iuin-honors-admin-table__category-menu-item--active'}
+                                        onClick={() => {
+                                            onCategoryFilterChange(kind, '');
+                                            setCategoryMenuOpen(false);
+                                        }}
+                                    >
+                                        {'全部种类'}
+                                    </button>
+                                    {categoryOptions.map((category) => (
+                                        <button
+                                            key={category}
+                                            type='button'
+                                            className={selectedCategory === category ? 'iuin-honors-admin-table__category-menu-item iuin-honors-admin-table__category-menu-item--active' : 'iuin-honors-admin-table__category-menu-item'}
+                                            onClick={() => {
+                                                onCategoryFilterChange(kind, category);
+                                                setCategoryMenuOpen(false);
+                                            }}
+                                        >
+                                            {category}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                         <span>{'解锁条件'}</span>
                         <span>{'贡献者'}</span>
                         <span>{'ID'}</span>
@@ -861,7 +1039,7 @@ function ResourcePanel({
                         {items.length === 0 && (
                             <div className='iuin-honors-admin__empty-state'>
                                 <i className='icon icon-folder-outline'/>
-                                <h3>{'暂无资源'}</h3>
+                                <h3>{selectedCategory ? '当前种类暂无资源' : '暂无资源'}</h3>
                             </div>
                         )}
                     </div>
@@ -935,6 +1113,10 @@ function HonorCard({
                     </div>
                     <p>{item.description}</p>
                 </div>
+            </div>
+            <div className='iuin-honors-admin-row__category'>
+                <i className='icon icon-tag-outline'/>
+                <span>{item.category}</span>
             </div>
             <div className='iuin-honors-admin-row__unlock'>
                 <i className='icon icon-lock-open-outline'/>
@@ -1016,14 +1198,14 @@ function DraftPanel({
     saving,
     sampleAvatarUrl,
     onEdit,
-    onPublish,
+    onSubmit,
     onDelete,
 }: {
     drafts: HonorAdminDraft[];
     saving: boolean;
     sampleAvatarUrl: string;
     onEdit: (draft: HonorAdminDraft) => void;
-    onPublish: (draft: HonorAdminDraft) => void;
+    onSubmit: (draft: HonorAdminDraft) => void;
     onDelete: (draft: HonorAdminDraft) => void;
 }) {
     return (
@@ -1075,9 +1257,9 @@ function DraftPanel({
                             <button
                                 type='button'
                                 className='btn btn-icon btn-tertiary'
-                                title='发布'
+                                title='提交'
                                 disabled={saving}
-                                onClick={() => onPublish(draft)}
+                                onClick={() => onSubmit(draft)}
                             >
                                 <i className='icon icon-send-outline'/>
                             </button>
@@ -1101,6 +1283,370 @@ function DraftPanel({
                 )}
             </div>
         </AdminPanel>
+    );
+}
+
+function PublicationPanel({
+    submissions,
+    saving,
+    sampleAvatarUrl,
+    onPreview,
+    onPublish,
+}: {
+    submissions: HonorAdminDraft[];
+    saving: boolean;
+    sampleAvatarUrl: string;
+    onPreview: (draft: HonorAdminDraft) => void;
+    onPublish: (draft: HonorAdminDraft) => void;
+}) {
+    return (
+        <AdminPanel
+            id='IuinHonorsAdmin-Publications'
+            className='iuin-honors-admin-panel'
+            title={PUBLICATION_PANEL_COPY.title}
+            subtitle={PUBLICATION_PANEL_COPY.subtitle}
+        >
+            <div className='AdminPanel__content iuin-honors-admin-publications'>
+                <div className='iuin-honors-admin-publications__header'>
+                    <span>{'作品'}</span>
+                    <span>{'类型'}</span>
+                    <span>{'提交人'}</span>
+                    <span>{'提交时间'}</span>
+                    <span>{'操作'}</span>
+                </div>
+                {submissions.map((submission) => (
+                    <article
+                        key={submission.draftId}
+                        className='iuin-honors-admin-publication-row'
+                    >
+                        <div className='iuin-honors-admin-draft-row__resource'>
+                            <HonorPreview
+                                kind={submission.kind}
+                                item={submission.item}
+                                sampleAvatarUrl={sampleAvatarUrl}
+                            />
+                            <div className='iuin-honors-admin-row__summary'>
+                                <div className='iuin-honors-admin-row__title'>
+                                    <h3>{submission.item.name || '未命名作品'}</h3>
+                                    <IuinHonorRarityTag rarity={submission.item.rarity}/>
+                                </div>
+                                <p>{submission.item.description || '尚未填写介绍。'}</p>
+                                <code>{submission.item.id}</code>
+                            </div>
+                        </div>
+                        <span>{kindLabel(submission.kind)}</span>
+                        <span>{submission.ownerUsername || '未记录'}</span>
+                        <span>{formatAuditTime(submission.updateAt)}</span>
+                        <div className='iuin-honors-admin-row__actions'>
+                            <button
+                                type='button'
+                                className='btn btn-icon btn-tertiary'
+                                title='预览'
+                                disabled={saving}
+                                onClick={() => onPreview(submission)}
+                            >
+                                <i className='icon icon-eye-outline'/>
+                            </button>
+                            <button
+                                type='button'
+                                className='btn btn-icon btn-primary'
+                                title='发布'
+                                disabled={saving}
+                                onClick={() => onPublish(submission)}
+                            >
+                                <i className='icon icon-send-outline'/>
+                            </button>
+                        </div>
+                    </article>
+                ))}
+                {submissions.length === 0 && (
+                    <div className='iuin-honors-admin__empty-state'>
+                        <i className='icon icon-send-outline'/>
+                        <h3>{'暂无待发布作品'}</h3>
+                    </div>
+                )}
+            </div>
+        </AdminPanel>
+    );
+}
+
+function HonorPublicationPreviewDialog({
+    draft,
+    sampleAvatarUrl,
+    saving,
+    onClose,
+    onPublish,
+}: {
+    draft: HonorAdminDraft;
+    sampleAvatarUrl: string;
+    saving: boolean;
+    onClose: () => void;
+    onPublish: () => void;
+}) {
+    return (
+        <div className='iuin-honors-admin-preview-dialog__backdrop'>
+            <section className='iuin-honors-admin-preview-dialog'>
+                <header>
+                    <div>
+                        <span className='iuin-honors-admin__eyebrow'>{kindLabel(draft.kind)}</span>
+                        <h2>{draft.item.name || '未命名作品'}</h2>
+                    </div>
+                    <button
+                        type='button'
+                        title='关闭'
+                        disabled={saving}
+                        onClick={onClose}
+                    >
+                        <i className='icon icon-close'/>
+                    </button>
+                </header>
+                <div className='iuin-honors-admin-preview-dialog__body'>
+                    <HonorSampleCard
+                        kind={draft.kind}
+                        item={draft.item}
+                        sampleAvatarUrl={sampleAvatarUrl}
+                    />
+                    <div className='iuin-honors-admin-preview-dialog__meta'>
+                        <span>{draft.ownerUsername || '未记录'}</span>
+                        <span>{draft.item.category || '未分类'}</span>
+                        <IuinHonorRarityTag rarity={draft.item.rarity}/>
+                    </div>
+                </div>
+                <footer>
+                    <button
+                        type='button'
+                        disabled={saving}
+                        onClick={onClose}
+                    >
+                        {'取消'}
+                    </button>
+                    <button
+                        type='button'
+                        disabled={saving}
+                        onClick={onPublish}
+                    >
+                        <i className='icon icon-send-outline'/>
+                        <span>{saving ? '发布中' : '发布'}</span>
+                    </button>
+                </footer>
+            </section>
+        </div>
+    );
+}
+
+function HonorSampleCard({kind, item, sampleAvatarUrl}: {kind: HonorKind; item: HonorAdminItem; sampleAvatarUrl: string}) {
+    const previewTitle = kind === 'titles' ? buildPreviewTitle(item) : null;
+    const previewAchievement = kind === 'achievements' ? buildPreviewAchievement(item) : null;
+    const previewFrame = kind === 'avatar_frames' ? buildPreviewAvatarFrame(item) : null;
+
+    return (
+        <article className={`iuin-honors-admin-sample-card iuin-honors-admin-sample-card--${kind}`}>
+            <section className='iuin-honors-admin-sample-card__profile'>
+                <HonorPreviewAvatar
+                    className='iuin-honors-admin-sample-card__profile-avatar'
+                    sampleAvatarUrl={sampleAvatarUrl}
+                    frame={previewFrame}
+                />
+                <strong className='iuin-honors-admin-sample-card__display-name'>{'rt pi'}</strong>
+                <span className='iuin-honors-admin-sample-card__username'>{'@litangchao'}</span>
+                <span className='iuin-honors-admin-sample-card__location'>{'shenzhen'}</span>
+                <div className='iuin-honors-admin-sample-card__module iuin-honors-admin-sample-card__module--title'>
+                    <div className='iuin-honors-admin-sample-card__module-heading'>{'TITLE'}</div>
+                    <div className='iuin-profile-title-showcase iuin-honors-admin-sample-card__title-slot'>
+                        {previewTitle && <HonorPreviewTitleBadge title={previewTitle}/>}
+                    </div>
+                </div>
+                <div className='iuin-honors-admin-sample-card__module iuin-honors-admin-sample-card__module--honors'>
+                    <div className='iuin-honors-admin-sample-card__module-heading'>{'HONORS'}</div>
+                    <div className='iuin-profile-honors__achievement-orbs iuin-honors-admin-sample-card__honors-slot'>
+                        {previewAchievement && <HonorPreviewAchievementOrb achievement={previewAchievement}/>}
+                    </div>
+                </div>
+            </section>
+            <section className='iuin-honors-admin-sample-card__popover'>
+                <HonorPreviewAvatar
+                    className='iuin-honors-admin-sample-card__popover-avatar'
+                    sampleAvatarUrl={sampleAvatarUrl}
+                    frame={previewFrame}
+                />
+                {previewTitle && (
+                    <div className='user-profile-popover__iuin-title iuin-honors-admin-sample-card__popover-title'>
+                        <HonorPreviewTitleBadge title={previewTitle}/>
+                    </div>
+                )}
+                <strong className='iuin-honors-admin-sample-card__popover-name'>{'rt pi'}</strong>
+                <span className='iuin-honors-admin-sample-card__popover-username'>{'@litangchao'}</span>
+                <span className='iuin-honors-admin-sample-card__popover-location'>{'shenzhen'}</span>
+                {previewAchievement && (
+                    <div className='user-profile-popover__iuin-achievements iuin-honors-admin-sample-card__popover-achievements'>
+                        <HonorPreviewAchievementOrb achievement={previewAchievement}/>
+                    </div>
+                )}
+            </section>
+        </article>
+    );
+}
+
+function buildPreviewTitle(item: HonorAdminItem): IuinTitleItem {
+    return {
+        id: item.id || 'preview-title',
+        name: item.name || 'Title preview',
+        description: item.description,
+        iconStorageKey: item.iconStorageKey,
+        category: item.category,
+        rarity: item.rarity,
+        unlockHint: item.unlockHint,
+        sortOrder: item.sortOrder,
+        unlocked: true,
+        equipped: true,
+    };
+}
+
+function buildPreviewAchievement(item: HonorAdminItem): IuinAchievementItem {
+    return {
+        id: item.id || 'preview-achievement',
+        name: item.name || 'Achievement preview',
+        description: item.description,
+        iconStorageKey: item.iconStorageKey,
+        category: item.category,
+        rarity: item.rarity,
+        unlockHint: item.unlockHint,
+        sortOrder: item.sortOrder,
+        unlocked: true,
+        featured: true,
+        featuredOrder: 0,
+    };
+}
+
+function buildPreviewAvatarFrame(item: HonorAdminItem): IuinAvatarFrameItem {
+    return {
+        id: item.id || 'preview-avatar-frame',
+        name: item.name || 'Avatar frame preview',
+        description: item.description,
+        frameStorageKey: item.frameStorageKey,
+        previewStorageKey: item.previewStorageKey,
+        category: item.category,
+        rarity: item.rarity,
+        unlockHint: item.unlockHint,
+        sortOrder: item.sortOrder,
+        unlocked: true,
+        equipped: true,
+    };
+}
+
+function HonorPreviewAvatar({
+    className,
+    sampleAvatarUrl,
+    frame,
+}: {
+    className: string;
+    sampleAvatarUrl: string;
+    frame: IuinAvatarFrameItem | null;
+}) {
+    return (
+        <span className={`iuin-honors-admin-sample-card__avatar ${className}`}>
+            <span className='iuin-honors-admin-sample-card__avatar-image'>
+                {sampleAvatarUrl && (
+                    <img
+                        src={sampleAvatarUrl}
+                        alt=''
+                        draggable={false}
+                        onError={(event) => {
+                            event.currentTarget.style.display = 'none';
+                        }}
+                    />
+                )}
+            </span>
+            <HonorPreviewAvatarFrameRing frame={frame}/>
+        </span>
+    );
+}
+
+function HonorPreviewAvatarFrameRing({frame}: {frame: IuinAvatarFrameItem | null}) {
+    const assetUrl = getIuinHonorAssetUrl(frame?.frameStorageKey || frame?.previewStorageKey);
+
+    if (!assetUrl) {
+        return null;
+    }
+
+    return (
+        <span
+            className='iuin-profile-avatar-frame-ring'
+            aria-hidden={true}
+        >
+            <img
+                className='iuin-profile-avatar-frame-ring__image'
+                src={assetUrl}
+                alt=''
+                draggable={false}
+            />
+        </span>
+    );
+}
+
+function HonorPreviewTitleBadge({title}: {title: IuinTitleItem}) {
+    return (
+        <span
+            className='iuin-profile-title-badge'
+            title={title.name}
+            aria-label={title.name}
+        >
+            <HonorPreviewTitleArtwork title={title}/>
+        </span>
+    );
+}
+
+function HonorPreviewTitleArtwork({title}: {title: IuinTitleItem}) {
+    const assetUrl = getIuinHonorAssetUrl(title.iconStorageKey);
+
+    if (!assetUrl) {
+        return null;
+    }
+
+    return (
+        <img
+            className='iuin-profile-title-artwork'
+            src={assetUrl}
+            alt=''
+            aria-hidden={true}
+            draggable={false}
+        />
+    );
+}
+
+function HonorPreviewAchievementOrb({achievement}: {achievement: IuinAchievementItem}) {
+    const hasAsset = Boolean(getIuinHonorAssetUrl(achievement.iconStorageKey));
+
+    return (
+        <button
+            type='button'
+            className={`iuin-profile-achievement-orb${hasAsset ? ' iuin-profile-achievement-orb--image' : ''}`}
+            title={achievement.name}
+            aria-label={achievement.name}
+            disabled={true}
+        >
+            <HonorPreviewAchievementArtwork achievement={achievement}/>
+        </button>
+    );
+}
+
+function HonorPreviewAchievementArtwork({achievement}: {achievement: IuinAchievementItem}) {
+    const assetUrl = getIuinHonorAssetUrl(achievement.iconStorageKey);
+
+    if (!assetUrl) {
+        return null;
+    }
+
+    return (
+        <span className='iuin-profile-achievement-artwork'>
+            <img
+                className='iuin-profile-achievement-artwork__image'
+                src={assetUrl}
+                alt=''
+                aria-hidden={true}
+                draggable={false}
+            />
+        </span>
     );
 }
 
@@ -1140,9 +1686,9 @@ function HonorEditor({
     } else if (editingDraft) {
         editorTitle = '编辑草稿';
     }
-    let submitLabel = editing ? '保存' : '发布';
+    let submitLabel = editing ? '保存' : '提交';
     if (saving) {
-        submitLabel = '保存中';
+        submitLabel = editing ? '保存中' : '提交中';
     }
     let assetEditor = (
         <HonorImageAdjuster
@@ -1246,16 +1792,14 @@ function HonorEditor({
                             <IuinHonorRarityTag rarity={draft.rarity}/>
                         </div>
                     </label>
-                    {kind === 'achievements' && (
-                        <label>
-                            <span>{'分类'}</span>
-                            <input
-                                value={draft.category}
-                                disabled={saving}
-                                onChange={(event) => onFieldChange('category', event.target.value)}
-                            />
-                        </label>
-                    )}
+                    <label>
+                        <span>{'种类'}</span>
+                        <input
+                            value={draft.category}
+                            disabled={saving}
+                            onChange={(event) => onFieldChange('category', event.target.value)}
+                        />
+                    </label>
                     <section className='iuin-honors-admin-editor__asset'>
                         <div className='iuin-honors-admin-editor__asset-head'>
                             <span>{kind === 'avatar_frames' ? '头像框素材' : '图片素材'}</span>
@@ -1962,6 +2506,41 @@ function moveHonorAdminID(ids: string[], sourceID: string, targetID: string): st
     const insertionIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
     nextIDs.splice(insertionIndex, 0, source);
     return nextIDs;
+}
+
+function filterHonorAdminItemsByCategory(items: HonorAdminItem[], category: string): HonorAdminItem[] {
+    if (!category) {
+        return items;
+    }
+
+    return items.filter((item) => item.category === category);
+}
+
+function getHonorAdminCategoryOptions(items: HonorAdminItem[]): string[] {
+    const categories = new Set<string>();
+    items.forEach((item) => {
+        const category = item.category.trim();
+        if (category) {
+            categories.add(category);
+        }
+    });
+
+    return [...categories].sort((a, b) => a.localeCompare(b));
+}
+
+function mergeFilteredHonorAdminOrder(allItems: HonorAdminItem[], nextVisibleIDs: string[]): string[] {
+    const visibleIDs = new Set(nextVisibleIDs);
+    let visibleIndex = 0;
+
+    return allItems.map((item) => {
+        if (!visibleIDs.has(item.id)) {
+            return item.id;
+        }
+
+        const nextID = nextVisibleIDs[visibleIndex];
+        visibleIndex += 1;
+        return nextID;
+    });
 }
 
 function generateHonorAdminId(kind: HonorKind): string {

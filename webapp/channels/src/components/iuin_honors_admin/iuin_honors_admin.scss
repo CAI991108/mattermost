@@ -2,10 +2,17 @@
 // See LICENSE.txt for license information.
 
 .iuin-honors-admin {
+    --iuin-honors-admin-motion-fast: 120ms;
+    --iuin-honors-admin-motion-medium: 180ms;
+    --iuin-honors-admin-motion-slow: 260ms;
+    --iuin-honors-admin-motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --iuin-honors-admin-motion-spring: cubic-bezier(0.2, 0.8, 0.2, 1.12);
+
     display: block;
     overflow: hidden;
-    width: 100%;
+    width: 100vw;
     min-width: 0;
+    max-width: none;
     height: calc(100vh - 48px);
     min-height: calc(100vh - 48px);
     background: rgba(var(--center-channel-color-rgb), 0.04);
@@ -13,6 +20,8 @@
 }
 
 body.app__body #root:has(.iuin-honors-admin) {
+    width: 100vw;
+    min-width: 100vw;
     background: rgba(var(--center-channel-color-rgb), 0.04);
     grid-template:
         "classification-banner" min-content
@@ -28,6 +37,7 @@ body.app__body #root:has(.iuin-honors-admin) > .iuin-honors-admin {
     grid-area: main;
     align-self: stretch;
     justify-self: stretch;
+    min-width: 100vw;
 }
 
 body.app__body #root .main-wrapper:has(.iuin-honors-admin) {
@@ -75,6 +85,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     letter-spacing: 0;
     line-height: 32px;
     padding: 12px 20px;
+    animation: iuin-honors-admin-header-in var(--iuin-honors-admin-motion-slow) var(--iuin-honors-admin-motion-ease) both;
 }
 
 .iuin-honors-admin .admin-console__header button,
@@ -86,6 +97,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
 .iuin-honors-admin__shell {
     display: flex;
     width: 100%;
+    max-width: none;
     height: 100%;
     min-height: 100%;
     flex-direction: column;
@@ -139,6 +151,13 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     background: var(--center-channel-bg);
     box-shadow: var(--elevation-1);
     padding: 12px;
+    animation: iuin-honors-admin-slide-in var(--iuin-honors-admin-motion-slow) var(--iuin-honors-admin-motion-ease) both;
+    transition: border-color var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), box-shadow var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease);
+}
+
+.iuin-honors-admin__sidebar:hover {
+    border-color: rgba(var(--button-bg-rgb), 0.18);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
 }
 
 .iuin-honors-admin__nav-heading {
@@ -172,6 +191,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     grid-template-columns: 20px minmax(0, 1fr) auto;
     padding: 0 8px;
     text-align: left;
+    transition: background-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), box-shadow var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
 }
 
 .iuin-honors-admin__nav-item i {
@@ -179,6 +199,12 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     color: rgba(var(--center-channel-color-rgb), 0.64);
     font-size: 16px;
     text-align: center;
+    transition: color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
+}
+
+.iuin-honors-admin__nav-item--no-icon::before {
+    width: 20px;
+    content: '';
 }
 
 .iuin-honors-admin__nav-item span {
@@ -196,6 +222,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     font-weight: 700;
     line-height: 20px;
     text-align: center;
+    transition: background-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
 }
 
 .iuin-honors-admin__nav-item:hover,
@@ -204,27 +231,33 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     background: rgba(var(--button-bg-rgb), 0.08);
     color: var(--center-channel-color);
     outline: 0;
+    box-shadow: inset 2px 0 0 rgba(var(--button-bg-rgb), 0.82);
+    transform: translateX(2px);
 }
 
 .iuin-honors-admin__nav-item:hover i,
 .iuin-honors-admin__nav-item:focus i,
 .iuin-honors-admin__nav-item--active i {
     color: var(--button-bg);
+    transform: scale(1.08);
 }
 
 .iuin-honors-admin__nav-item--active strong {
     background: rgba(var(--button-bg-rgb), 0.12);
     color: var(--button-bg);
+    transform: scale(1.04);
 }
 
 .iuin-honors-admin .iuin-honors-admin__content {
     width: 100%;
     max-width: none;
     min-width: 0;
+    animation: iuin-honors-admin-fade-rise var(--iuin-honors-admin-motion-slow) var(--iuin-honors-admin-motion-ease) 60ms both;
 }
 
 .iuin-honors-admin-panel.AdminPanel {
     margin: 0 0 16px;
+    animation: iuin-honors-admin-fade-rise var(--iuin-honors-admin-motion-slow) var(--iuin-honors-admin-motion-ease) both;
 }
 
 .iuin-honors-admin-panel.AdminPanel .header {
@@ -241,6 +274,13 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     align-items: center;
     gap: 6px;
     padding: 0 12px;
+    transition: box-shadow var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
+}
+
+.iuin-honors-admin__panel-button:not(:disabled):hover,
+.iuin-honors-admin__panel-button:not(:disabled):focus {
+    box-shadow: 0 8px 18px rgba(var(--button-bg-rgb), 0.22);
+    transform: translateY(-1px);
 }
 
 .iuin-honors-admin-table-wrap.AdminPanel__content {
@@ -255,7 +295,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
 .iuin-honors-admin-row {
     display: grid;
     align-items: center;
-    grid-template-columns: 56px minmax(280px, 2fr) minmax(180px, 1.2fr) minmax(104px, 0.55fr) minmax(132px, 0.7fr) 96px;
+    grid-template-columns: 56px minmax(260px, 1.7fr) minmax(120px, 0.58fr) minmax(180px, 1.05fr) minmax(104px, 0.52fr) minmax(132px, 0.68fr) 96px;
 }
 
 .iuin-honors-admin-table__header {
@@ -269,9 +309,87 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
 }
 
 .iuin-honors-admin-table__header span,
+.iuin-honors-admin-table__category-filter,
 .iuin-honors-admin-row > * {
     min-width: 0;
     padding: 0 16px;
+}
+
+.iuin-honors-admin-table__category-filter {
+    position: relative;
+}
+
+.iuin-honors-admin-table__category-button {
+    display: inline-flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-start;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    gap: 6px;
+    padding: 0;
+    text-align: left;
+}
+
+.iuin-honors-admin-table__category-button strong {
+    overflow: hidden;
+    color: var(--button-bg);
+    font-size: 11px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin-table__category-button i {
+    flex: 0 0 auto;
+    margin-left: auto;
+    font-size: 14px;
+}
+
+.iuin-honors-admin-table__category-button:hover,
+.iuin-honors-admin-table__category-button:focus {
+    color: var(--button-bg);
+}
+
+.iuin-honors-admin-table__category-menu {
+    position: absolute;
+    z-index: 5;
+    top: calc(100% + 8px);
+    left: 16px;
+    min-width: 160px;
+    max-width: 240px;
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+    border-radius: 8px;
+    background: var(--center-channel-bg);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16);
+    padding: 6px;
+}
+
+.iuin-honors-admin-table__category-menu-item {
+    display: block;
+    overflow: hidden;
+    width: 100%;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--center-channel-color);
+    font-size: 13px;
+    line-height: 28px;
+    padding: 0 10px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin-table__category-menu-item:hover,
+.iuin-honors-admin-table__category-menu-item:focus,
+.iuin-honors-admin-table__category-menu-item--active {
+    background: rgba(var(--button-bg-rgb), 0.1);
+    color: var(--button-bg);
 }
 
 .iuin-honors-admin-table__body {
@@ -283,6 +401,8 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     min-height: 88px;
     border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
     background: var(--center-channel-bg);
+    animation: iuin-honors-admin-row-in 220ms var(--iuin-honors-admin-motion-ease) both;
+    transition: background-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), box-shadow var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), opacity var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
 }
 
 .iuin-honors-admin-row:last-child {
@@ -291,14 +411,18 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
 
 .iuin-honors-admin-row:hover {
     background: rgba(var(--button-bg-rgb), 0.04);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
 }
 
 .iuin-honors-admin-row--dragging {
     opacity: 0.56;
+    transform: scale(0.985);
 }
 
 .iuin-honors-admin-row--drop-target {
     box-shadow: inset 0 2px 0 var(--button-bg);
+    animation: iuin-honors-admin-drop-target-pulse 1000ms ease-in-out infinite;
 }
 
 .iuin-honors-admin-row__order {
@@ -310,10 +434,18 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
 
 .iuin-honors-admin-row__drag-handle {
     cursor: grab;
+    transition: background-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), box-shadow var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
+}
+
+.iuin-honors-admin-row__drag-handle:not(:disabled):hover,
+.iuin-honors-admin-row__drag-handle:not(:disabled):focus {
+    box-shadow: 0 0 0 3px rgba(var(--button-bg-rgb), 0.12);
+    transform: scale(1.06);
 }
 
 .iuin-honors-admin-row__drag-handle:active {
     cursor: grabbing;
+    transform: scale(0.96);
 }
 
 .iuin-honors-admin-row__resource {
@@ -327,6 +459,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
 
 .iuin-honors-admin-row__summary,
 .iuin-honors-admin-row__unlock,
+.iuin-honors-admin-row__category,
 .iuin-honors-admin-row__contributor {
     min-width: 0;
 }
@@ -401,12 +534,22 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     gap: 8px;
 }
 
+.iuin-honors-admin-row__category {
+    display: flex;
+    align-items: center;
+    color: rgba(var(--center-channel-color-rgb), 0.68);
+    font-size: 13px;
+    gap: 8px;
+}
+
+.iuin-honors-admin-row__category i,
 .iuin-honors-admin-row__contributor i {
     flex: 0 0 auto;
     color: rgba(var(--center-channel-color-rgb), 0.48);
     font-size: 14px;
 }
 
+.iuin-honors-admin-row__category span,
 .iuin-honors-admin-row__contributor span {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -427,6 +570,14 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     padding: 0 8px;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: background-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
+}
+
+.iuin-honors-admin-row:hover .iuin-honors-admin-row__id,
+.iuin-honors-admin-draft-row:hover code,
+.iuin-honors-admin-publication-row:hover code {
+    background: rgba(var(--button-bg-rgb), 0.1);
+    color: var(--button-bg);
 }
 
 .iuin-honors-admin-row__actions {
@@ -439,20 +590,39 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     width: 32px;
     height: 32px;
     padding: 0;
+    transition: background-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
 }
 
-.iuin-honors-admin-drafts.AdminPanel__content {
+.iuin-honors-admin-row__actions .btn:hover,
+.iuin-honors-admin-row__actions .btn:focus {
+    transform: translateY(-1px);
+}
+
+.iuin-honors-admin-drafts.AdminPanel__content,
+.iuin-honors-admin-publications.AdminPanel__content {
     padding: 0;
 }
 
 .iuin-honors-admin-drafts__header,
-.iuin-honors-admin-draft-row {
+.iuin-honors-admin-draft-row,
+.iuin-honors-admin-publications__header,
+.iuin-honors-admin-publication-row {
     display: grid;
     align-items: center;
+}
+
+.iuin-honors-admin-drafts__header,
+.iuin-honors-admin-draft-row {
     grid-template-columns: minmax(280px, 1.8fr) minmax(88px, 0.45fr) minmax(180px, 0.8fr) 136px;
 }
 
-.iuin-honors-admin-drafts__header {
+.iuin-honors-admin-publications__header,
+.iuin-honors-admin-publication-row {
+    grid-template-columns: minmax(280px, 1.8fr) minmax(88px, 0.42fr) minmax(110px, 0.5fr) minmax(180px, 0.72fr) 112px;
+}
+
+.iuin-honors-admin-drafts__header,
+.iuin-honors-admin-publications__header {
     min-height: 40px;
     border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
     border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
@@ -463,19 +633,27 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
 }
 
 .iuin-honors-admin-drafts__header span,
-.iuin-honors-admin-draft-row > * {
+.iuin-honors-admin-draft-row > *,
+.iuin-honors-admin-publications__header span,
+.iuin-honors-admin-publication-row > * {
     min-width: 0;
     padding: 0 16px;
 }
 
-.iuin-honors-admin-draft-row {
+.iuin-honors-admin-draft-row,
+.iuin-honors-admin-publication-row {
     min-height: 88px;
     border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
     background: var(--center-channel-bg);
+    animation: iuin-honors-admin-row-in 220ms var(--iuin-honors-admin-motion-ease) both;
+    transition: background-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), box-shadow var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
 }
 
-.iuin-honors-admin-draft-row:hover {
+.iuin-honors-admin-draft-row:hover,
+.iuin-honors-admin-publication-row:hover {
     background: rgba(var(--button-bg-rgb), 0.04);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
 }
 
 .iuin-honors-admin-draft-row__resource {
@@ -487,7 +665,8 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     padding-bottom: 10px;
 }
 
-.iuin-honors-admin-draft-row > span {
+.iuin-honors-admin-draft-row > span,
+.iuin-honors-admin-publication-row > span {
     overflow: hidden;
     color: rgba(var(--center-channel-color-rgb), 0.64);
     font-size: 13px;
@@ -495,7 +674,8 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     white-space: nowrap;
 }
 
-.iuin-honors-admin-draft-row code {
+.iuin-honors-admin-draft-row code,
+.iuin-honors-admin-publication-row code {
     display: block;
     overflow: hidden;
     width: fit-content;
@@ -509,6 +689,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     padding: 0 8px;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: background-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
 }
 
 .iuin-honors-admin-preview {
@@ -522,17 +703,20 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     border: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
     border-radius: var(--radius-s);
     background: rgba(var(--center-channel-color-rgb), 0.035);
+    transition: background-color var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), border-color var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), box-shadow var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease);
 }
 
-.iuin-honors-admin-preview img {
+.iuin-honors-admin-preview > img:not(.iuin-honors-admin-preview__frame-image) {
     display: block;
     max-width: 94%;
     max-height: 94%;
     object-fit: contain;
+    transition: filter var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease);
 }
 
 .iuin-honors-admin-preview__frame-image {
     position: absolute;
+    display: block;
     width: 60px;
     height: 60px;
     max-width: none;
@@ -540,6 +724,29 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     inset: 50% auto auto 50%;
     object-fit: contain;
     transform: translate(-50%, -50%);
+    transition: filter var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease);
+}
+
+.iuin-honors-admin-row:hover .iuin-honors-admin-preview,
+.iuin-honors-admin-draft-row:hover .iuin-honors-admin-preview,
+.iuin-honors-admin-publication-row:hover .iuin-honors-admin-preview {
+    border-color: rgba(var(--button-bg-rgb), 0.2);
+    box-shadow: 0 8px 20px rgba(var(--button-bg-rgb), 0.12);
+    transform: translateY(-1px) scale(1.02);
+}
+
+.iuin-honors-admin-row:hover .iuin-honors-admin-preview > img:not(.iuin-honors-admin-preview__frame-image),
+.iuin-honors-admin-draft-row:hover .iuin-honors-admin-preview > img:not(.iuin-honors-admin-preview__frame-image),
+.iuin-honors-admin-publication-row:hover .iuin-honors-admin-preview > img:not(.iuin-honors-admin-preview__frame-image) {
+    filter: saturate(1.08);
+    transform: scale(1.04);
+}
+
+.iuin-honors-admin-row:hover .iuin-honors-admin-preview__frame-image,
+.iuin-honors-admin-draft-row:hover .iuin-honors-admin-preview__frame-image,
+.iuin-honors-admin-publication-row:hover .iuin-honors-admin-preview__frame-image {
+    filter: saturate(1.08);
+    transform: translate(-50%, -50%) scale(1.04);
 }
 
 .iuin-honors-admin-preview__avatar,
@@ -572,6 +779,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
 .iuin-honors-admin-preview--achievement i {
     color: var(--button-bg);
     font-size: 32px;
+    transition: opacity var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease);
 }
 
 .iuin-honors-admin__notice {
@@ -585,6 +793,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     color: #9b1c1f;
     gap: 10px;
     padding: 0 14px;
+    animation: iuin-honors-admin-notice-in var(--iuin-honors-admin-motion-slow) var(--iuin-honors-admin-motion-ease) both;
 }
 
 .iuin-honors-admin__loading,
@@ -597,11 +806,26 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     flex-direction: column;
     gap: 10px;
     text-align: center;
+    animation: iuin-honors-admin-fade-rise var(--iuin-honors-admin-motion-slow) var(--iuin-honors-admin-motion-ease) both;
 }
 
 .iuin-honors-admin__empty-state {
     width: 100%;
     padding: 32px 16px;
+}
+
+.iuin-honors-admin__loading span {
+    animation: iuin-honors-admin-loading-pulse 900ms ease-in-out infinite;
+}
+
+.iuin-honors-admin__empty-state i {
+    transition: color var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), opacity var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease);
+}
+
+.iuin-honors-admin__empty-state:hover i {
+    color: var(--button-bg);
+    opacity: 0.92;
+    transform: translateY(-2px);
 }
 
 .iuin-honors-admin__empty-state h1,
@@ -615,7 +839,8 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
 }
 
 .iuin-honors-admin-editor__backdrop,
-.iuin-honors-admin-confirm__backdrop {
+.iuin-honors-admin-confirm__backdrop,
+.iuin-honors-admin-preview-dialog__backdrop {
     position: fixed;
     z-index: 2000;
     display: flex;
@@ -623,6 +848,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     justify-content: flex-end;
     background: rgba(15, 23, 42, 0.32);
     inset: 0;
+    animation: iuin-honors-admin-backdrop-in var(--iuin-honors-admin-motion-medium) ease-out both;
 }
 
 .iuin-honors-admin-editor {
@@ -631,6 +857,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     flex-direction: column;
     background: var(--center-channel-bg);
     box-shadow: -20px 0 48px rgba(15, 23, 42, 0.22);
+    animation: iuin-honors-admin-editor-in var(--iuin-honors-admin-motion-slow) var(--iuin-honors-admin-motion-ease) both;
 }
 
 .iuin-honors-admin-editor__header {
@@ -660,12 +887,14 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     background: transparent;
     color: rgba(var(--center-channel-color-rgb), 0.72);
     cursor: pointer;
+    transition: background-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
 }
 
 .iuin-honors-admin-editor__header button:hover,
 .iuin-honors-admin-editor__header button:focus {
     background: rgba(var(--center-channel-color-rgb), 0.08);
     outline: 0;
+    transform: scale(1.06);
 }
 
 .iuin-honors-admin__eyebrow {
@@ -731,6 +960,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     color: var(--center-channel-color);
     font: inherit;
     padding: 8px 10px;
+    transition: border-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), box-shadow var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), background-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
 }
 
 .iuin-honors-admin-editor__body textarea {
@@ -768,6 +998,13 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     border: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
     border-radius: var(--radius-s);
     padding: 12px;
+    transition: border-color var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), box-shadow var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease);
+}
+
+.iuin-honors-admin-editor__asset:focus-within,
+.iuin-honors-admin-editor__asset:hover {
+    border-color: rgba(var(--button-bg-rgb), 0.24);
+    box-shadow: 0 10px 24px rgba(var(--button-bg-rgb), 0.08);
 }
 
 .iuin-honors-admin-editor__asset-head {
@@ -793,6 +1030,18 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     font-weight: 600;
     gap: 8px;
     padding: 0 12px;
+    transition: background-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), border-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), box-shadow var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
+}
+
+.iuin-honors-admin-editor__asset-head button:not(:disabled):hover,
+.iuin-honors-admin-editor__asset-head button:not(:disabled):focus,
+.iuin-honors-admin-editor__actions button:not(:disabled):hover,
+.iuin-honors-admin-editor__actions button:not(:disabled):focus,
+.iuin-honors-admin-confirm footer button:not(:disabled):hover,
+.iuin-honors-admin-confirm footer button:not(:disabled):focus {
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+    outline: 0;
+    transform: translateY(-1px);
 }
 
 .iuin-honors-admin-editor__actions button[type='submit'],
@@ -824,6 +1073,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     background-size: 20px 20px;
     cursor: grab;
     touch-action: none;
+    transition: border-color var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), box-shadow var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease);
 }
 
 .iuin-honors-admin-image-adjuster--title .iuin-honors-admin-image-adjuster__stage {
@@ -833,6 +1083,8 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
 
 .iuin-honors-admin-image-adjuster__stage--dragging {
     cursor: grabbing;
+    box-shadow: 0 0 0 3px rgba(var(--button-bg-rgb), 0.16), 0 12px 24px rgba(15, 23, 42, 0.14);
+    transform: scale(0.99);
 }
 
 .iuin-honors-admin-image-adjuster__image {
@@ -843,6 +1095,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     object-fit: fill;
     pointer-events: none;
     user-select: none;
+    transition: filter var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease);
 }
 
 .iuin-honors-admin-image-adjuster__stage > i {
@@ -863,6 +1116,12 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     box-shadow: 0 0 0 999px rgba(15, 23, 42, 0.08);
     inset: 18px;
     pointer-events: none;
+    transition: border-color var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), box-shadow var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease);
+}
+
+.iuin-honors-admin-image-adjuster__stage--dragging .iuin-honors-admin-image-adjuster__crop-guide {
+    border-color: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 0 0 999px rgba(15, 23, 42, 0.12), 0 0 0 4px rgba(var(--button-bg-rgb), 0.18);
 }
 
 .iuin-honors-admin-frame-adjuster {
@@ -884,10 +1143,13 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     background-size: 20px 20px;
     cursor: grab;
     touch-action: none;
+    transition: border-color var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), box-shadow var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease);
 }
 
 .iuin-honors-admin-frame-adjuster__stage--dragging {
     cursor: grabbing;
+    box-shadow: 0 0 0 3px rgba(var(--button-bg-rgb), 0.16), 0 12px 24px rgba(15, 23, 42, 0.14);
+    transform: scale(0.99);
 }
 
 .iuin-honors-admin-frame-adjuster__sample-avatar {
@@ -913,6 +1175,12 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     max-height: none;
     object-fit: contain;
     pointer-events: none;
+    transition: filter var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease);
+}
+
+.iuin-honors-admin-image-adjuster__stage--dragging .iuin-honors-admin-image-adjuster__image,
+.iuin-honors-admin-frame-adjuster__stage--dragging .iuin-honors-admin-frame-adjuster__frame-image {
+    filter: saturate(1.08);
 }
 
 .iuin-honors-admin-frame-adjuster__stage > i {
@@ -980,10 +1248,14 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     background: var(--center-channel-bg);
     padding-top: 12px;
     padding-bottom: 12px;
+    animation: iuin-honors-admin-row-in 220ms var(--iuin-honors-admin-motion-ease) both;
+    transition: background-color var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), box-shadow var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease), transform var(--iuin-honors-admin-motion-fast) var(--iuin-honors-admin-motion-ease);
 }
 
 .iuin-honors-admin-audit__row:hover {
     background: rgba(var(--button-bg-rgb), 0.04);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
 }
 
 .iuin-honors-admin-audit__row > div {
@@ -1014,6 +1286,7 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
 .iuin-honors-admin-audit__row details {
     grid-column: 1 / -1;
     margin-top: 12px;
+    animation: iuin-honors-admin-fade-rise var(--iuin-honors-admin-motion-medium) var(--iuin-honors-admin-motion-ease) both;
 }
 
 .iuin-honors-admin-audit__row summary {
@@ -1073,12 +1346,420 @@ body.app__body #root .main-wrapper:has(.iuin-honors-admin) > #sidebar-right {
     justify-content: center;
 }
 
+.iuin-honors-admin-preview-dialog__backdrop {
+    align-items: center;
+    justify-content: center;
+}
+
 .iuin-honors-admin-confirm {
     width: min(420px, calc(100vw - 32px));
     border-radius: var(--radius-s);
     background: var(--center-channel-bg);
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
     padding: 22px;
+    animation: iuin-honors-admin-confirm-in var(--iuin-honors-admin-motion-slow) var(--iuin-honors-admin-motion-spring) both;
+}
+
+.iuin-honors-admin-preview-dialog {
+    display: flex;
+    width: min(520px, calc(100vw - 32px));
+    max-height: calc(100vh - 48px);
+    flex-direction: column;
+    border-radius: var(--radius-s);
+    background: var(--center-channel-bg);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+    animation: iuin-honors-admin-confirm-in var(--iuin-honors-admin-motion-slow) var(--iuin-honors-admin-motion-spring) both;
+}
+
+.iuin-honors-admin-preview-dialog header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.1);
+    gap: 16px;
+    padding: 18px 20px;
+}
+
+.iuin-honors-admin-preview-dialog h2 {
+    overflow: hidden;
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 28px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin-preview-dialog header button {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: var(--radius-s);
+    background: transparent;
+    color: rgba(var(--center-channel-color-rgb), 0.72);
+    cursor: pointer;
+}
+
+.iuin-honors-admin-preview-dialog__body {
+    overflow: auto;
+    padding: 20px;
+}
+
+.iuin-honors-admin-preview-dialog__meta {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.iuin-honors-admin-preview-dialog__meta > span {
+    overflow: hidden;
+    max-width: 180px;
+    border-radius: 999px;
+    background: rgba(var(--center-channel-color-rgb), 0.08);
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 12px;
+    line-height: 22px;
+    padding: 0 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin-preview-dialog footer {
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.1);
+    gap: 10px;
+    padding: 16px 20px;
+}
+
+.iuin-honors-admin-preview-dialog footer button {
+    display: inline-flex;
+    min-height: 34px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+    border-radius: var(--radius-s);
+    background: rgba(var(--center-channel-color-rgb), 0.04);
+    color: var(--center-channel-color);
+    cursor: pointer;
+    font-weight: 600;
+    gap: 8px;
+    padding: 0 12px;
+}
+
+.iuin-honors-admin-preview-dialog footer button:last-child {
+    border-color: transparent;
+    background: var(--button-bg);
+    color: var(--button-color);
+}
+
+.iuin-honors-admin-sample-card {
+    display: grid;
+    min-width: 0;
+    align-items: start;
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+    border-radius: var(--radius-s);
+    background: var(--center-channel-bg);
+    gap: 16px;
+    grid-template-columns: minmax(0, 1fr) 184px;
+    padding: 20px;
+}
+
+.iuin-honors-admin-sample-card__profile,
+.iuin-honors-admin-sample-card__popover {
+    min-width: 0;
+    background: #fff;
+}
+
+.iuin-honors-admin-sample-card__profile {
+    display: grid;
+    justify-items: center;
+    padding: 14px 14px 0;
+}
+
+.iuin-honors-admin-sample-card__popover {
+    display: grid;
+    min-height: 262px;
+    align-content: start;
+    justify-items: center;
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+    border-radius: 2px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+    padding: 12px 12px 14px;
+}
+
+.iuin-honors-admin-sample-card__avatar {
+    position: relative;
+    display: inline-block;
+    flex: 0 0 auto;
+}
+
+.iuin-honors-admin-sample-card__profile-avatar {
+    width: 112px;
+    height: 112px;
+    margin: 0 0 10px;
+}
+
+.iuin-honors-admin-sample-card__popover-avatar {
+    width: 118px;
+    height: 118px;
+    margin: 0 0 8px;
+}
+
+.iuin-honors-admin-sample-card__avatar-image {
+    position: absolute;
+    display: block;
+    overflow: hidden;
+    width: 78%;
+    height: 78%;
+    border-radius: 50%;
+    background:
+        linear-gradient(135deg, #dbeafe, #f8fafc 52%, #fef3c7),
+        var(--center-channel-bg);
+    box-shadow: inset 0 0 0 1px rgba(var(--center-channel-color-rgb), 0.08);
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+}
+
+.iuin-honors-admin-sample-card__avatar-image img {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    inset: 0;
+    object-fit: cover;
+}
+
+.iuin-honors-admin-sample-card .iuin-profile-avatar-frame-ring {
+    position: absolute;
+    z-index: 2;
+    border-radius: inherit;
+    box-shadow: none;
+    filter: none;
+    inset: -18%;
+    overflow: visible;
+    pointer-events: none;
+    transform-origin: center;
+}
+
+.iuin-honors-admin-sample-card .iuin-profile-avatar-frame-ring__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
+}
+
+.iuin-honors-admin-sample-card__display-name,
+.iuin-honors-admin-sample-card__popover-name {
+    overflow: hidden;
+    max-width: 100%;
+    color: #3f3f4f;
+    font-weight: 700;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin-sample-card__display-name {
+    font-size: 22px;
+    line-height: 28px;
+}
+
+.iuin-honors-admin-sample-card__popover-name {
+    font-size: 20px;
+    line-height: 26px;
+}
+
+.iuin-honors-admin-sample-card__username,
+.iuin-honors-admin-sample-card__location,
+.iuin-honors-admin-sample-card__popover-username,
+.iuin-honors-admin-sample-card__popover-location {
+    overflow: hidden;
+    max-width: 100%;
+    color: rgba(var(--center-channel-color-rgb), 0.62);
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.iuin-honors-admin-sample-card__username,
+.iuin-honors-admin-sample-card__popover-username {
+    font-size: 14px;
+    line-height: 22px;
+}
+
+.iuin-honors-admin-sample-card__location,
+.iuin-honors-admin-sample-card__popover-location {
+    margin-top: 8px;
+    color: rgba(var(--center-channel-color-rgb), 0.7);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 20px;
+}
+
+.iuin-honors-admin-sample-card__module {
+    width: 100%;
+    min-width: 0;
+    border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+    margin-top: 20px;
+    padding-top: 14px;
+}
+
+.iuin-honors-admin-sample-card__module-heading {
+    color: rgba(var(--center-channel-color-rgb), 0.62);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 16px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.iuin-honors-admin-sample-card__title-slot,
+.iuin-honors-admin-sample-card__honors-slot {
+    min-height: 52px;
+    align-items: center;
+    justify-content: center;
+}
+
+.iuin-honors-admin-sample-card .iuin-profile-title-showcase {
+    display: flex;
+    min-width: 0;
+}
+
+.iuin-honors-admin-sample-card .iuin-profile-title-badge {
+    display: inline-flex;
+    min-height: 0;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+}
+
+.iuin-honors-admin-sample-card .iuin-profile-title-artwork {
+    display: block;
+    width: min(168px, 100%);
+    height: 40px;
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
+}
+
+.iuin-honors-admin-sample-card__popover-title {
+    display: grid;
+    justify-items: center;
+    padding: 0 0 4px;
+}
+
+.iuin-honors-admin-sample-card__popover-title .iuin-profile-title-artwork {
+    width: min(150px, 100%);
+    height: 42px;
+}
+
+.iuin-honors-admin-sample-card .iuin-profile-honors__achievement-orbs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, 44px);
+    max-width: 100%;
+    justify-content: center;
+    gap: 8px;
+}
+
+.iuin-honors-admin-sample-card .iuin-profile-achievement-orb {
+    --iuin-badge-glow: rgba(191, 135, 28, 0.22);
+    position: relative;
+    display: inline-grid;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    isolation: isolate;
+    overflow: visible;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background:
+        linear-gradient(145deg, #fff9e6 0%, #f6d778 32%, #b97b14 58%, #fff1bd 82%),
+        radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.94), transparent 36%);
+    box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.95),
+        inset 0 -2px 4px rgba(97, 61, 8, 0.22),
+        0 1px 2px rgba(31, 41, 55, 0.08),
+        0 0 0 1px rgba(205, 148, 30, 0.86),
+        0 0 0 4px rgba(255, 247, 226, 0.96);
+    color: #24292f;
+    cursor: default;
+    font-size: 19px;
+    line-height: 1;
+    opacity: 1;
+    padding: 0;
+}
+
+.iuin-honors-admin-sample-card .iuin-profile-achievement-orb::before,
+.iuin-honors-admin-sample-card .iuin-profile-achievement-orb::after {
+    position: absolute;
+    border-radius: 50%;
+    content: '';
+    pointer-events: none;
+}
+
+.iuin-honors-admin-sample-card .iuin-profile-achievement-orb::before {
+    z-index: 0;
+    background:
+        radial-gradient(circle at 35% 24%, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.34) 28%, transparent 52%),
+        linear-gradient(145deg, #fffaf0, #ffedb8);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.72),
+        inset 0 -5px 10px rgba(15, 23, 42, 0.1),
+        inset 0 5px 10px rgba(255, 255, 255, 0.5);
+    inset: 4px;
+}
+
+.iuin-honors-admin-sample-card .iuin-profile-achievement-orb::after {
+    z-index: 1;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.74) 0%, rgba(255, 255, 255, 0.18) 34%, transparent 52%),
+        radial-gradient(circle at 74% 78%, var(--iuin-badge-glow), transparent 40%);
+    inset: 5px;
+    opacity: 0.88;
+}
+
+.iuin-honors-admin-sample-card .iuin-profile-achievement-artwork {
+    position: relative;
+    z-index: 2;
+    display: block;
+    overflow: hidden;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.52);
+    pointer-events: none;
+    user-select: none;
+}
+
+.iuin-honors-admin-sample-card .iuin-profile-achievement-artwork__image {
+    position: absolute;
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    inset: 0;
+    object-fit: cover;
+    pointer-events: none;
+    user-select: none;
+}
+
+.iuin-honors-admin-sample-card__popover-achievements {
+    padding: 10px 0 0;
 }
 
 .iuin-honors-admin-confirm header {
@@ -1119,6 +1800,230 @@ textarea:disabled {
     opacity: 0.56;
 }
 
+.iuin-honors-admin-row:nth-child(2),
+.iuin-honors-admin-draft-row:nth-child(2),
+.iuin-honors-admin-publication-row:nth-child(2),
+.iuin-honors-admin-audit__row:nth-child(2) {
+    animation-delay: 20ms;
+}
+
+.iuin-honors-admin-row:nth-child(3),
+.iuin-honors-admin-draft-row:nth-child(3),
+.iuin-honors-admin-publication-row:nth-child(3),
+.iuin-honors-admin-audit__row:nth-child(3) {
+    animation-delay: 40ms;
+}
+
+.iuin-honors-admin-row:nth-child(4),
+.iuin-honors-admin-draft-row:nth-child(4),
+.iuin-honors-admin-publication-row:nth-child(4),
+.iuin-honors-admin-audit__row:nth-child(4) {
+    animation-delay: 60ms;
+}
+
+.iuin-honors-admin-row:nth-child(5),
+.iuin-honors-admin-draft-row:nth-child(5),
+.iuin-honors-admin-publication-row:nth-child(5),
+.iuin-honors-admin-audit__row:nth-child(5) {
+    animation-delay: 80ms;
+}
+
+.iuin-honors-admin-row:nth-child(6),
+.iuin-honors-admin-draft-row:nth-child(6),
+.iuin-honors-admin-publication-row:nth-child(6),
+.iuin-honors-admin-audit__row:nth-child(6) {
+    animation-delay: 100ms;
+}
+
+.iuin-honors-admin-row:nth-child(7),
+.iuin-honors-admin-draft-row:nth-child(7),
+.iuin-honors-admin-publication-row:nth-child(7),
+.iuin-honors-admin-audit__row:nth-child(7) {
+    animation-delay: 120ms;
+}
+
+.iuin-honors-admin-row:nth-child(8),
+.iuin-honors-admin-draft-row:nth-child(8),
+.iuin-honors-admin-publication-row:nth-child(8),
+.iuin-honors-admin-audit__row:nth-child(8) {
+    animation-delay: 140ms;
+}
+
+@keyframes iuin-honors-admin-header-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes iuin-honors-admin-slide-in {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes iuin-honors-admin-fade-rise {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes iuin-honors-admin-row-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes iuin-honors-admin-notice-in {
+    0% {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    68% {
+        opacity: 1;
+        transform: translateY(1px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes iuin-honors-admin-backdrop-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes iuin-honors-admin-editor-in {
+    from {
+        opacity: 0;
+        transform: translateX(28px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes iuin-honors-admin-confirm-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes iuin-honors-admin-drop-target-pulse {
+    0%,
+    100% {
+        box-shadow: inset 0 2px 0 var(--button-bg), 0 0 0 rgba(var(--button-bg-rgb), 0);
+    }
+
+    50% {
+        box-shadow: inset 0 2px 0 var(--button-bg), 0 0 0 3px rgba(var(--button-bg-rgb), 0.14);
+    }
+}
+
+@keyframes iuin-honors-admin-loading-pulse {
+    0%,
+    100% {
+        opacity: 0.64;
+        transform: scale(0.96);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .iuin-honors-admin,
+    .iuin-honors-admin *,
+    .iuin-honors-admin *::before,
+    .iuin-honors-admin *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    .iuin-honors-admin__nav-item:hover,
+    .iuin-honors-admin__nav-item:focus,
+    .iuin-honors-admin__nav-item--active,
+    .iuin-honors-admin__nav-item--active i,
+    .iuin-honors-admin__nav-item--active strong,
+    .iuin-honors-admin__panel-button:hover,
+    .iuin-honors-admin__panel-button:focus,
+    .iuin-honors-admin-editor__header button:hover,
+    .iuin-honors-admin-editor__header button:focus,
+    .iuin-honors-admin-editor__asset-head button:hover,
+    .iuin-honors-admin-editor__asset-head button:focus,
+    .iuin-honors-admin-editor__actions button:hover,
+    .iuin-honors-admin-editor__actions button:focus,
+    .iuin-honors-admin-confirm footer button:hover,
+    .iuin-honors-admin-confirm footer button:focus,
+    .iuin-honors-admin-row__actions .btn:hover,
+    .iuin-honors-admin-row__actions .btn:focus,
+    .iuin-honors-admin-row__drag-handle:hover,
+    .iuin-honors-admin-row__drag-handle:focus,
+    .iuin-honors-admin-row:hover,
+    .iuin-honors-admin-row--dragging,
+    .iuin-honors-admin-draft-row:hover,
+    .iuin-honors-admin-publication-row:hover,
+    .iuin-honors-admin-audit__row:hover,
+    .iuin-honors-admin-preview,
+    .iuin-honors-admin-row:hover .iuin-honors-admin-preview > img:not(.iuin-honors-admin-preview__frame-image),
+    .iuin-honors-admin-draft-row:hover .iuin-honors-admin-preview > img:not(.iuin-honors-admin-preview__frame-image),
+    .iuin-honors-admin__empty-state:hover i,
+    .iuin-honors-admin-image-adjuster__stage--dragging,
+    .iuin-honors-admin-frame-adjuster__stage--dragging,
+    .iuin-honors-admin-editor,
+    .iuin-honors-admin-confirm,
+    .iuin-honors-admin-preview-dialog {
+        transform: none !important;
+    }
+
+    .iuin-honors-admin-row:hover .iuin-honors-admin-preview__frame-image,
+    .iuin-honors-admin-draft-row:hover .iuin-honors-admin-preview__frame-image,
+    .iuin-honors-admin-publication-row:hover .iuin-honors-admin-preview__frame-image {
+        transform: translate(-50%, -50%) !important;
+    }
+}
+
 @media screen and (max-width: 1080px) {
     .iuin-honors-admin__layout {
         grid-template-columns: 200px minmax(0, 1fr);
@@ -1126,12 +2031,17 @@ textarea:disabled {
 
     .iuin-honors-admin-table__header,
     .iuin-honors-admin-row {
-        grid-template-columns: 48px minmax(240px, 1.55fr) minmax(160px, 0.95fr) minmax(92px, 0.5fr) minmax(120px, 0.65fr) 88px;
+        grid-template-columns: 48px minmax(220px, 1.45fr) minmax(108px, 0.55fr) minmax(160px, 0.88fr) minmax(92px, 0.48fr) minmax(120px, 0.6fr) 88px;
     }
 
     .iuin-honors-admin-drafts__header,
     .iuin-honors-admin-draft-row {
         grid-template-columns: minmax(240px, 1.6fr) minmax(80px, 0.45fr) minmax(150px, 0.75fr) 128px;
+    }
+
+    .iuin-honors-admin-publications__header,
+    .iuin-honors-admin-publication-row {
+        grid-template-columns: minmax(240px, 1.5fr) minmax(80px, 0.4fr) minmax(96px, 0.45fr) minmax(150px, 0.7fr) 104px;
     }
 }
 
@@ -1187,6 +2097,7 @@ textarea:disabled {
     }
 
     .iuin-honors-admin-row__unlock,
+    .iuin-honors-admin-row__category,
     .iuin-honors-admin-row__contributor,
     .iuin-honors-admin-row__id {
         grid-column: 2 / 3;
@@ -1194,22 +2105,25 @@ textarea:disabled {
 
     .iuin-honors-admin-row__actions {
         grid-column: 3 / 4;
-        grid-row: 2 / 5;
+        grid-row: 2 / 6;
         align-self: end;
     }
 
-    .iuin-honors-admin-drafts__header {
+    .iuin-honors-admin-drafts__header,
+    .iuin-honors-admin-publications__header {
         display: none;
     }
 
-    .iuin-honors-admin-draft-row {
+    .iuin-honors-admin-draft-row,
+    .iuin-honors-admin-publication-row {
         align-items: start;
         gap: 10px;
         grid-template-columns: minmax(0, 1fr) auto;
         padding: 12px 16px;
     }
 
-    .iuin-honors-admin-draft-row > * {
+    .iuin-honors-admin-draft-row > *,
+    .iuin-honors-admin-publication-row > * {
         padding: 0;
     }
 
@@ -1218,13 +2132,15 @@ textarea:disabled {
         padding: 0;
     }
 
-    .iuin-honors-admin-draft-row > span {
+    .iuin-honors-admin-draft-row > span,
+    .iuin-honors-admin-publication-row > span {
         grid-column: 1 / 2;
     }
 
-    .iuin-honors-admin-draft-row .iuin-honors-admin-row__actions {
+    .iuin-honors-admin-draft-row .iuin-honors-admin-row__actions,
+    .iuin-honors-admin-publication-row .iuin-honors-admin-row__actions {
         grid-column: 2 / 3;
-        grid-row: 2 / 4;
+        grid-row: 2 / 5;
     }
 
     .iuin-honors-admin-audit__header {
@@ -1265,5 +2181,11 @@ textarea:disabled {
     .iuin-honors-admin-image-adjuster__stage,
     .iuin-honors-admin-frame-adjuster__stage {
         justify-self: center;
+    }
+
+    .iuin-honors-admin-sample-card {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        text-align: center;
     }
 }
