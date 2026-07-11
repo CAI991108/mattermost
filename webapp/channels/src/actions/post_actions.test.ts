@@ -13,6 +13,7 @@ import * as Actions from 'actions/post_actions';
 import test_helper from 'packages/mattermost-redux/test/test_helper';
 import mockStore from 'tests/test_store';
 import {Constants, ActionTypes, RHSStates} from 'utils/constants';
+import {recordIuinRecentEmojis} from 'utils/iuin_emojis';
 import * as PostUtils from 'utils/post_utils';
 
 import type {GlobalState} from 'types/store';
@@ -34,6 +35,11 @@ jest.mock('mattermost-redux/actions/posts', () => ({
 jest.mock('actions/emoji_actions', () => ({
     addRecentEmoji: (...args: any[]) => ({type: 'MOCK_ADD_RECENT_EMOJI', args}),
     addRecentEmojis: (...args: any[]) => ({type: 'MOCK_ADD_RECENT_EMOJIS', args}),
+}));
+
+jest.mock('utils/iuin_emojis', () => ({
+    recordIuinRecentEmoji: jest.fn().mockResolvedValue({}),
+    recordIuinRecentEmojis: jest.fn(),
 }));
 
 jest.mock('actions/notification_actions', () => ({
@@ -61,6 +67,7 @@ const mockMakeGetIsReactionAlreadyAddedToPost = PostUtils.makeGetIsReactionAlrea
 const mockMakeGetUniqueEmojiNameReactionsForPost = PostUtils.makeGetUniqueEmojiNameReactionsForPost as unknown as jest.Mock<() => string[]>;
 
 const mockedSendDesktopNotification = jest.mocked(sendDesktopNotification);
+const mockedRecordIuinRecentEmojis = jest.mocked(recordIuinRecentEmojis);
 
 const POST_CREATED_TIME = Date.now();
 
@@ -524,6 +531,27 @@ describe('Actions.Posts', () => {
 
             await testStore.dispatch(Actions.createPost(newPost, files));
             expect(testStore.getActions()).toEqual(immediateExpectedState);
+        });
+
+        test('with native unicode emoji', async () => {
+            const testStore = mockStore(initialState);
+            const newPost = {id: 'new_post_id', channel_id: 'current_channel_id', message: 'new message 😛 😁'} as Post;
+            const files: FileInfo[] = [];
+
+            const immediateExpectedState = [{
+                args: [['stuck_out_tongue', 'grin']],
+                type: 'MOCK_ADD_RECENT_EMOJIS',
+            }, {
+                args: [newPost, files],
+                type: 'MOCK_CREATE_POST',
+            }, {
+                args: ['draft_current_channel_id', null],
+                type: 'MOCK_SET_GLOBAL_ITEM',
+            }];
+
+            await testStore.dispatch(Actions.createPost(newPost, files));
+            expect(testStore.getActions()).toEqual(immediateExpectedState);
+            expect(mockedRecordIuinRecentEmojis).toHaveBeenCalledWith(['stuck_out_tongue', 'grin']);
         });
     });
 

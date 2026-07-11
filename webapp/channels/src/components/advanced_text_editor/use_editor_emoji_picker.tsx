@@ -20,8 +20,8 @@ import KeyboardShortcutSequence, {KEYBOARD_SHORTCUTS} from 'components/keyboard_
 import {unifiedToUnicode} from 'utils/emoji_utils';
 import {focusAndInsertText} from 'utils/exec_commands';
 import {horizontallyWithin} from 'utils/floating';
-import {sendIuinSticker} from 'utils/iuin_stickers';
-import type {IuinSticker} from 'utils/iuin_stickers';
+import type {IuinEmoji} from 'utils/iuin_emojis';
+import {sendIuinEmoji} from 'utils/iuin_emojis';
 
 import type {GlobalState} from 'types/store';
 
@@ -80,9 +80,9 @@ const useEditorEmojiPicker = (
         setShowEmojiPicker(false);
     }, [insertTextAtCaret]);
 
-    const handleStickerClick = useCallback(async (sticker: IuinSticker) => {
+    const handleLibraryEmojiClick = useCallback(async (sticker: IuinEmoji) => {
         try {
-            await sendIuinSticker(sticker.id, channelId, rootId);
+            await sendIuinEmoji(sticker.id, channelId, rootId);
             setShowEmojiPicker(false);
         } catch (error) {
             // Keep the picker open so the user can try again or pick another sticker.
@@ -102,8 +102,8 @@ const useEditorEmojiPicker = (
         enableGifPicker,
         onGifClick: handleGifClick,
         onEmojiClick: handleEmojiClick,
-        enableIuinStickers: true,
-        onStickerClick: handleStickerClick,
+        enableIuinEmojiLibrary: true,
+        onIuinEmojiClick: handleLibraryEmojiClick,
 
         overrideMiddleware: [
             offset(useEmojiPickerOffset),

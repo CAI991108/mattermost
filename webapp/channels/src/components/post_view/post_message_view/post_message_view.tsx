@@ -139,9 +139,11 @@ export default class PostMessageView extends React.PureComponent<Props, State> {
             return this.renderDeletedPost();
         }
 
-        const iuinStickerId = typeof post.props?.iuin_sticker_id === 'string' ? post.props.iuin_sticker_id : '';
+        const legacyStickerId = typeof post.props?.iuin_sticker_id === 'string' ? post.props.iuin_sticker_id : '';
+        const iuinStickerId = typeof post.props?.iuin_emoji_id === 'string' ? post.props.iuin_emoji_id : legacyStickerId;
         if (iuinStickerId) {
-            const stickerUrl = typeof post.props?.iuin_sticker_url === 'string' ? post.props.iuin_sticker_url : `/api/v4/iuin/stickers/${iuinStickerId}/image`;
+            const legacyStickerUrl = typeof post.props?.iuin_sticker_url === 'string' ? post.props.iuin_sticker_url : `/api/v4/emoji/${iuinStickerId}/image`;
+            const stickerUrl = typeof post.props?.iuin_emoji_url === 'string' ? post.props.iuin_emoji_url : legacyStickerUrl;
             return this.renderIuinStickerPost(stickerUrl);
         }
 

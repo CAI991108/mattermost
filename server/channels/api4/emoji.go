@@ -4,13 +4,13 @@
 package api4
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
-	"io"
 	"net/http"
 
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
-	"github.com/mattermost/mattermost/server/v8/channels/app"
 	"github.com/mattermost/mattermost/server/v8/channels/web"
 )
 
@@ -32,79 +32,10 @@ func (api *API) InitEmoji() {
 }
 
 func createEmoji(c *Context, w http.ResponseWriter, r *http.Request) {
-	defer func() {
-		if _, err := io.Copy(io.Discard, r.Body); err != nil {
-			c.Logger.Warn("Error while discarding request body", mlog.Err(err))
-		}
-	}()
-
-	if !*c.App.Config().ServiceSettings.EnableCustomEmoji {
-		c.Err = model.NewAppError("createEmoji", "api.emoji.disabled.app_error", nil, "", http.StatusNotImplemented)
-		return
-	}
-
-	if r.ContentLength > app.MaxEmojiFileSize {
-		c.Err = model.NewAppError("createEmoji", "api.emoji.create.too_large.app_error", nil, "", http.StatusRequestEntityTooLarge)
-		return
-	}
-
-	if err := r.ParseMultipartForm(app.MaxEmojiFileSize); err != nil {
-		c.Err = model.NewAppError("createEmoji", "api.emoji.create.parse.app_error", nil, "", http.StatusBadRequest).Wrap(err)
-		return
-	}
-
-	auditRec := c.MakeAuditRecord(model.AuditEventCreateEmoji, model.AuditStatusFail)
-	defer c.LogAuditRec(auditRec)
-
-	// Allow any user with CREATE_EMOJIS permission at Team level to create emojis at system level
-	memberships, err := c.App.GetTeamMembersForUser(c.AppContext, c.AppContext.Session().UserId, "", true)
-
-	if err != nil {
-		c.Err = err
-		return
-	}
-
-	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionCreateEmojis) {
-		hasPermission := false
-		for _, membership := range memberships {
-			if c.App.SessionHasPermissionToTeam(*c.AppContext.Session(), membership.TeamId, model.PermissionCreateEmojis) {
-				hasPermission = true
-				break
-			}
-		}
-		if !hasPermission {
-			c.SetPermissionError(model.PermissionCreateEmojis)
-			return
-		}
-	}
-
-	m := r.MultipartForm
-	props := m.Value
-
-	if len(props["emoji"]) == 0 {
-		c.SetInvalidParam("emoji")
-		return
-	}
-
-	var emoji model.Emoji
-	if jsonErr := json.Unmarshal([]byte(props["emoji"][0]), &emoji); jsonErr != nil {
-		c.SetInvalidParam("emoji")
-		return
-	}
-
-	auditRec.AddEventResultState(&emoji)
-	auditRec.AddEventObjectType("emoji")
-
-	newEmoji, err := c.App.CreateEmoji(c.AppContext, c.AppContext.Session().UserId, &emoji, m)
-	if err != nil {
-		c.Err = err
-		return
-	}
-
-	auditRec.Success()
-	if err := json.NewEncoder(w).Encode(newEmoji); err != nil {
-		c.Logger.Warn("Error while writing response", mlog.Err(err))
-	}
+	// The core endpoint is retained as a compatibility protocol only. It writes
+	// to the same private, deduplicated IUIN Emoji library as the figure-1 upload
+	// button, so no second custom-emoji store can be created.
+	uploadIuinEmoji(c, w, r)
 }
 
 func getEmojiList(c *Context, w http.ResponseWriter, r *http.Request) {
@@ -124,6 +55,7 @@ func getEmojiList(c *Context, w http.ResponseWriter, r *http.Request) {
 		c.Err = err
 		return
 	}
+	listEmoji = filterIuinEmojisForUser(r.Context(), c.App.Srv().Store().GetInternalReplicaDB(), c.AppContext.Session().UserId, listEmoji)
 
 	if err := json.NewEncoder(w).Encode(listEmoji); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
@@ -147,6 +79,23 @@ func deleteEmoji(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 	auditRec.AddEventPriorState(emoji)
 	auditRec.AddEventObjectType("emoji")
+
+	var isUnified bool
+	if db := c.App.Srv().Store().GetInternalMasterDB(); db != nil {
+		if queryErr := db.QueryRowContext(r.Context(), `SELECT EXISTS (SELECT 1 FROM IuinEmojiAssets WHERE EmojiId = $1 AND DeleteAt = 0)`, emoji.Id).Scan(&isUnified); queryErr == nil && isUnified {
+			now := model.GetMillis()
+			if _, queryErr = db.ExecContext(r.Context(), `
+				UPDATE IuinUserEmojis
+				   SET DeleteAt = $3, UpdateAt = $3
+				 WHERE UserId = $1 AND EmojiId = $2 AND DeleteAt = 0`, c.AppContext.Session().UserId, emoji.Id, now); queryErr != nil {
+				c.Err = model.NewAppError("deleteEmoji", "api.iuin_emojis.storage_error", nil, "", http.StatusInternalServerError).Wrap(queryErr)
+				return
+			}
+			auditRec.Success()
+			ReturnStatusOK(w)
+			return
+		}
+	}
 
 	// Allow any user with DELETE_EMOJIS permission at Team level to delete emojis at system level
 	memberships, err := c.App.GetTeamMembersForUser(c.AppContext, c.AppContext.Session().UserId, "", true)
@@ -316,6 +265,7 @@ func searchEmojis(c *Context, w http.ResponseWriter, r *http.Request) {
 		c.Err = err
 		return
 	}
+	emojis = filterIuinEmojisForUser(r.Context(), c.App.Srv().Store().GetInternalReplicaDB(), c.AppContext.Session().UserId, emojis)
 
 	if err := json.NewEncoder(w).Encode(emojis); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
@@ -335,8 +285,49 @@ func autocompleteEmojis(c *Context, w http.ResponseWriter, r *http.Request) {
 		c.Err = err
 		return
 	}
+	emojis = filterIuinEmojisForUser(r.Context(), c.App.Srv().Store().GetInternalReplicaDB(), c.AppContext.Session().UserId, emojis)
 
 	if err := json.NewEncoder(w).Encode(emojis); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
+}
+
+// filterIuinEmojisForUser keeps legacy/global Mattermost emoji behavior while
+// restricting unified IUIN assets to the current user's private library. Direct
+// name/image resolution is intentionally not filtered because recipients must
+// still render emoji already present in messages and reactions.
+func filterIuinEmojisForUser(ctx context.Context, db *sql.DB, userID string, emojis []*model.Emoji) []*model.Emoji {
+	if db == nil || len(emojis) == 0 {
+		return emojis
+	}
+
+	rows, err := db.QueryContext(ctx, `
+		SELECT a.EmojiId, CASE WHEN ue.UserId IS NULL THEN FALSE ELSE TRUE END
+		  FROM IuinEmojiAssets a
+		  LEFT JOIN IuinUserEmojis ue
+		    ON ue.EmojiId = a.EmojiId AND ue.UserId = $1 AND ue.DeleteAt = 0
+		 WHERE a.DeleteAt = 0`, userID)
+	if err != nil {
+		return emojis
+	}
+	defer rows.Close()
+
+	visibility := map[string]bool{}
+	for rows.Next() {
+		var emojiID string
+		var visible bool
+		if err := rows.Scan(&emojiID, &visible); err != nil {
+			return emojis
+		}
+		visibility[emojiID] = visible
+	}
+
+	filtered := make([]*model.Emoji, 0, len(emojis))
+	for _, emoji := range emojis {
+		visible, unified := visibility[emoji.Id]
+		if !unified || visible {
+			filtered = append(filtered, emoji)
+		}
+	}
+	return filtered
 }

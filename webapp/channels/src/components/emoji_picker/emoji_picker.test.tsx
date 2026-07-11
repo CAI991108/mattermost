@@ -32,6 +32,7 @@ describe('components/emoji_picker/EmojiPicker', () => {
         actions: {
             getCustomEmojis: jest.fn(),
             incrementEmojiPickerPage: jest.fn(),
+            loadCustomEmojisIfNeeded: jest.fn(),
             searchCustomEmojis: jest.fn(),
             setUserSkinTone: jest.fn(),
         },
@@ -53,7 +54,7 @@ describe('components/emoji_picker/EmojiPicker', () => {
         expect(screen.queryByLabelText('Recent')).toBeNull();
     });
 
-    test('Recent category should exist if there are recent emojis', () => {
+    test('Legacy recent category should stay hidden when there are recent emojis', () => {
         const props = {
             ...baseProps,
             recentEmojis: ['smile'],
@@ -63,7 +64,7 @@ describe('components/emoji_picker/EmojiPicker', () => {
             <EmojiPicker {...props}/>,
         );
 
-        expect(screen.queryByLabelText('Recently Used')).not.toBeNull();
+        expect(screen.queryByLabelText('Recently Used')).toBeNull();
     });
 
     test('First emoji should be selected on search', () => {

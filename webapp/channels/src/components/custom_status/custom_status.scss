@@ -463,3 +463,44 @@ span.emoticon[style]:hover {
         }
     }
 }
+
+.StatusModal__private-emojis {
+    margin-top: 12px;
+}
+
+.StatusModal__private-emojis-title {
+    margin-bottom: 8px;
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.StatusModal__private-emojis-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.StatusModal__private-emoji {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+    border-radius: 8px;
+    background: transparent;
+
+    img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    &:hover,
+    &--selected {
+        border-color: var(--button-bg);
+        background: rgba(var(--button-bg-rgb), 0.08);
+    }
+}

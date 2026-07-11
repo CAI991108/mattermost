@@ -29,6 +29,8 @@ var validCustomStatusDuration = map[string]bool{
 
 type CustomStatus struct {
 	Emoji     string    `json:"emoji"`
+	IconType  string    `json:"icon_type,omitempty"`
+	IconID    string    `json:"icon_id,omitempty"`
 	Text      string    `json:"text"`
 	Duration  string    `json:"duration"`
 	ExpiresAt time.Time `json:"expires_at"`
@@ -74,7 +76,7 @@ func (rcs RecentCustomStatuses) Contains(cs *CustomStatus) (bool, error) {
 	}
 
 	// status is empty
-	if len(csJSON) == 0 || (cs.Emoji == "" && cs.Text == "") {
+	if len(csJSON) == 0 || (cs.Emoji == "" && cs.IconID == "" && cs.Text == "") {
 		return false, nil
 	}
 
@@ -117,7 +119,7 @@ func (rcs RecentCustomStatuses) Remove(cs *CustomStatus) (RecentCustomStatuses, 
 		return rcs, jsonErr
 	}
 
-	if len(csJSON) == 0 || (cs.Emoji == "" && cs.Text == "") {
+	if len(csJSON) == 0 || (cs.Emoji == "" && cs.IconID == "" && cs.Text == "") {
 		return rcs, nil
 	}
 

@@ -73,7 +73,7 @@ export class MobileSidebarRightItems extends React.PureComponent<Props> {
             />
         ));
 
-        const isCustomStatusSet = !this.props.isCustomStatusExpired && this.props.customStatus && ((this.props.customStatus.text && this.props.customStatus.text.length > 0) || (this.props.customStatus.emoji && this.props.customStatus.emoji.length > 0));
+        const isCustomStatusSet = !this.props.isCustomStatusExpired && this.props.customStatus && ((this.props.customStatus.text && this.props.customStatus.text.length > 0) || (this.props.customStatus.emoji && this.props.customStatus.emoji.length > 0) || Boolean(this.props.customStatus.icon_id));
         const shouldConfirmBeforeStatusChange = this.props.autoResetPref === '' && this.props.status === UserStatuses.OUT_OF_OFFICE;
 
         return (

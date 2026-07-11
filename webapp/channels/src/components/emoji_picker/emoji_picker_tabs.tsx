@@ -9,7 +9,7 @@ import type {Emoji} from '@mattermost/types/emojis';
 import EmojiPicker from 'components/emoji_picker';
 import EmojiPickerHeader from 'components/emoji_picker/components/emoji_picker_header';
 
-import type {IuinSticker} from 'utils/iuin_stickers';
+import type {IuinEmoji} from 'utils/iuin_emojis';
 
 export interface Props {
     onEmojiClose: () => void;
@@ -17,8 +17,8 @@ export interface Props {
     onAddCustomEmojiClick?: () => void;
     customEmojiButtonDisabled?: boolean;
     customEmojiButtonLabel?: ReactNode;
-    enableIuinStickers?: boolean;
-    onStickerClick?: (sticker: IuinSticker) => void;
+    enableIuinEmojiLibrary?: boolean;
+    onIuinEmojiClick?: (sticker: IuinEmoji) => void;
 }
 
 export default function EmojiPickerTabs(props: Props) {
@@ -38,8 +38,8 @@ export default function EmojiPickerTabs(props: Props) {
             <EmojiPicker
                 filter={filter}
                 onEmojiClick={props.onEmojiClick}
-                enableIuinStickers={props.enableIuinStickers}
-                onStickerClick={props.onStickerClick}
+                enableIuinEmojiLibrary={props.enableIuinEmojiLibrary}
+                onIuinEmojiClick={props.onIuinEmojiClick}
                 handleFilterChange={setFilter}
                 handleEmojiPickerClose={props.onEmojiClose}
                 customEmojiButtonDisabled={props.customEmojiButtonDisabled}

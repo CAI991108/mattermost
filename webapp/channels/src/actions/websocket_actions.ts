@@ -171,6 +171,7 @@ import {loadPlugin, loadPluginsIfNecessary, removePlugin} from 'plugins';
 import {getHistory} from 'utils/browser_history';
 import {ActionTypes, Constants, AnnouncementBarMessages, SocketEvents, UserStatuses, ModalIdentifiers, PageLoadContext} from 'utils/constants';
 import {getIntl} from 'utils/i18n';
+import {isIuinStatusImageToken} from 'utils/iuin_status_images';
 import {isEnterpriseLicense} from 'utils/license_utils';
 import {isChannelPopoutWindow} from 'utils/popouts/popout_windows';
 import {getSiteURL} from 'utils/url';
@@ -1440,7 +1441,9 @@ export async function handleUserUpdatedEvent(msg: WebSocketMessages.UserUpdated)
     const user = msg.data.user;
     if (user && user.props) {
         const customStatus = user.props.customStatus ? JSON.parse(user.props.customStatus) : undefined;
-        dispatch(loadCustomEmojisIfNeeded([customStatus?.emoji]));
+        if (customStatus?.emoji && !isIuinStatusImageToken(customStatus.emoji)) {
+            dispatch(loadCustomEmojisIfNeeded([customStatus.emoji]));
+        }
     }
 
     if (currentUser.id === user.id) {

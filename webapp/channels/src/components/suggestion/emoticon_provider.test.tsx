@@ -30,6 +30,7 @@ describe('components/EmoticonProvider', () => {
         ],
         ['thumbsup-custom', {name: 'thumbsup-custom', category: 'custom'}],
         ['lithuania-custom', {name: 'lithuania-custom', category: 'custom'}],
+        ['status_mql5sbyt_certificate', {name: 'status_mql5sbyt_certificate', category: 'custom'}],
     ]);
     const emojiMap = new EmojiMap(customEmojis);
 
@@ -87,6 +88,16 @@ describe('components/EmoticonProvider', () => {
         expect(resultsCallback).toHaveBeenCalled();
         const args = resultsCallback.mock.calls[0][0];
         expect(args.groups[0].items.length).toEqual(0);
+    });
+
+    it('should not suggest legacy status images as message emoji', () => {
+        mockedGetEmojiMap.mockReturnValue(emojiMap);
+        mockedGetRecentEmojisNames.mockReturnValue([]);
+
+        emoticonProvider.handlePretextChanged(':status_', resultsCallback);
+
+        const args = resultsCallback.mock.calls[0][0];
+        expect(args.groups[0].items.some((item: Emoji) => item.name.startsWith('status_'))).toBe(false);
     });
 
     it('should exclude blocklisted emojis from suggested emojis', () => {

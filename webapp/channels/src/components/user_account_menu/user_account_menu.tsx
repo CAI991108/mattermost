@@ -63,7 +63,7 @@ export default function UserAccountMenu(props: Props) {
         });
     }
 
-    const isCustomStatusSet = !props.isCustomStatusExpired && props.customStatus && (props.customStatus.text?.length > 0 || props.customStatus.emoji?.length > 0);
+    const isCustomStatusSet = !props.isCustomStatusExpired && props.customStatus && (props.customStatus.text?.length > 0 || props.customStatus.emoji?.length > 0 || Boolean(props.customStatus.icon_id));
     const shouldConfirmBeforeStatusChange = props.autoResetPref === '' && props.status === UserStatuses.OUT_OF_OFFICE;
 
     return (

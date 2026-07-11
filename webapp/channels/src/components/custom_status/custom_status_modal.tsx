@@ -13,11 +13,9 @@ import type {Emoji} from '@mattermost/types/emojis';
 import type {UserCustomStatus} from '@mattermost/types/users';
 import {CustomStatusDuration} from '@mattermost/types/users';
 
-import {createCustomEmoji} from 'mattermost-redux/actions/emojis';
 import {setCustomStatusInitialisationState} from 'mattermost-redux/actions/preferences';
 import {setCustomStatus, unsetCustomStatus} from 'mattermost-redux/actions/users';
 import {Preferences} from 'mattermost-redux/constants';
-import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
 
 import {loadCustomEmojisForRecentCustomStatuses} from 'actions/emoji_actions';
 import {closeModal} from 'actions/views/modals';
@@ -28,11 +26,14 @@ import useEmojiPicker from 'components/emoji_picker/use_emoji_picker';
 import EmojiIcon from 'components/widgets/icons/emoji_icon';
 
 import {Constants, ModalIdentifiers} from 'utils/constants';
+import type {IuinStatusImage} from 'utils/iuin_status_images';
+import {listIuinStatusImages, uploadIuinStatusImage} from 'utils/iuin_status_images';
 import {isKeyPressed} from 'utils/keyboard';
 
 import type {GlobalState} from 'types/store';
 
 import 'components/category_modal.scss';
+import CustomStatusIcon from './custom_status_icon';
 import './custom_status.scss';
 
 type Props = {
@@ -41,7 +42,6 @@ type Props = {
 
 const CUSTOM_STATUS_TEXT_CHARACTER_LIMIT = 80;
 const CUSTOM_STATUS_IMAGE_SIZE_LIMIT = 512 * 1024;
-const CUSTOM_STATUS_EMOJI_NAME_LIMIT = 64;
 
 type DefaultUserCustomStatus = {
     emoji: string;
@@ -88,34 +88,22 @@ const githubStatusSuggestions: DefaultUserCustomStatus[] = [
     },
 ];
 
-function createStatusEmojiName(filename: string): string {
-    const suffix = Date.now().toString(36);
-    const baseName = filename.
-        replace(/\.[^/.]+$/, '').
-        toLowerCase().
-        replace(/[^a-z0-9_+-]+/g, '_').
-        replace(/^_+|_+$/g, '') || 'image';
-    const prefix = `status_${suffix}_`;
-    const name = `${prefix}${baseName}`.slice(0, CUSTOM_STATUS_EMOJI_NAME_LIMIT).replace(/[_+-]+$/g, '');
-
-    return name || `status_${suffix}`;
-}
-
 const CustomStatusModal: React.FC<Props> = (props: Props) => {
     const getCustomStatus = useMemo(makeGetCustomStatus, []);
     const dispatch = useDispatch();
     const currentCustomStatus = useSelector(getCustomStatus);
     const customStatusExpired = useSelector((state: GlobalState) => isCustomStatusExpired(state, currentCustomStatus));
     const {formatMessage} = useIntl();
-    const currentUserId = useSelector(getCurrentUserId);
-    const isCurrentCustomStatusSet = !customStatusExpired && (currentCustomStatus?.text || currentCustomStatus?.emoji);
+    const isCurrentCustomStatusSet = !customStatusExpired && (currentCustomStatus?.text || currentCustomStatus?.emoji || currentCustomStatus?.icon_id);
     const [showEmojiPicker, setShowEmojiPicker] = useState<boolean>(false);
     const [text, setText] = useState<string>(isCurrentCustomStatusSet ? currentCustomStatus?.text : '');
     const [emoji, setEmoji] = useState<string>(isCurrentCustomStatusSet ? currentCustomStatus?.emoji : '');
+    const [statusEmojiId, setStatusEmojiId] = useState<string>(isCurrentCustomStatusSet ? currentCustomStatus?.icon_id || '' : '');
+    const [statusEmojis, setStatusEmojis] = useState<IuinStatusImage[]>([]);
     const [imageUploadError, setImageUploadError] = useState<string>('');
     const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
     const statusImageInputRef = useRef<HTMLInputElement | null>(null);
-    const isStatusSet = Boolean(emoji || text);
+    const isStatusSet = Boolean(emoji || statusEmojiId || text);
     const firstTimeModalOpened = useSelector(showStatusDropdownPulsatingDot);
     const inCustomEmojiPath = useRouteMatch('/:team/emoji');
 
@@ -153,6 +141,7 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
         handleCustomStatusInitializationState();
         loadCustomEmojisForRecentStatuses();
         handleStatusExpired();
+        listIuinStatusImages().then(setStatusEmojis).catch(() => undefined);
     }, []);
 
     useEffect(() => {
@@ -163,7 +152,9 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
 
     const handleSetStatus = () => {
         const customStatus: UserCustomStatus = {
-            emoji: emoji || 'speech_balloon',
+            emoji: statusEmojiId ? '' : emoji || 'speech_balloon',
+            icon_type: statusEmojiId ? 'status_emoji' : 'emoji',
+            icon_id: statusEmojiId,
             text: text.trim(),
             duration: DONT_CLEAR,
         };
@@ -177,6 +168,7 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
 
     function clearHandle() {
         setEmoji('');
+        setStatusEmojiId('');
         setText('');
     }
 
@@ -191,6 +183,7 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
         setShowEmojiPicker(false);
         const emojiName = ('short_name' in selectedEmoji) ? selectedEmoji.short_name : selectedEmoji.name;
         setEmoji(emojiName);
+        setStatusEmojiId('');
     };
 
     const handleTextChange = (event: React.ChangeEvent<HTMLInputElement>) => setText(event.target.value);
@@ -223,47 +216,29 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
             return;
         }
 
-        if (!currentUserId) {
-            setImageUploadError(formatMessage({
-                id: 'custom_status.image_upload_failed',
-                defaultMessage: 'Could not import the image as an emoji.',
-            }));
-            return;
-        }
-
         setIsUploadingImage(true);
         setImageUploadError('');
 
-        const emojiName = createStatusEmojiName(file.name);
         try {
-            const result = await dispatch(createCustomEmoji({
-                creator_id: currentUserId,
-                name: emojiName,
-            }, file) as any) as any;
-
-            if (result.error) {
-                setImageUploadError(result.error.message || formatMessage({
-                    id: 'custom_status.image_upload_failed',
-                    defaultMessage: 'Could not import the image as an emoji.',
-                }));
-                return;
-            }
-
-            setEmoji(result.data?.name || emojiName);
+            const statusImage = await uploadIuinStatusImage(file);
+            setStatusEmojis((current) => [statusImage, ...current.filter((item) => item.id !== statusImage.id)]);
+            setStatusEmojiId(statusImage.id);
+            setEmoji('');
             setShowEmojiPicker(false);
         } catch {
             setImageUploadError(formatMessage({
                 id: 'custom_status.image_upload_failed',
-                defaultMessage: 'Could not import the image as an emoji.',
+                defaultMessage: 'Could not upload the status image.',
             }));
         } finally {
             setIsUploadingImage(false);
         }
-    }, [currentUserId, dispatch, formatMessage]);
+    }, [formatMessage]);
 
-    const customStatusEmoji = emoji || text ? (
-        <RenderEmoji
+    const customStatusEmoji = emoji || statusEmojiId || text ? (
+        <CustomStatusIcon
             emojiName={emoji || 'speech_balloon'}
+            statusEmojiId={statusEmojiId}
             size={20}
         />
     ) : <EmojiIcon className={'icon icon--emoji'}/>;
@@ -287,8 +262,8 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
                     aria-hidden='true'
                 />
                 <FormattedMessage
-                    id='custom_status.upload_emoji'
-                    defaultMessage='Upload Emoji'
+                    id='custom_status.upload_status_image'
+                    defaultMessage='Upload Status Image'
                 />
             </>
         ),
@@ -298,6 +273,7 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
 
     const handleSuggestionClick = (status: UserCustomStatus) => {
         setEmoji(status.emoji);
+        setStatusEmojiId('');
         setText(status.text);
     };
 
@@ -425,6 +401,37 @@ const CustomStatusModal: React.FC<Props> = (props: Props) => {
                             role='alert'
                         >
                             {imageUploadError}
+                        </div>
+                    )}
+                    {statusEmojis.length > 0 && (
+                        <div className='StatusModal__private-emojis'>
+                            <div className='StatusModal__private-emojis-title'>
+                                <FormattedMessage
+                                    id='custom_status.my_status_emojis'
+                                    defaultMessage='My status emoji'
+                                />
+                            </div>
+                            <div className='StatusModal__private-emojis-grid'>
+                                {statusEmojis.map((statusEmoji) => (
+                                    <button
+                                        key={statusEmoji.id}
+                                        type='button'
+                                        className={classNames('StatusModal__private-emoji', {
+                                            'StatusModal__private-emoji--selected': statusEmojiId === statusEmoji.id,
+                                        })}
+                                        title={statusEmoji.id}
+                                        onClick={() => {
+                                            setStatusEmojiId(statusEmoji.id);
+                                            setEmoji('');
+                                        }}
+                                    >
+                                        <img
+                                            src={statusEmoji.imageUrl}
+                                            alt=''
+                                        />
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     )}
                     {suggestionChips}
