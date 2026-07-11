@@ -103,10 +103,11 @@ func uploadIuinEmoji(c *Context, w http.ResponseWriter, r *http.Request) {
 	}()
 
 	r.Body = http.MaxBytesReader(w, r.Body, iuinImageUploadReadLimit)
-	if err := r.ParseMultipartForm(iuinImageUploadReadLimit); err != nil {
+	if err := r.ParseMultipartForm(iuinImageMultipartMemory); err != nil {
 		c.Err = model.NewAppError("uploadIuinEmoji", "api.iuin_emojis.parse.app_error", nil, "", http.StatusBadRequest).Wrap(err)
 		return
 	}
+	defer r.MultipartForm.RemoveAll()
 
 	fileHeader := firstIuinImageUploadFile(r.MultipartForm)
 	if fileHeader == nil {
@@ -121,17 +122,17 @@ func uploadIuinEmoji(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	raw, err := io.ReadAll(io.LimitReader(file, iuinImageAssetMaxBytes+1))
+	raw, err := io.ReadAll(io.LimitReader(file, iuinEmojiUploadMaxBytes+1))
 	if err != nil {
 		c.Err = model.NewAppError("uploadIuinEmoji", "api.iuin_emojis.read.app_error", nil, "", http.StatusBadRequest).Wrap(err)
 		return
 	}
-	if len(raw) > iuinImageAssetMaxBytes {
+	if len(raw) > iuinEmojiUploadMaxBytes {
 		c.Err = model.NewAppError("uploadIuinEmoji", "api.iuin_emojis.too_large.app_error", nil, "", http.StatusRequestEntityTooLarge)
 		return
 	}
 
-	processed, err := processIuinImageAsset(raw)
+	processed, err := processIuinImageAsset(raw, iuinEmojiAssetMaxBytes)
 	if err != nil {
 		c.Err = model.NewAppError("uploadIuinEmoji", "api.iuin_emojis.process.app_error", nil, err.Error(), http.StatusBadRequest).Wrap(err)
 		return

@@ -120,7 +120,7 @@ func uploadIuinStatusImage(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	processed, err := processIuinImageAsset(data)
+	processed, err := processIuinImageAsset(data, iuinStatusImageMaxBytes)
 	if err != nil {
 		c.Err = model.NewAppError("uploadIuinStatusImage", "api.iuin_status_images.process.app_error", nil, err.Error(), http.StatusBadRequest).Wrap(err)
 		return
