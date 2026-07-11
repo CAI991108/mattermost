@@ -30,11 +30,14 @@ import (
 )
 
 const (
-	iuinImageAssetMaxBytes      = 5 * 1024 * 1024
-	iuinImageUploadReadLimit    = 25 * 1024 * 1024
+	iuinEmojiAssetMaxBytes      = 50 * 1024 * 1024
+	iuinEmojiUploadMaxBytes     = 256 * 1024 * 1024
+	iuinImageUploadReadLimit    = iuinEmojiUploadMaxBytes + (1 * 1024 * 1024)
+	iuinImageMultipartMemory    = 8 * 1024 * 1024
 	iuinRecentEmojiLimit        = 100
 	iuinImageMaxStaticDimension = 1024
 	iuinImageMaxGIFDimension    = 512
+	iuinImageMaxGIFFrames       = 70
 )
 
 type iuinRecentEmojiRequest struct {
@@ -197,9 +200,12 @@ func sanitizeIuinImageFilename(filename string) string {
 	return filename
 }
 
-func processIuinImageAsset(data []byte) (iuinImageAssetData, error) {
+func processIuinImageAsset(data []byte, maxBytes int) (iuinImageAssetData, error) {
 	if len(data) == 0 {
 		return iuinImageAssetData{}, errors.New("empty file")
+	}
+	if maxBytes <= 0 {
+		return iuinImageAssetData{}, errors.New("invalid output size limit")
 	}
 
 	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))
@@ -211,22 +217,22 @@ func processIuinImageAsset(data []byte) (iuinImageAssetData, error) {
 	}
 
 	if format == "gif" {
-		content, width, height, err := processIuinImageAssetGIF(data, cfg.Width, cfg.Height)
+		content, width, height, err := processIuinImageAssetGIF(data, cfg.Width, cfg.Height, maxBytes)
 		if err != nil {
 			return iuinImageAssetData{}, err
 		}
 		return makeIuinImageAssetData(content, "image/gif", width, height, "gif"), nil
 	}
 
-	content, mimeType, width, height, ext, err := processIuinImageAssetStatic(data, format, cfg.Width, cfg.Height)
+	content, mimeType, width, height, ext, err := processIuinImageAssetStatic(data, format, cfg.Width, cfg.Height, maxBytes)
 	if err != nil {
 		return iuinImageAssetData{}, err
 	}
 	return makeIuinImageAssetData(content, mimeType, width, height, ext), nil
 }
 
-func processIuinImageAssetStatic(data []byte, format string, width int, height int) ([]byte, string, int, int, string, error) {
-	if len(data) <= iuinImageAssetMaxBytes && maxInt(width, height) <= iuinImageMaxStaticDimension {
+func processIuinImageAssetStatic(data []byte, format string, width int, height int, maxBytes int) ([]byte, string, int, int, string, error) {
+	if len(data) <= maxBytes && maxInt(width, height) <= iuinImageMaxStaticDimension {
 		if mimeType, ext, ok := iuinImageFormatToMimeExt(format); ok {
 			return data, mimeType, width, height, ext, nil
 		}
@@ -254,7 +260,7 @@ func processIuinImageAssetStatic(data []byte, format string, width int, height i
 				return nil, "", 0, 0, "", fmt.Errorf("encode png: %w", err)
 			}
 			last = buf.Bytes()
-			if len(last) <= iuinImageAssetMaxBytes {
+			if len(last) <= maxBytes {
 				return last, "image/png", bounds.Dx(), bounds.Dy(), "png", nil
 			}
 		}
@@ -269,17 +275,40 @@ func processIuinImageAssetStatic(data []byte, format string, width int, height i
 				return nil, "", 0, 0, "", fmt.Errorf("encode jpeg: %w", err)
 			}
 			last = buf.Bytes()
-			if len(last) <= iuinImageAssetMaxBytes {
+			if len(last) <= maxBytes {
 				return last, "image/jpeg", bounds.Dx(), bounds.Dy(), "jpg", nil
 			}
 		}
 	}
 
-	return nil, "", 0, 0, "", fmt.Errorf("image is still larger than %d bytes after compression, last size %d bytes", iuinImageAssetMaxBytes, len(last))
+	// A valid static image must never fail solely because the first quality
+	// ladder did not reach the storage limit. Keep reducing to a tiny JPEG as a
+	// deterministic final fallback. Even a pathological 256 MiB source then
+	// produces a bounded asset instead of an avoidable upload error.
+	for targetMax := 64; targetMax >= 1; targetMax /= 2 {
+		candidate := imaging.Fit(img, targetMax, targetMax)
+		bounds := candidate.Bounds()
+		jpegImg := iuinFlattenImage(candidate)
+		for _, quality := range []int{50, 25, 10, 1} {
+			buf := &bytes.Buffer{}
+			if err := jpeg.Encode(buf, jpegImg, &jpeg.Options{Quality: quality}); err != nil {
+				return nil, "", 0, 0, "", fmt.Errorf("encode fallback jpeg: %w", err)
+			}
+			last = buf.Bytes()
+			if len(last) <= maxBytes {
+				return last, "image/jpeg", bounds.Dx(), bounds.Dy(), "jpg", nil
+			}
+		}
+		if targetMax == 1 {
+			break
+		}
+	}
+
+	return nil, "", 0, 0, "", fmt.Errorf("internal image encoder invariant failed: minimum output is %d bytes for a %d-byte limit", len(last), maxBytes)
 }
 
-func processIuinImageAssetGIF(data []byte, width int, height int) ([]byte, int, int, error) {
-	if len(data) <= iuinImageAssetMaxBytes && maxInt(width, height) <= iuinImageMaxGIFDimension {
+func processIuinImageAssetGIF(data []byte, width int, height int, maxBytes int) ([]byte, int, int, error) {
+	if len(data) <= maxBytes && maxInt(width, height) <= iuinImageMaxGIFDimension {
 		return data, width, height, nil
 	}
 
@@ -289,8 +318,16 @@ func processIuinImageAssetGIF(data []byte, width int, height int) ([]byte, int, 
 	}
 
 	baseMax := minInt(maxInt(width, height), iuinImageMaxGIFDimension)
-	frameSteps := []int{1, 2, 3, 4, 6}
-	scaleSteps := []float64{1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3}
+	firstFrameStep := maxInt(1, (len(src.Image)+iuinImageMaxGIFFrames-1)/iuinImageMaxGIFFrames)
+	frameSteps := []int{}
+	for frameStep := firstFrameStep; frameStep < len(src.Image); frameStep *= 2 {
+		frameSteps = append(frameSteps, frameStep)
+		if frameStep > len(src.Image)/2 {
+			break
+		}
+	}
+	frameSteps = append(frameSteps, maxInt(1, len(src.Image)))
+	scaleSteps := []float64{1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1}
 
 	var lastSize int
 	for _, frameStep := range frameSteps {
@@ -301,13 +338,25 @@ func processIuinImageAssetGIF(data []byte, width int, height int) ([]byte, int, 
 				return nil, 0, 0, err
 			}
 			lastSize = len(content)
-			if lastSize <= iuinImageAssetMaxBytes {
+			if lastSize <= maxBytes {
 				return content, outWidth, outHeight, nil
 			}
 		}
 	}
 
-	return nil, 0, 0, fmt.Errorf("gif is still larger than %d bytes after compression, last size %d bytes", iuinImageAssetMaxBytes, lastSize)
+	// Keeping the first and final composited frames at one pixel is the final
+	// animation-preserving fallback. With the supported storage limits this is
+	// deterministically small, so an otherwise valid GIF is never rejected just
+	// because an earlier frame/scale combination was too large.
+	content, outWidth, outHeight, err := encodeIuinImageAssetGIF(src, 1, maxInt(1, len(src.Image)))
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	if len(content) <= maxBytes {
+		return content, outWidth, outHeight, nil
+	}
+
+	return nil, 0, 0, fmt.Errorf("internal gif encoder invariant failed: minimum output is %d bytes for a %d-byte limit", len(content), maxBytes)
 }
 
 func encodeIuinImageAssetGIF(src *gif.GIF, targetMax int, frameStep int) ([]byte, int, int, error) {
