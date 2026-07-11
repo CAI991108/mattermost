@@ -7027,7 +7027,7 @@
   "user.settings.notifications.autoResponderEnabled": "已启用",
   "user.settings.notifications.autoResponderHint": "设置要在私信中自动回复的消息。公共或私有频道中的提及不会触发自动回复。开启自动回复会将您的状态设为外出办公，并停用邮件和推送通知。",
   "user.settings.notifications.autoResponderPlaceholder": "消息",
-  "user.settings.notifications.channelWide": "频道范围提及“@channel”,“@all”,“@here”",
+  "user.settings.notifications.channelWide": "频道范围提及“@all”,“@here”",
   "user.settings.notifications.comments": "回复通知",
   "user.settings.notifications.commentsAny": "在我发起或参与的回复话题中触发消息通知",
   "user.settings.notifications.commentsInfo": "除了您被提及的通知外，选择如果您想收到话题回复通知。",
