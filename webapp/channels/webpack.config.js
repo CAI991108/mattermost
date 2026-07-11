@@ -53,7 +53,10 @@ var config = {
         filename: '[name].[contenthash].js',
         chunkFilename: '[name].[contenthash].js',
         assetModuleFilename: 'files/[contenthash][ext]',
-        clean: true,
+
+        // In development, clients can keep a previous root/main bundle while the watcher rebuilds.
+        // Keep older hashed chunks available so those clients do not crash on lazy-loaded routes.
+        clean: !DEV,
     },
     module: {
         rules: [
