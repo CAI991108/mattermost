@@ -5,6 +5,7 @@ import type {IuinReadmeFile, IuinReadmeWorkspace} from './profile_data';
 import {
     IUIN_README_MAIN_FILE,
     getReadmeRelativePath,
+    moveReadmeEntry,
     parseIuinReadmeWorkspace,
     removeReadmeFile,
     removeReadmeFolder,
@@ -154,5 +155,53 @@ describe('IUIN README workspace file operations', () => {
 
         expect(parsed.activePath).toBe('docs/home.md');
         expect(parsed.files).toEqual(original.files);
+    });
+
+    test('reorders files before and after siblings', () => {
+        const original = workspace([
+            {...markdownFile('first.md'), sortOrder: 0},
+            {...markdownFile('second.md'), sortOrder: 1},
+            {...markdownFile('third.md'), sortOrder: 2},
+        ], 'first.md');
+
+        const result = moveReadmeEntry(original, 'third.md', 'first.md', 'before');
+
+        expect(result.changed).toBe(true);
+        expect(result.movedPath).toBe('third.md');
+        expect(result.workspace.files.
+            filter((file) => !file.path.includes('/')).
+            sort((first, second) => (first.sortOrder || 0) - (second.sortOrder || 0)).
+            map((file) => file.path)).toEqual(['third.md', 'first.md', 'second.md']);
+    });
+
+    test('moves a file into a folder and keeps the active document attached', () => {
+        const original = workspace([
+            {...markdownFile('home.md', '# Home'), sortOrder: 0},
+            {path: 'docs', content: '', type: 'folder', sortOrder: 1, updatedAt: 1},
+        ], 'home.md');
+
+        const result = moveReadmeEntry(original, 'home.md', 'docs', 'inside');
+
+        expect(result.changed).toBe(true);
+        expect(result.movedPath).toBe('docs/home.md');
+        expect(result.workspace.activePath).toBe('docs/home.md');
+        expect(result.workspace.files.some((file) => file.path === 'docs/home.md')).toBe(true);
+    });
+
+    test('moves a folder with its descendants and rejects moving it into itself', () => {
+        const original = workspace([
+            {path: 'docs', content: '', type: 'folder', sortOrder: 0, updatedAt: 1},
+            markdownFile('docs/home.md', '# Home'),
+            {path: 'archive', content: '', type: 'folder', sortOrder: 1, updatedAt: 1},
+        ], 'docs/home.md');
+
+        const moved = moveReadmeEntry(original, 'docs', 'archive', 'inside');
+        const rejected = moveReadmeEntry(original, 'docs', 'docs/home.md', 'after');
+
+        expect(moved.movedPath).toBe('archive/docs');
+        expect(moved.workspace.activePath).toBe('archive/docs/home.md');
+        expect(moved.workspace.files.some((file) => file.path === 'archive/docs/home.md')).toBe(true);
+        expect(rejected.changed).toBe(false);
+        expect(rejected.reason).toBe('invalid');
     });
 });

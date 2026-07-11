@@ -37,6 +37,9 @@ export type IuinReadmeFile = {
     path: string;
     content: string;
     type: 'markdown' | 'text' | 'asset' | 'folder';
+    mimeType?: string;
+    sizeBytes?: number;
+    sortOrder?: number;
     updatedAt: number;
 };
 
@@ -45,6 +48,15 @@ export type IuinReadmeWorkspace = {
     activePath: string;
     githubRenderedHtml?: string;
     files: IuinReadmeFile[];
+};
+
+export type IuinReadmeMovePosition = 'before' | 'after' | 'inside';
+
+export type IuinReadmeMoveResult = {
+    workspace: IuinReadmeWorkspace;
+    movedPath: string;
+    changed: boolean;
+    reason?: 'invalid' | 'conflict';
 };
 
 export type IuinAcademicEntry = {
@@ -236,7 +248,7 @@ export function getReadmeRelativePath(fromDirectory: string, targetPath: string)
     ].join('/');
 }
 
-export function setReadmeFileContent(workspace: IuinReadmeWorkspace, path: string, content: string, type?: IuinReadmeFile['type']): IuinReadmeWorkspace {
+export function setReadmeFileContent(workspace: IuinReadmeWorkspace, path: string, content: string, type?: IuinReadmeFile['type'], metadata?: Pick<IuinReadmeFile, 'mimeType' | 'sizeBytes' | 'sortOrder'>): IuinReadmeWorkspace {
     const nextPath = sanitizeReadmePath(path) || IUIN_README_MAIN_FILE;
     const existing = workspace.files.find((file) => file.path === nextPath);
 
@@ -247,6 +259,9 @@ export function setReadmeFileContent(workspace: IuinReadmeWorkspace, path: strin
             path: nextPath,
             content,
             type: type || existing?.type || getReadmeFileType(nextPath, content),
+            mimeType: metadata?.mimeType ?? existing?.mimeType,
+            sizeBytes: metadata?.sizeBytes ?? existing?.sizeBytes,
+            sortOrder: metadata?.sortOrder ?? existing?.sortOrder ?? getNextReadmeSiblingSortOrder(workspace.files, nextPath),
             updatedAt: Date.now(),
         }),
     };
@@ -381,6 +396,89 @@ export function renameReadmeFolder(workspace: IuinReadmeWorkspace, previousFolde
     };
 }
 
+export function moveReadmeEntry(workspace: IuinReadmeWorkspace, sourcePath: string, targetPath: string, position: IuinReadmeMovePosition): IuinReadmeMoveResult {
+    const normalizedSource = sanitizeReadmePath(sourcePath);
+    const normalizedTarget = sanitizeReadmePath(targetPath);
+    const files = materializeReadmeFolders(workspace.files);
+    const source = files.find((file) => file.path === normalizedSource);
+    const target = normalizedTarget ? files.find((file) => file.path === normalizedTarget) : undefined;
+    if (!source || normalizedSource === normalizedTarget || (position !== 'inside' && !target) || (position === 'inside' && normalizedTarget && target?.type !== 'folder')) {
+        return {workspace, movedPath: normalizedSource, changed: false, reason: 'invalid'};
+    }
+
+    if (source.type === 'folder' && normalizedTarget && isPathInsideReadmeFolder(normalizedTarget, normalizedSource)) {
+        return {workspace, movedPath: normalizedSource, changed: false, reason: 'invalid'};
+    }
+
+    const destinationDirectory = position === 'inside' ? normalizedTarget : getReadmeParentPath(normalizedTarget);
+    const movedPath = [destinationDirectory, getReadmePathBasename(normalizedSource)].filter(Boolean).join('/');
+    const isSourceEntry = (path: string) => {
+        return source.type === 'folder' ? isPathInsideReadmeFolder(path, normalizedSource) : path === normalizedSource;
+    };
+    if (movedPath !== normalizedSource && files.some((file) => !isSourceEntry(file.path) && file.path === movedPath)) {
+        return {workspace, movedPath: normalizedSource, changed: false, reason: 'conflict'};
+    }
+
+    const now = Date.now();
+    let movedFiles = files.map((file) => {
+        if (!isSourceEntry(file.path)) {
+            return file;
+        }
+
+        const nextPath = file.path === normalizedSource ? movedPath : `${movedPath}${file.path.slice(normalizedSource.length)}`;
+        return {
+            ...file,
+            path: nextPath,
+            updatedAt: now,
+        };
+    });
+
+    const sourceParent = getReadmeParentPath(normalizedSource);
+    if (sourceParent !== destinationDirectory) {
+        movedFiles = reindexReadmeSiblings(movedFiles, sourceParent);
+    }
+
+    const siblingPaths = getOrderedReadmeSiblingPaths(movedFiles, destinationDirectory).filter((path) => path !== movedPath);
+    if (position === 'inside') {
+        siblingPaths.push(movedPath);
+    } else {
+        const targetIndex = siblingPaths.indexOf(normalizedTarget);
+        if (targetIndex < 0) {
+            return {workspace, movedPath: normalizedSource, changed: false, reason: 'invalid'};
+        }
+        siblingPaths.splice(position === 'after' ? targetIndex + 1 : targetIndex, 0, movedPath);
+    }
+
+    const sortOrderByPath = new Map(siblingPaths.map((path, index) => [path, index]));
+    movedFiles = movedFiles.map((file) => {
+        if (getReadmeParentPath(file.path) !== destinationDirectory) {
+            return file;
+        }
+
+        return {
+            ...file,
+            sortOrder: sortOrderByPath.get(file.path) ?? file.sortOrder,
+        };
+    });
+
+    let activePath = workspace.activePath;
+    if (isSourceEntry(workspace.activePath)) {
+        activePath = workspace.activePath === normalizedSource ? movedPath : `${movedPath}${workspace.activePath.slice(normalizedSource.length)}`;
+    }
+    const changed = movedPath !== normalizedSource || files.some((file) => movedFiles.find((candidate) => candidate.path === file.path)?.sortOrder !== file.sortOrder);
+
+    return {
+        workspace: {
+            ...workspace,
+            activePath,
+            githubRenderedHtml: activePath === workspace.activePath ? workspace.githubRenderedHtml : '',
+            files: movedFiles,
+        },
+        movedPath,
+        changed,
+    };
+}
+
 export function renderIuinReadmeMarkdown(markdown: string): string {
     const html = marked(markdown || '', {
         breaks: true,
@@ -493,7 +591,7 @@ function ensureReadmeMainDocument(files: IuinReadmeFile[], fallbackFile: IuinRea
         return files;
     }
 
-    return upsertReadmeFile(files, fallbackFile);
+    return [fallbackFile, ...files];
 }
 
 function getReadmeMainDocumentPath(files: IuinReadmeFile[], preferredPath?: string): string {
@@ -533,6 +631,9 @@ function normalizeReadmeFile(file: Partial<IuinReadmeFile> | null | undefined): 
         path,
         content: normalizedContent,
         type,
+        mimeType: typeof file.mimeType === 'string' ? file.mimeType : undefined,
+        sizeBytes: typeof file.sizeBytes === 'number' ? file.sizeBytes : undefined,
+        sortOrder: typeof file.sortOrder === 'number' ? file.sortOrder : undefined,
         updatedAt: typeof file.updatedAt === 'number' ? file.updatedAt : Date.now(),
     };
 }
@@ -586,17 +687,105 @@ function upsertReadmeFile(files: IuinReadmeFile[], nextFile: IuinReadmeFile): Iu
         nextFiles.push(normalizedFile);
     }
 
-    return nextFiles.sort((first, second) => {
-        if (first.path === IUIN_README_MAIN_FILE) {
-            return -1;
+    return nextFiles;
+}
+
+function materializeReadmeFolders(files: IuinReadmeFile[]): IuinReadmeFile[] {
+    const explicitFolders = new Map(files.filter((file) => file.type === 'folder').map((file) => [file.path, file]));
+    const result: IuinReadmeFile[] = [];
+    const added = new Set<string>();
+
+    const ensureFolder = (folderPath: string) => {
+        const normalizedFolder = sanitizeReadmePath(folderPath);
+        if (!normalizedFolder || added.has(normalizedFolder)) {
+            return;
         }
 
-        if (second.path === IUIN_README_MAIN_FILE) {
-            return 1;
+        ensureFolder(getReadmeParentPath(normalizedFolder));
+        const existing = explicitFolders.get(normalizedFolder);
+        result.push(existing || {
+            path: normalizedFolder,
+            content: '',
+            type: 'folder',
+            updatedAt: Date.now(),
+        });
+        added.add(normalizedFolder);
+    };
+
+    files.forEach((file) => {
+        if (file.type === 'folder') {
+            ensureFolder(file.path);
+            return;
         }
 
-        return first.path.localeCompare(second.path);
+        ensureFolder(getReadmeParentPath(file.path));
+        if (!added.has(file.path)) {
+            result.push(file);
+            added.add(file.path);
+        }
     });
+
+    return result;
+}
+
+function getOrderedReadmeSiblingPaths(files: IuinReadmeFile[], parentPath: string): string[] {
+    return files.
+        map((file, index) => ({file, index})).
+        filter(({file}) => getReadmeParentPath(file.path) === parentPath).
+        sort((first, second) => {
+            const firstOrder = first.file.sortOrder ?? first.index;
+            const secondOrder = second.file.sortOrder ?? second.index;
+            if (firstOrder !== secondOrder) {
+                return firstOrder - secondOrder;
+            }
+
+            return first.index - second.index;
+        }).
+        map(({file}) => file.path);
+}
+
+function reindexReadmeSiblings(files: IuinReadmeFile[], parentPath: string): IuinReadmeFile[] {
+    const orderedPaths = getOrderedReadmeSiblingPaths(files, parentPath);
+    const sortOrderByPath = new Map(orderedPaths.map((path, index) => [path, index]));
+
+    return files.map((file) => {
+        if (getReadmeParentPath(file.path) !== parentPath) {
+            return file;
+        }
+
+        return {
+            ...file,
+            sortOrder: sortOrderByPath.get(file.path) ?? file.sortOrder,
+        };
+    });
+}
+
+function getReadmeParentPath(path: string): string {
+    const parts = sanitizeReadmePath(path).split('/').filter(Boolean);
+    parts.pop();
+
+    return parts.join('/');
+}
+
+function getNextReadmeSiblingSortOrder(files: IuinReadmeFile[], path: string): number {
+    const parentPath = getReadmeParentPath(path);
+    const siblingOrders = files.
+        map((file, index) => ({file, index})).
+        filter(({file}) => getReadmeParentPath(file.path) === parentPath).
+        map(({file, index}) => file.sortOrder ?? index);
+
+    return siblingOrders.length > 0 ? Math.max(...siblingOrders) + 1 : 0;
+}
+
+function getReadmePathBasename(path: string): string {
+    return sanitizeReadmePath(path).split('/').filter(Boolean).pop() || '';
+}
+
+function isPathInsideReadmeFolder(path: string, folderPath: string): boolean {
+    const normalizedPath = sanitizeReadmePath(path);
+    const normalizedFolder = sanitizeReadmePath(folderPath);
+
+    return Boolean(normalizedFolder) && (normalizedPath === normalizedFolder || normalizedPath.startsWith(`${normalizedFolder}/`));
 }
 
 function sanitizeReadmePath(path: string): string {

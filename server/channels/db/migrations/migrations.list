@@ -397,3 +397,5 @@ channels/db/migrations/postgres/000199_unify_iuin_emoji_assets.down.sql
 channels/db/migrations/postgres/000199_unify_iuin_emoji_assets.up.sql
 channels/db/migrations/postgres/000200_drop_legacy_iuin_stickers.down.sql
 channels/db/migrations/postgres/000200_drop_legacy_iuin_stickers.up.sql
+channels/db/migrations/postgres/000201_add_iuin_profile_entry_sort_order.down.sql
+channels/db/migrations/postgres/000201_add_iuin_profile_entry_sort_order.up.sql

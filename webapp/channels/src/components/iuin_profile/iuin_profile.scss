@@ -15058,3 +15058,38 @@ body.app__body:has(.iuin-profile-page--customization-only) *::-webkit-scrollbar 
 .iuin-readme-workbench__tree-document-row.menu-open {
     background: var(--iuin-readme-channel-surface-hover, rgba(var(--center-channel-color-rgb), 0.08));
 }
+
+.iuin-readme-workbench__tree-file-row.is-dragging {
+    opacity: 0.42;
+}
+
+.iuin-readme-workbench__tree-file-row.drop-before::before,
+.iuin-readme-workbench__tree-file-row.drop-after::after {
+    position: absolute;
+    z-index: 4;
+    right: 6px;
+    left: 6px;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--button-bg, #1c58d9);
+    content: '';
+    pointer-events: none;
+}
+
+.iuin-readme-workbench__tree-file-row.drop-before::before {
+    top: -1px;
+}
+
+.iuin-readme-workbench__tree-file-row.drop-after::after {
+    bottom: -1px;
+}
+
+.iuin-readme-workbench__tree-file-row.drop-inside {
+    background: rgba(var(--button-bg-rgb, 28, 88, 217), 0.12);
+    box-shadow: inset 0 0 0 1px var(--button-bg, #1c58d9);
+}
+
+.iuin-readme-workbench__file-list.drop-inside {
+    border-radius: 6px;
+    box-shadow: inset 0 0 0 1px var(--button-bg, #1c58d9);
+}
