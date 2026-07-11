@@ -1052,26 +1052,32 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
     const hasAvatarFrame = Boolean(honorSummary?.avatarFrame);
     const avatarStatusClassName = `iuin-profile-avatar-status${avatarStatus?.text ? ' iuin-profile-avatar-status--has-text' : ''}${canEdit ? ' iuin-profile-avatar-status--clickable' : ''}`;
     const avatarStatusLabel = avatarStatus?.text || (canEdit ? 'Set status' : undefined);
-    const avatarStatusContent = avatarStatus && (
+    let avatarStatusIcon = <i className='icon icon-emoticon-plus-outline'/>;
+    if (avatarStatus?.image) {
+        avatarStatusIcon = (
+            <img
+                className='iuin-profile-avatar-status__image'
+                src={avatarStatus.image}
+                alt=''
+            />
+        );
+    } else if (avatarStatus) {
+        avatarStatusIcon = (
+            <RenderEmoji
+                emojiName={avatarStatus.emoji}
+                size={20}
+            />
+        );
+    }
+    const avatarStatusContent = (
         <>
             <span
                 className='iuin-profile-avatar-status__icon'
                 aria-hidden='true'
             >
-                {avatarStatus.image ? (
-                    <img
-                        className='iuin-profile-avatar-status__image'
-                        src={avatarStatus.image}
-                        alt=''
-                    />
-                ) : (
-                    <RenderEmoji
-                        emojiName={avatarStatus.emoji}
-                        size={20}
-                    />
-                )}
+                {avatarStatusIcon}
             </span>
-            {avatarStatus.text && (
+            {avatarStatus?.text && (
                 <span className='iuin-profile-avatar-status__text'>
                     {avatarStatus.text}
                 </span>
@@ -1168,12 +1174,12 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
                                 </button>
                             </>
                         )}
-                        {avatarStatus && canEdit && (
+                        {canEdit && (
                             <button
                                 type='button'
                                 className={avatarStatusClassName}
                                 aria-label={avatarStatusLabel}
-                                title={avatarStatus.text || undefined}
+                                title={avatarStatus?.text || avatarStatusLabel}
                                 onClick={openAvatarStatusModal}
                             >
                                 {avatarStatusContent}
