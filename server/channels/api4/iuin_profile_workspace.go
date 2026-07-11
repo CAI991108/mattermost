@@ -47,6 +47,7 @@ type iuinProfileFilePayload struct {
 	SizeBytes  int64  `json:"sizeBytes,omitempty"`
 	SHA256     string `json:"sha256,omitempty"`
 	StorageKey string `json:"storageKey,omitempty"`
+	SortOrder  int64  `json:"sortOrder"`
 	UpdatedAt  int64  `json:"updatedAt"`
 }
 
@@ -71,6 +72,7 @@ type iuinProfileEntryRow struct {
 	SizeBytes   int64
 	SHA256      string
 	StorageKey  string
+	SortOrder   int64
 	CreateAt    int64
 	UpdateAt    int64
 }
@@ -169,6 +171,7 @@ func readIuinProfileWorkspace(c *Context, ctx context.Context, userID string) (*
 			SizeBytes:  row.SizeBytes,
 			SHA256:     row.SHA256,
 			StorageKey: row.StorageKey,
+			SortOrder:  row.SortOrder,
 			UpdatedAt:  row.UpdateAt,
 		}
 
@@ -246,10 +249,10 @@ func saveIuinProfileWorkspace(c *Context, ctx context.Context, userID string, pa
 	for _, entry := range pending {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO IuinProfileEntries
-				(Id, WorkspaceId, ParentId, Path, Name, Type, MimeType, SizeBytes, Sha256, StorageKey, CreateAt, UpdateAt)
+				(Id, WorkspaceId, ParentId, Path, Name, Type, MimeType, SizeBytes, Sha256, StorageKey, SortOrder, CreateAt, UpdateAt)
 			VALUES
-				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-		`, entry.ID, entry.WorkspaceID, entry.ParentID, entry.Path, entry.Name, entry.Type, entry.MimeType, entry.SizeBytes, entry.SHA256, entry.StorageKey, entry.CreateAt, entry.UpdateAt); err != nil {
+				($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		`, entry.ID, entry.WorkspaceID, entry.ParentID, entry.Path, entry.Name, entry.Type, entry.MimeType, entry.SizeBytes, entry.SHA256, entry.StorageKey, entry.SortOrder, entry.CreateAt, entry.UpdateAt); err != nil {
 			return nil, newIuinProfileWorkspaceAppError("saveIuinProfileWorkspace.insertEntry", http.StatusInternalServerError, err)
 		}
 	}
@@ -322,10 +325,10 @@ func selectIuinProfileEntries(ctx context.Context, db interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }, workspaceID string) ([]iuinProfileEntryRow, *model.AppError) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT Id, WorkspaceId, ParentId, Path, Name, Type, MimeType, SizeBytes, Sha256, StorageKey, CreateAt, UpdateAt
+		SELECT Id, WorkspaceId, ParentId, Path, Name, Type, MimeType, SizeBytes, Sha256, StorageKey, SortOrder, CreateAt, UpdateAt
 		FROM IuinProfileEntries
 		WHERE WorkspaceId = $1
-		ORDER BY Path ASC
+		ORDER BY ParentId ASC, SortOrder ASC, Path ASC
 	`, workspaceID)
 	if err != nil {
 		return nil, newIuinProfileWorkspaceAppError("selectIuinProfileEntries", http.StatusInternalServerError, err)
@@ -335,7 +338,7 @@ func selectIuinProfileEntries(ctx context.Context, db interface {
 	entries := []iuinProfileEntryRow{}
 	for rows.Next() {
 		var entry iuinProfileEntryRow
-		if err := rows.Scan(&entry.ID, &entry.WorkspaceID, &entry.ParentID, &entry.Path, &entry.Name, &entry.Type, &entry.MimeType, &entry.SizeBytes, &entry.SHA256, &entry.StorageKey, &entry.CreateAt, &entry.UpdateAt); err != nil {
+		if err := rows.Scan(&entry.ID, &entry.WorkspaceID, &entry.ParentID, &entry.Path, &entry.Name, &entry.Type, &entry.MimeType, &entry.SizeBytes, &entry.SHA256, &entry.StorageKey, &entry.SortOrder, &entry.CreateAt, &entry.UpdateAt); err != nil {
 			return nil, newIuinProfileWorkspaceAppError("selectIuinProfileEntries.scan", http.StatusInternalServerError, err)
 		}
 		entries = append(entries, entry)
@@ -355,6 +358,13 @@ func normalizeIuinProfileWorkspacePayload(userID string, workspaceID string, now
 	rootName := sanitizeIuinProfileRootName(payload.RootName)
 	githubRenderedHTML := payload.GitHubRenderedHTML
 	pendingByPath := map[string]*pendingIuinProfileEntry{}
+	hasExplicitSortOrder := false
+	for _, file := range payload.Files {
+		if file.SortOrder != 0 {
+			hasExplicitSortOrder = true
+			break
+		}
+	}
 
 	var ensureFolder func(folderPath string) *pendingIuinProfileEntry
 	ensureFolder = func(folderPath string) *pendingIuinProfileEntry {
@@ -390,6 +400,7 @@ func normalizeIuinProfileWorkspacePayload(userID string, workspaceID string, now
 			Path:        folderPath,
 			Name:        pathpkg.Base(folderPath),
 			Type:        "folder",
+			SortOrder:   int64(len(pendingByPath)),
 			CreateAt:    createAt,
 			UpdateAt:    now,
 		}}
@@ -397,7 +408,7 @@ func normalizeIuinProfileWorkspacePayload(userID string, workspaceID string, now
 		return entry
 	}
 
-	for _, file := range payload.Files {
+	for fileIndex, file := range payload.Files {
 		entryPath := sanitizeIuinProfileWorkspacePath(file.Path)
 		if entryPath == "" {
 			continue
@@ -418,7 +429,13 @@ func normalizeIuinProfileWorkspacePayload(userID string, workspaceID string, now
 		}
 
 		if entryType == "folder" {
-			ensureFolder(entryPath)
+			folder := ensureFolder(entryPath)
+			if folder != nil {
+				folder.SortOrder = file.SortOrder
+				if !hasExplicitSortOrder {
+					folder.SortOrder = int64(fileIndex)
+				}
+			}
 			continue
 		}
 
@@ -456,10 +473,14 @@ func normalizeIuinProfileWorkspacePayload(userID string, workspaceID string, now
 				SizeBytes:   int64(len(content)),
 				SHA256:      fmt.Sprintf("%x", sum),
 				StorageKey:  iuinProfileEntryStorageKey(userID, workspaceID, entryID),
+				SortOrder:   file.SortOrder,
 				CreateAt:    createAt,
 				UpdateAt:    updateAt,
 			},
 			Content: content,
+		}
+		if !hasExplicitSortOrder {
+			pendingByPath[entryPath].SortOrder = int64(fileIndex)
 		}
 	}
 
@@ -477,6 +498,12 @@ func normalizeIuinProfileWorkspacePayload(userID string, workspaceID string, now
 		pending = append(pending, *entry)
 	}
 	sort.Slice(pending, func(i, j int) bool {
+		if pending[i].ParentID != pending[j].ParentID {
+			return pending[i].ParentID < pending[j].ParentID
+		}
+		if pending[i].SortOrder != pending[j].SortOrder {
+			return pending[i].SortOrder < pending[j].SortOrder
+		}
 		return pending[i].Path < pending[j].Path
 	})
 
@@ -690,12 +717,17 @@ func iuinProfileEntryStorageKey(userID string, workspaceID string, entryID strin
 
 func isIuinProfileAssetPath(entryPath string) bool {
 	lower := strings.ToLower(entryPath)
-	return strings.HasSuffix(lower, ".gif") ||
-		strings.HasSuffix(lower, ".png") ||
-		strings.HasSuffix(lower, ".jpg") ||
-		strings.HasSuffix(lower, ".jpeg") ||
-		strings.HasSuffix(lower, ".webp") ||
-		strings.HasSuffix(lower, ".svg")
+	assetExtensions := []string{
+		".7z", ".avif", ".bmp", ".doc", ".docx", ".gif", ".gz", ".ico", ".jpeg", ".jpg",
+		".mp3", ".mp4", ".ods", ".odt", ".pdf", ".png", ".ppt", ".pptx", ".rar", ".svg",
+		".tar", ".wav", ".webm", ".webp", ".xls", ".xlsx", ".zip",
+	}
+	for _, extension := range assetExtensions {
+		if strings.HasSuffix(lower, extension) {
+			return true
+		}
+	}
+	return false
 }
 
 func firstNonEmpty(values ...string) string {

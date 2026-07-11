@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import type {ChangeEvent, Dispatch, KeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, SetStateAction} from 'react';
+import type {ChangeEvent, Dispatch, DragEvent as ReactDragEvent, KeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, SetStateAction} from 'react';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import {FormattedMessage, useIntl} from 'react-intl';
@@ -53,6 +53,8 @@ import {
     getReadmeRootName,
     IUIN_README_MAIN_FILE,
     isReadmeMainDocumentCandidate,
+    type IuinReadmeMovePosition,
+    moveReadmeEntry,
     type IuinProfileData,
     type IuinReadmeFile,
     type IuinReadmeWorkspace,
@@ -68,6 +70,7 @@ import {
     setReadmeMainDocument,
     splitProfileList,
 } from './profile_data';
+import {createIuinReadmeFileFromUpload, isIuinReadmeImageFile} from './readme_upload';
 import {useIuinJoinedTeamLabels} from './use_joined_channels';
 
 import './iuin_profile.scss';
@@ -239,6 +242,7 @@ type ReadmeFileTreeNode = {
     name: string;
     path: string;
     type: 'folder' | 'file';
+    sortOrder: number;
     children: ReadmeFileTreeNode[];
     file?: IuinReadmeFile;
 };
@@ -2325,11 +2329,22 @@ function getReadmeBasename(path: string): string {
     return path.split('/').filter(Boolean).pop() || path;
 }
 
-function createReadmeFolderNode(name: string, path: string): ReadmeFileTreeNode {
+function getReadmeTreeDropPosition(event: ReactDragEvent<HTMLElement>, nodeType: ReadmeFileTreeNode['type']): IuinReadmeMovePosition {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = rect.height > 0 ? (event.clientY - rect.top) / rect.height : 0.5;
+    if (nodeType === 'folder' && ratio >= 0.25 && ratio <= 0.75) {
+        return 'inside';
+    }
+
+    return ratio < 0.5 ? 'before' : 'after';
+}
+
+function createReadmeFolderNode(name: string, path: string, sortOrder = Number.MAX_SAFE_INTEGER): ReadmeFileTreeNode {
     return {
         name,
         path,
         type: 'folder',
+        sortOrder,
         children: [],
     };
 }
@@ -2337,6 +2352,10 @@ function createReadmeFolderNode(name: string, path: string): ReadmeFileTreeNode 
 function createReadmeFileTree(files: IuinReadmeFile[]): ReadmeFileTreeNode[] {
     const root = createReadmeFolderNode('', '');
     const folders = new Map<string, ReadmeFileTreeNode>([['', root]]);
+    const folderFiles = new Map(files.filter((file) => file.type === 'folder').map((file, index) => [file.path, {
+        file,
+        index,
+    }]));
 
     const ensureFolder = (path: string): ReadmeFileTreeNode => {
         const parts = normalizeReadmeRelativePath(path).split('/').filter(Boolean);
@@ -2346,7 +2365,8 @@ function createReadmeFileTree(files: IuinReadmeFile[]): ReadmeFileTreeNode[] {
             currentPath = [currentPath, part].filter(Boolean).join('/');
             let folder = folders.get(currentPath);
             if (!folder) {
-                folder = createReadmeFolderNode(part, currentPath);
+                const folderFile = folderFiles.get(currentPath);
+                folder = createReadmeFolderNode(part, currentPath, folderFile?.file.sortOrder ?? folderFile?.index);
                 folders.set(currentPath, folder);
                 parent.children.push(folder);
             }
@@ -2356,7 +2376,7 @@ function createReadmeFileTree(files: IuinReadmeFile[]): ReadmeFileTreeNode[] {
         return parent;
     };
 
-    files.forEach((file) => {
+    files.forEach((file, index) => {
         const path = normalizeReadmeRelativePath(file.path);
         const parts = path.split('/').filter(Boolean);
         if (parts.length === 0) {
@@ -2373,6 +2393,7 @@ function createReadmeFileTree(files: IuinReadmeFile[]): ReadmeFileTreeNode[] {
             name: parts[parts.length - 1],
             path,
             type: 'file',
+            sortOrder: file.sortOrder ?? index,
             children: [],
             file,
         });
@@ -2380,15 +2401,8 @@ function createReadmeFileTree(files: IuinReadmeFile[]): ReadmeFileTreeNode[] {
 
     const sortNodes = (nodes: ReadmeFileTreeNode[]) => {
         nodes.sort((a, b) => {
-            if (a.type !== b.type) {
-                return a.type === 'folder' ? -1 : 1;
-            }
-
-            if (a.path === IUIN_README_MAIN_FILE) {
-                return -1;
-            }
-            if (b.path === IUIN_README_MAIN_FILE) {
-                return 1;
+            if (a.sortOrder !== b.sortOrder) {
+                return a.sortOrder - b.sortOrder;
             }
 
             return a.name.localeCompare(b.name, undefined, {sensitivity: 'base'});
@@ -2505,7 +2519,7 @@ function getReadmeFileIcon(file: IuinReadmeFile): string {
         return 'icon-file-text-outline';
     }
 
-    if (file.type === 'asset') {
+    if (file.type === 'asset' && isIuinReadmeImageFile(file)) {
         return 'icon-image-outline';
     }
 
@@ -2519,16 +2533,7 @@ function getUploadedReadmePath(file: File, targetDirectory = ''): string {
         return `${normalizedDirectory}/${safeName}`;
     }
 
-    return file.type.startsWith('image/') ? `assets/${safeName}` : safeName;
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject(reader.error || new Error('Could not read file.'));
-        reader.readAsDataURL(file);
-    });
+    return isIuinReadmeImageFile({path: safeName, mimeType: file.type}) ? `assets/${safeName}` : safeName;
 }
 
 function parseGitHubRepositoryUrl(value: string): GitHubRepositoryReference | null {
@@ -3094,6 +3099,11 @@ type ReadmeTreeMenu = {
     path: string;
 };
 
+type ReadmeTreeDropTarget = {
+    path: string;
+    position: IuinReadmeMovePosition;
+};
+
 function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: controlledDraft, setDraft: setControlledDraft}: IuinReadmeAdvancedEditorProps) {
     const intl = useIntl();
     const dispatch = useDispatch();
@@ -3107,6 +3117,8 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
     const [notice, setNotice] = useState('');
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set(['assets', 'images', 'docs']));
     const [treeMenu, setTreeMenu] = useState<ReadmeTreeMenu | null>(null);
+    const [draggedTreePath, setDraggedTreePath] = useState('');
+    const [treeDropTarget, setTreeDropTarget] = useState<ReadmeTreeDropTarget | null>(null);
     const hydratedGithubPreviewRootsRef = useRef<Set<string>>(new Set());
     const draft = controlledDraft || localDraft;
     const setReadmeDraft = useCallback((nextDraft: SetStateAction<IuinProfileData>) => {
@@ -3477,16 +3489,118 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         });
     }, []);
 
+    const finishReadmeTreeDrag = useCallback(() => {
+        setDraggedTreePath('');
+        setTreeDropTarget(null);
+    }, []);
+
+    const moveReadmeTreeEntry = useCallback((sourcePath: string, targetPath: string, position: IuinReadmeMovePosition) => {
+        const source = workspace.files.find((file) => file.path === sourcePath);
+        const sourceIsFolder = source?.type === 'folder' || workspace.files.some((file) => file.path.startsWith(`${sourcePath}/`));
+        const result = moveReadmeEntry(workspace, sourcePath, targetPath, position);
+        if (!result.changed) {
+            if (result.reason === 'conflict') {
+                setError(intl.formatMessage({
+                    id: 'iuin_profile.readme.move_conflict',
+                    defaultMessage: 'A file or folder with that name already exists in the destination.',
+                }));
+            }
+            finishReadmeTreeDrag();
+            return;
+        }
+
+        const remapMovedPath = (path: string) => {
+            if (path === sourcePath) {
+                return result.movedPath;
+            }
+            if (sourceIsFolder && isReadmePathInsideFolder(path, sourcePath)) {
+                return getReadmePathWithRenamedFolder(path, sourcePath, result.movedPath);
+            }
+
+            return path;
+        };
+
+        updateWorkspace(() => result.workspace);
+        setSelectedPath((previous) => remapMovedPath(previous));
+        setExpandedFolders((previous) => {
+            const next = new Set<string>();
+            previous.forEach((path) => next.add(remapMovedPath(path)));
+            if (position === 'inside' && targetPath) {
+                next.add(targetPath);
+            }
+            if (sourceIsFolder) {
+                next.add(result.movedPath);
+            }
+            return next;
+        });
+        setNotice(intl.formatMessage({
+            id: 'iuin_profile.readme.moved',
+            defaultMessage: 'File tree updated.',
+        }));
+        finishReadmeTreeDrag();
+    }, [finishReadmeTreeDrag, intl, updateWorkspace, workspace]);
+
+    const handleReadmeTreeDragStart = useCallback((event: ReactDragEvent<HTMLElement>, path: string) => {
+        setDraggedTreePath(path);
+        setTreeDropTarget(null);
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', path);
+    }, []);
+
+    const handleReadmeTreeDragOver = useCallback((event: ReactDragEvent<HTMLElement>, node: ReadmeFileTreeNode) => {
+        const sourcePath = draggedTreePath || event.dataTransfer.getData('text/plain');
+        if (!sourcePath || sourcePath === node.path) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = 'move';
+        setTreeDropTarget({
+            path: node.path,
+            position: getReadmeTreeDropPosition(event, node.type),
+        });
+    }, [draggedTreePath]);
+
+    const handleReadmeTreeDrop = useCallback((event: ReactDragEvent<HTMLElement>, node: ReadmeFileTreeNode) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const sourcePath = draggedTreePath || event.dataTransfer.getData('text/plain');
+        if (!sourcePath) {
+            finishReadmeTreeDrag();
+            return;
+        }
+
+        moveReadmeTreeEntry(sourcePath, node.path, getReadmeTreeDropPosition(event, node.type));
+    }, [draggedTreePath, finishReadmeTreeDrag, moveReadmeTreeEntry]);
+
+    const handleReadmeTreeRootDrop = useCallback((event: ReactDragEvent<HTMLElement>) => {
+        event.preventDefault();
+        const sourcePath = draggedTreePath || event.dataTransfer.getData('text/plain');
+        if (!sourcePath) {
+            finishReadmeTreeDrag();
+            return;
+        }
+
+        moveReadmeTreeEntry(sourcePath, '', 'inside');
+    }, [draggedTreePath, finishReadmeTreeDrag, moveReadmeTreeEntry]);
+
     const renderReadmeTreeNode = useCallback((node: ReadmeFileTreeNode, depth = 0): React.ReactNode => {
         const indent = 12 + (depth * 17);
         if (node.type === 'folder') {
             const isExpanded = expandedFolders.has(node.path);
             const isMenuOpen = treeMenu?.type === 'folder' && treeMenu.path === node.path;
+            const dropPosition = treeDropTarget?.path === node.path ? treeDropTarget.position : '';
 
             return (
                 <React.Fragment key={`folder-${node.path}`}>
                     <div
-                        className={`iuin-readme-workbench__tree-file-row iuin-readme-workbench__tree-folder-row${isMenuOpen ? ' menu-open' : ''}`}
+                        className={`iuin-readme-workbench__tree-file-row iuin-readme-workbench__tree-folder-row${isMenuOpen ? ' menu-open' : ''}${draggedTreePath === node.path ? ' is-dragging' : ''}${dropPosition ? ` drop-${dropPosition}` : ''}`}
+                        draggable={true}
+                        onDragStart={(event) => handleReadmeTreeDragStart(event, node.path)}
+                        onDragOver={(event) => handleReadmeTreeDragOver(event, node)}
+                        onDrop={(event) => handleReadmeTreeDrop(event, node)}
+                        onDragEnd={finishReadmeTreeDrag}
                         onContextMenu={(event) => openTreeMenu(event, 'folder', node.path)}
                     >
                         <button
@@ -3567,11 +3681,17 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         const isActive = node.file.path === selectedFile?.path;
         const isMainDocument = node.file.path === workspace.activePath;
         const isMenuOpen = treeMenu?.type === 'file' && treeMenu.path === node.file.path;
+        const dropPosition = treeDropTarget?.path === node.path ? treeDropTarget.position : '';
 
         return (
             <div
                 key={node.file.path}
-                className={`iuin-readme-workbench__tree-file-row iuin-readme-workbench__tree-document-row${isActive ? ' active' : ''}${isMenuOpen ? ' menu-open' : ''}`}
+                className={`iuin-readme-workbench__tree-file-row iuin-readme-workbench__tree-document-row${isActive ? ' active' : ''}${isMenuOpen ? ' menu-open' : ''}${draggedTreePath === node.path ? ' is-dragging' : ''}${dropPosition ? ` drop-${dropPosition}` : ''}`}
+                draggable={true}
+                onDragStart={(event) => handleReadmeTreeDragStart(event, node.path)}
+                onDragOver={(event) => handleReadmeTreeDragOver(event, node)}
+                onDrop={(event) => handleReadmeTreeDrop(event, node)}
+                onDragEnd={finishReadmeTreeDrag}
                 onContextMenu={(event) => openTreeMenu(event, 'file', node.file!.path)}
             >
                 <button
@@ -3641,7 +3761,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 )}
             </div>
         );
-    }, [createReadmeFileInDirectory, createReadmeFolderInDirectory, expandedFolders, openTreeMenu, removeReadmeFileAtPath, removeReadmeFolderAtPath, renameReadmeFileAtPath, renameReadmeFolderAtPath, selectReadmeFile, selectedFile?.path, setMainDocumentAtPath, toggleReadmeFolder, treeMenu, uploadReadmeFileToFolder, workspace.activePath]);
+    }, [createReadmeFileInDirectory, createReadmeFolderInDirectory, draggedTreePath, expandedFolders, finishReadmeTreeDrag, handleReadmeTreeDragOver, handleReadmeTreeDragStart, handleReadmeTreeDrop, openTreeMenu, removeReadmeFileAtPath, removeReadmeFolderAtPath, renameReadmeFileAtPath, renameReadmeFolderAtPath, selectReadmeFile, selectedFile?.path, setMainDocumentAtPath, toggleReadmeFolder, treeDropTarget, treeMenu, uploadReadmeFileToFolder, workspace.activePath]);
 
     const handleReadmeUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files || []);
@@ -3653,30 +3773,13 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         }
 
         try {
+            const reservedFiles = [...workspace.files];
             const uploadedFiles = await Promise.all(files.map(async (file): Promise<IuinReadmeFile> => {
-                if (file.size > MAX_STATUS_MEDIA_SIZE) {
-                    throw new Error(intl.formatMessage({
-                        id: 'iuin_profile.editor.image_size',
-                        defaultMessage: 'Please keep status images under 2 MB.',
-                    }));
-                }
+                const path = getUniqueReadmePath(reservedFiles, getUploadedReadmePath(file, targetDirectory));
+                const uploadedFile = await createIuinReadmeFileFromUpload(file, path);
+                reservedFiles.push(uploadedFile);
 
-                const path = getUploadedReadmePath(file, targetDirectory);
-                const isImage = file.type.startsWith('image/') && !file.type.includes('svg');
-                const content = isImage ? await readFileAsDataUrl(file) : await file.text();
-                let type: IuinReadmeFile['type'] = 'text';
-                if (isImage) {
-                    type = 'asset';
-                } else if ((/\.(md|markdown)$/i).test(path)) {
-                    type = 'markdown';
-                }
-
-                return {
-                    path,
-                    content,
-                    type,
-                    updatedAt: Date.now(),
-                };
+                return uploadedFile;
             }));
 
             updateWorkspace((previous) => ({
@@ -3685,6 +3788,11 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                     file.path,
                     file.content,
                     file.type,
+                    {
+                        mimeType: file.mimeType,
+                        sizeBytes: file.sizeBytes,
+                        sortOrder: file.sortOrder,
+                    },
                 ), previous),
             }));
             setSelectedPath(uploadedFiles[0]?.path || selectedPath);
@@ -3711,7 +3819,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 defaultMessage: 'Could not upload file.',
             }));
         }
-    }, [intl, selectedPath, updateWorkspace]);
+    }, [intl, selectedPath, updateWorkspace, workspace.files]);
 
     const insertSelectedFileIntoReadme = useCallback(() => {
         if (!selectedFile || selectedFile.path === workspace.activePath || selectedFile.type === 'folder') {
@@ -3721,7 +3829,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         const label = getReadmeBasename(selectedFile.path).replace(/\.[^.]+$/, '');
         const relativePath = getReadmeRelativePath(getReadmeDirectory(workspace.activePath), selectedFile.path);
         const referencePath = relativePath.startsWith('../') ? relativePath : `./${relativePath}`;
-        const snippet = selectedFile.type === 'asset' ? `\n\n![${label}](${referencePath})\n` : `\n\n[${label}](${referencePath})\n`;
+        const snippet = selectedFile.type === 'asset' && isIuinReadmeImageFile(selectedFile) ? `\n\n![${label}](${referencePath})\n` : `\n\n[${label}](${referencePath})\n`;
         updateWorkspace((previous) => setReadmeFileContent(
             previous,
             previous.activePath,
@@ -3813,7 +3921,6 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 className='iuin-readme-workbench__upload-input'
                 type='file'
                 multiple={true}
-                accept='.md,.markdown,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg'
                 onChange={handleReadmeUpload}
                 hidden={true}
             />
@@ -3856,7 +3963,18 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                 </button>
                             </div>
                         </div>
-                        <div className='iuin-readme-workbench__file-list'>
+                        <div
+                            className={`iuin-readme-workbench__file-list${treeDropTarget?.path === '' ? ' drop-inside' : ''}`}
+                            onDragOver={(event) => {
+                                if (!draggedTreePath) {
+                                    return;
+                                }
+                                event.preventDefault();
+                                event.dataTransfer.dropEffect = 'move';
+                                setTreeDropTarget({path: '', position: 'inside'});
+                            }}
+                            onDrop={handleReadmeTreeRootDrop}
+                        >
                             {fileTree.map((node) => renderReadmeTreeNode(node))}
                         </div>
                     </section>
@@ -3931,11 +4049,15 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                     <div className='iuin-readme-workbench__editor-shell'>
                         {selectedFile?.type === 'asset' ? (
                             <div className='iuin-readme-workbench__asset-preview'>
-                                <img
-                                    src={selectedFile.content}
-                                    alt={getReadmeBasename(selectedFile.path)}
-                                />
-                                <code>{`![${getReadmeBasename(selectedFile.path).replace(/\.[^.]+$/, '')}](./${selectedFile.path})`}</code>
+                                {isIuinReadmeImageFile(selectedFile) ? (
+                                    <img
+                                        src={selectedFile.content}
+                                        alt={getReadmeBasename(selectedFile.path)}
+                                    />
+                                ) : (
+                                    <i className='icon icon-file-generic-outline'/>
+                                )}
+                                <code>{isIuinReadmeImageFile(selectedFile) ? `![${getReadmeBasename(selectedFile.path).replace(/\.[^.]+$/, '')}](./${selectedFile.path})` : `[${getReadmeBasename(selectedFile.path)}](./${selectedFile.path})`}</code>
                             </div>
                         ) : (
                             <HtmlCodeEditor
