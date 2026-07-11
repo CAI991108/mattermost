@@ -43,6 +43,7 @@ type iuinTitleItem struct {
 	Name           string `json:"name"`
 	Description    string `json:"description"`
 	IconStorageKey string `json:"iconStorageKey"`
+	Category       string `json:"category"`
 	Rarity         string `json:"rarity"`
 	UnlockHint     string `json:"unlockHint"`
 	SortOrder      int    `json:"sortOrder"`
@@ -56,6 +57,7 @@ type iuinAvatarFrameItem struct {
 	Description       string `json:"description"`
 	FrameStorageKey   string `json:"frameStorageKey"`
 	PreviewStorageKey string `json:"previewStorageKey"`
+	Category          string `json:"category"`
 	Rarity            string `json:"rarity"`
 	UnlockHint        string `json:"unlockHint"`
 	SortOrder         int    `json:"sortOrder"`
@@ -761,7 +763,7 @@ func selectIuinTitlesForUser(ctx context.Context, db *sql.DB, userID string) ([]
 	}
 
 	rows, err := db.QueryContext(ctx, `
-		SELECT Id, Name, Description, IconStorageKey, Rarity, UnlockHint, SortOrder
+		SELECT Id, Name, Description, IconStorageKey, Category, Rarity, UnlockHint, SortOrder
 		FROM IuinTitles
 		WHERE DeleteAt = 0
 		ORDER BY SortOrder, Id
@@ -774,7 +776,7 @@ func selectIuinTitlesForUser(ctx context.Context, db *sql.DB, userID string) ([]
 	titles := []iuinTitleItem{}
 	for rows.Next() {
 		var item iuinTitleItem
-		if err := rows.Scan(&item.ID, &item.Name, &item.Description, &item.IconStorageKey, &item.Rarity, &item.UnlockHint, &item.SortOrder); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.Description, &item.IconStorageKey, &item.Category, &item.Rarity, &item.UnlockHint, &item.SortOrder); err != nil {
 			return nil, newIuinHonorsAppError("selectIuinTitlesForUser.scan", http.StatusInternalServerError, err)
 		}
 		item.Unlocked = unlocked[item.ID]
@@ -804,7 +806,7 @@ func selectIuinAvatarFramesForUser(ctx context.Context, db *sql.DB, userID strin
 	}
 
 	rows, err := db.QueryContext(ctx, `
-		SELECT Id, Name, Description, FrameStorageKey, PreviewStorageKey, Rarity, UnlockHint, SortOrder
+		SELECT Id, Name, Description, FrameStorageKey, PreviewStorageKey, Category, Rarity, UnlockHint, SortOrder
 		FROM IuinAvatarFrames
 		WHERE DeleteAt = 0
 		ORDER BY SortOrder, Id
@@ -817,7 +819,7 @@ func selectIuinAvatarFramesForUser(ctx context.Context, db *sql.DB, userID strin
 	frames := []iuinAvatarFrameItem{}
 	for rows.Next() {
 		var item iuinAvatarFrameItem
-		if err := rows.Scan(&item.ID, &item.Name, &item.Description, &item.FrameStorageKey, &item.PreviewStorageKey, &item.Rarity, &item.UnlockHint, &item.SortOrder); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.Description, &item.FrameStorageKey, &item.PreviewStorageKey, &item.Category, &item.Rarity, &item.UnlockHint, &item.SortOrder); err != nil {
 			return nil, newIuinHonorsAppError("selectIuinAvatarFramesForUser.scan", http.StatusInternalServerError, err)
 		}
 		item.Unlocked = unlocked[item.ID]
@@ -891,7 +893,7 @@ func isIuinHonorDefinitionVisible(ctx context.Context, db *sql.DB, table string,
 
 func selectIuinEquippedTitle(ctx context.Context, db *sql.DB, userID string) (*iuinTitleItem, *model.AppError) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT t.Id, t.Name, t.Description, t.IconStorageKey, t.Rarity, t.UnlockHint, t.SortOrder
+		SELECT t.Id, t.Name, t.Description, t.IconStorageKey, t.Category, t.Rarity, t.UnlockHint, t.SortOrder
 		FROM IuinUserTitleLoadouts l
 		INNER JOIN IuinTitles t ON t.Id = l.TitleId AND t.DeleteAt = 0
 		WHERE l.UserId = $1 AND l.DeleteAt = 0 AND LOWER(TRIM(t.Rarity)) <> 'hidden'
@@ -907,7 +909,7 @@ func selectIuinEquippedTitle(ctx context.Context, db *sql.DB, userID string) (*i
 	}
 
 	var item iuinTitleItem
-	if err := rows.Scan(&item.ID, &item.Name, &item.Description, &item.IconStorageKey, &item.Rarity, &item.UnlockHint, &item.SortOrder); err != nil {
+	if err := rows.Scan(&item.ID, &item.Name, &item.Description, &item.IconStorageKey, &item.Category, &item.Rarity, &item.UnlockHint, &item.SortOrder); err != nil {
 		return nil, newIuinHonorsAppError("selectIuinEquippedTitle.scan", http.StatusInternalServerError, err)
 	}
 	item.Unlocked = true
@@ -918,7 +920,7 @@ func selectIuinEquippedTitle(ctx context.Context, db *sql.DB, userID string) (*i
 
 func selectIuinEquippedAvatarFrame(ctx context.Context, db *sql.DB, userID string) (*iuinAvatarFrameItem, *model.AppError) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT f.Id, f.Name, f.Description, f.FrameStorageKey, f.PreviewStorageKey, f.Rarity, f.UnlockHint, f.SortOrder
+		SELECT f.Id, f.Name, f.Description, f.FrameStorageKey, f.PreviewStorageKey, f.Category, f.Rarity, f.UnlockHint, f.SortOrder
 		FROM IuinUserAvatarFrameLoadouts l
 		INNER JOIN IuinAvatarFrames f ON f.Id = l.AvatarFrameId AND f.DeleteAt = 0
 		INNER JOIN IuinUserAvatarFrames u ON u.UserId = l.UserId AND u.AvatarFrameId = l.AvatarFrameId AND u.DeleteAt = 0
@@ -935,7 +937,7 @@ func selectIuinEquippedAvatarFrame(ctx context.Context, db *sql.DB, userID strin
 	}
 
 	var item iuinAvatarFrameItem
-	if err := rows.Scan(&item.ID, &item.Name, &item.Description, &item.FrameStorageKey, &item.PreviewStorageKey, &item.Rarity, &item.UnlockHint, &item.SortOrder); err != nil {
+	if err := rows.Scan(&item.ID, &item.Name, &item.Description, &item.FrameStorageKey, &item.PreviewStorageKey, &item.Category, &item.Rarity, &item.UnlockHint, &item.SortOrder); err != nil {
 		return nil, newIuinHonorsAppError("selectIuinEquippedAvatarFrame.scan", http.StatusInternalServerError, err)
 	}
 	item.Unlocked = true
