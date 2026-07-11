@@ -21,7 +21,7 @@ import Constants, {AdvancedSections, Preferences} from 'utils/constants';
 import {a11yFocus} from 'utils/utils';
 
 import EnableConcurrentReactExperimentalSection from './enable_concurrent_react_experimental_section';
-import JoinLeaveSection from './join_leave_section';
+// import JoinLeaveSection from './join_leave_section'; // LZX: 固定开启加入/离开消息，组件已注释
 import PerformanceDebuggingSection from './performance_debugging_section';
 
 import SettingDesktopHeader from '../headers/setting_desktop_header';
@@ -73,6 +73,11 @@ export default class AdvancedSettingsDisplay extends React.PureComponent<Props, 
             sync_drafts: this.props.syncDrafts,
             [Preferences.UNREAD_SCROLL_POSITION]: this.props.unreadScrollPosition,
         };
+
+        // LZX: 强制覆盖固定值，无视数据库历史记录。
+        settings.formatting = 'true'; // 固定开启消息格式化
+        settings.join_leave = 'true'; // 固定开启加入/离开消息
+        settings.sync_drafts = 'true'; // 固定开启草稿同步
 
         const isSaving = false;
 
@@ -255,90 +260,55 @@ export default class AdvancedSettingsDisplay extends React.PureComponent<Props, 
         );
     }
 
+    // LZX: 固定开启消息格式化，方法体注释保留。
     renderFormattingSection = () => {
-        const active = this.props.activeSection === 'formatting';
-        let max = null;
-        if (active) {
-            max = (
-                <SettingItemMax
-                    title={
-                        <FormattedMessage
-                            id='user.settings.advance.formattingTitle'
-                            defaultMessage='Enable Post Formatting'
-                        />
-                    }
-                    inputs={[
-                        <fieldset key='formattingSetting'>
-                            <legend className='form-legend hidden-label'>
-                                <FormattedMessage
-                                    id='user.settings.advance.formattingTitle'
-                                    defaultMessage='Enable Post Formatting'
-                                />
-                            </legend>
-                            <div className='radio'>
-                                <label>
-                                    <input
-                                        id='postFormattingOn'
-                                        type='radio'
-                                        name='formatting'
-                                        checked={this.state.settings.formatting !== 'false'}
-                                        onChange={this.updateSetting.bind(this, 'formatting', 'true')}
-                                    />
-                                    <FormattedMessage
-                                        id='user.settings.advance.on'
-                                        defaultMessage='On'
-                                    />
-                                </label>
-                                <br/>
-                            </div>
-                            <div className='radio'>
-                                <label>
-                                    <input
-                                        id='postFormattingOff'
-                                        type='radio'
-                                        name='formatting'
-                                        checked={this.state.settings.formatting === 'false'}
-                                        onChange={this.updateSetting.bind(this, 'formatting', 'false')}
-                                    />
-                                    <FormattedMessage
-                                        id='user.settings.advance.off'
-                                        defaultMessage='Off'
-                                    />
-                                </label>
-                                <br/>
-                            </div>
-                            <div className='mt-5'>
-                                <FormattedMessage
-                                    id='user.settings.advance.formattingDesc'
-                                    defaultMessage='If enabled, posts will be formatted to create links, show emoji, style the text, and add line breaks. By default, this setting is enabled.'
-                                />
-                            </div>
-                        </fieldset>,
-                    ]}
-                    submit={this.handleSubmit.bind(this, ['formatting'])}
-                    saving={this.state.isSaving}
-                    serverError={this.state.serverError}
-                    updateSection={this.handleUpdateSection}
-                />
-            );
-        }
-
-        return (
-            <SettingItem
-                active={active}
-                areAllSectionsInactive={this.props.activeSection === ''}
-                title={
-                    <FormattedMessage
-                        id='user.settings.advance.formattingTitle'
-                        defaultMessage='Enable Post Formatting'
-                    />
-                }
-                describe={this.renderOnOffLabel(this.state.settings.formatting)}
-                section={'formatting'}
-                updateSection={this.handleUpdateSection}
-                max={max}
-            />
-        );
+        // LZX: 固定开启，不再渲染 UI。完整构建代码保留如下以便回退：
+        // const active = this.props.activeSection === 'formatting';
+        // let max = null;
+        // if (active) {
+        //     max = (
+        //         <SettingItemMax
+        //             title={<FormattedMessage id='user.settings.advance.formattingTitle' defaultMessage='Enable Post Formatting'/>}
+        //             inputs={[
+        //                 <fieldset key='formattingSetting'>
+        //                     <legend className='form-legend hidden-label'>
+        //                         <FormattedMessage id='user.settings.advance.formattingTitle' defaultMessage='Enable Post Formatting'/>
+        //                     </legend>
+        //                     <div className='radio'>
+        //                         <label>
+        //                             <input id='postFormattingOn' type='radio' name='formatting'
+        //                                 checked={this.state.settings.formatting !== 'false'}
+        //                                 onChange={this.updateSetting.bind(this, 'formatting', 'true')}/>
+        //                             <FormattedMessage id='user.settings.advance.on' defaultMessage='On'/>
+        //                         </label><br/>
+        //                     </div>
+        //                     <div className='radio'>
+        //                         <label>
+        //                             <input id='postFormattingOff' type='radio' name='formatting'
+        //                                 checked={this.state.settings.formatting === 'false'}
+        //                                 onChange={this.updateSetting.bind(this, 'formatting', 'false')}/>
+        //                             <FormattedMessage id='user.settings.advance.off' defaultMessage='Off'/>
+        //                         </label><br/>
+        //                     </div>
+        //                     <div className='mt-5'>
+        //                         <FormattedMessage id='user.settings.advance.formattingDesc'
+        //                             defaultMessage='If enabled, posts will be formatted...'/>
+        //                     </div>
+        //                 </fieldset>,
+        //             ]}
+        //             submit={this.handleSubmit.bind(this, ['formatting'])}
+        //             saving={this.state.isSaving} serverError={this.state.serverError}
+        //             updateSection={this.handleUpdateSection}
+        //         />
+        //     );
+        // }
+        // return (
+        //     <SettingItem active={active} areAllSectionsInactive={this.props.activeSection === ''}
+        //         title={<FormattedMessage id='user.settings.advance.formattingTitle' defaultMessage='Enable Post Formatting'/>}
+        //         describe={this.renderOnOffLabel(this.state.settings.formatting)}
+        //         section={'formatting'} updateSection={this.handleUpdateSection} max={max}/>
+        // );
+        return null;
     };
 
     renderUnreadScrollPositionSection = () => {
@@ -427,91 +397,52 @@ export default class AdvancedSettingsDisplay extends React.PureComponent<Props, 
         );
     };
 
+    // LZX: 固定开启草稿同步，方法体注释保留。
     renderSyncDraftsSection = () => {
-        const active = this.props.activeSection === AdvancedSections.SYNC_DRAFTS;
-        let max = null;
-        if (active) {
-            max = (
-                <SettingItemMax
-                    title={
-                        <FormattedMessage
-                            id='user.settings.advance.syncDrafts.Title'
-                            defaultMessage='Allow message drafts to sync with the server'
-                        />
-                    }
-                    inputs={[
-                        <fieldset key='syncDraftsSetting'>
-                            <legend className='form-legend hidden-label'>
-                                <FormattedMessage
-                                    id='user.settings.advance.syncDrafts.Title'
-                                    defaultMessage='Allow message drafts to sync with the server'
-                                />
-                            </legend>
-                            <div className='radio'>
-                                <label>
-                                    <input
-                                        id='syncDraftsOn'
-                                        type='radio'
-                                        name='syncDrafts'
-                                        checked={this.state.settings.sync_drafts !== 'false'}
-                                        onChange={this.updateSetting.bind(this, 'sync_drafts', 'true')}
-                                    />
-                                    <FormattedMessage
-                                        id='user.settings.advance.on'
-                                        defaultMessage='On'
-                                    />
-                                </label>
-                                <br/>
-                            </div>
-                            <div className='radio'>
-                                <label>
-                                    <input
-                                        id='syncDraftsOff'
-                                        type='radio'
-                                        name='syncDrafts'
-                                        checked={this.state.settings.sync_drafts === 'false'}
-                                        onChange={this.updateSetting.bind(this, 'sync_drafts', 'false')}
-                                    />
-                                    <FormattedMessage
-                                        id='user.settings.advance.off'
-                                        defaultMessage='Off'
-                                    />
-                                </label>
-                                <br/>
-                            </div>
-                            <div className='mt-5'>
-                                <FormattedMessage
-                                    id='user.settings.advance.syncDrafts.Desc'
-                                    defaultMessage='When enabled, message drafts are synced with the server so they can be accessed from any device. When disabled, message drafts are only saved locally on the device where they are composed.'
-                                />
-                            </div>
-                        </fieldset>,
-                    ]}
-                    setting={AdvancedSections.SYNC_DRAFTS}
-                    submit={this.handleSubmit.bind(this, ['sync_drafts'])}
-                    saving={this.state.isSaving}
-                    serverError={this.state.serverError}
-                    updateSection={this.handleUpdateSection}
-                />
-            );
-        }
-
-        return (
-            <SettingItem
-                active={active}
-                areAllSectionsInactive={this.props.activeSection === ''}
-                title={
-                    <FormattedMessage
-                        id='user.settings.advance.syncDrafts.Title'
-                        defaultMessage='Allow message drafts to sync with the server'
-                    />
-                }
-                describe={this.renderOnOffLabel(this.state.settings.sync_drafts)}
-                section={AdvancedSections.SYNC_DRAFTS}
-                updateSection={this.handleUpdateSection}
-                max={max}
-            />
-        );
+        // LZX: 固定开启，不再渲染 UI。完整构建代码保留如下以便回退：
+        // const active = this.props.activeSection === AdvancedSections.SYNC_DRAFTS;
+        // let max = null;
+        // if (active) {
+        //     max = (
+        //         <SettingItemMax
+        //             title={<FormattedMessage id='user.settings.advance.syncDrafts.Title' defaultMessage='Allow message drafts to sync with the server'/>}
+        //             inputs={[
+        //                 <fieldset key='syncDraftsSetting'>
+        //                     <legend className='form-legend hidden-label'>
+        //                         <FormattedMessage id='user.settings.advance.syncDrafts.Title' defaultMessage='Allow message drafts to sync with the server'/>
+        //                     </legend>
+        //                     <div className='radio'><label>
+        //                         <input id='syncDraftsOn' type='radio' name='syncDrafts'
+        //                             checked={this.state.settings.sync_drafts !== 'false'}
+        //                             onChange={this.updateSetting.bind(this, 'sync_drafts', 'true')}/>
+        //                         <FormattedMessage id='user.settings.advance.on' defaultMessage='On'/>
+        //                     </label><br/></div>
+        //                     <div className='radio'><label>
+        //                         <input id='syncDraftsOff' type='radio' name='syncDrafts'
+        //                             checked={this.state.settings.sync_drafts === 'false'}
+        //                             onChange={this.updateSetting.bind(this, 'sync_drafts', 'false')}/>
+        //                         <FormattedMessage id='user.settings.advance.off' defaultMessage='Off'/>
+        //                     </label><br/></div>
+        //                     <div className='mt-5'>
+        //                         <FormattedMessage id='user.settings.advance.syncDrafts.Desc'
+        //                             defaultMessage='When enabled, message drafts are synced with the server...'/>
+        //                     </div>
+        //                 </fieldset>,
+        //             ]}
+        //             setting={AdvancedSections.SYNC_DRAFTS}
+        //             submit={this.handleSubmit.bind(this, ['sync_drafts'])}
+        //             saving={this.state.isSaving} serverError={this.state.serverError}
+        //             updateSection={this.handleUpdateSection}
+        //         />
+        //     );
+        // }
+        // return (
+        //     <SettingItem active={active} areAllSectionsInactive={this.props.activeSection === ''}
+        //         title={<FormattedMessage id='user.settings.advance.syncDrafts.Title' defaultMessage='Allow message drafts to sync with the server'/>}
+        //         describe={this.renderOnOffLabel(this.state.settings.sync_drafts)}
+        //         section={AdvancedSections.SYNC_DRAFTS} updateSection={this.handleUpdateSection} max={max}/>
+        // );
+        return null;
     };
 
     renderCtrlSendSection = () => {
@@ -628,11 +559,12 @@ export default class AdvancedSettingsDisplay extends React.PureComponent<Props, 
     render() {
         const ctrlSendSection = this.renderCtrlSendSection();
 
-        const formattingSection = this.renderFormattingSection();
-        let formattingSectionDivider = null;
-        if (formattingSection) {
-            formattingSectionDivider = <div className='divider-light'/>;
-        }
+        // LZX: renderFormattingSection 返回 null，formattingSection 和 formattingSectionDivider 均为 null，注释保留。
+        // const formattingSection = this.renderFormattingSection();
+        // let formattingSectionDivider = null;
+        // if (formattingSection) {
+        //     formattingSectionDivider = <div className='divider-light'/>;
+        // }
 
         let deactivateAccountSection: ReactNode = '';
         let makeConfirmationModal: ReactNode = '';
@@ -728,14 +660,15 @@ export default class AdvancedSettingsDisplay extends React.PureComponent<Props, 
             unreadScrollPositionSectionDivider = <div className='divider-light'/>;
         }
 
-        let syncDraftsSection = null;
-        let syncDraftsSectionDivider = null;
-        if (this.props.syncedDraftsAreAllowed) {
-            syncDraftsSection = this.renderSyncDraftsSection();
-            if (syncDraftsSection) {
-                syncDraftsSectionDivider = <div className='divider-light'/>;
-            }
-        }
+        // LZX: 固定开启草稿同步，renderSyncDraftsSection 返回 null，不再需要 divider 变量。
+        // let syncDraftsSection = null;
+        // let syncDraftsSectionDivider = null;
+        // if (this.props.syncedDraftsAreAllowed) {
+        //     syncDraftsSection = this.renderSyncDraftsSection();
+        //     if (syncDraftsSection) {
+        //         syncDraftsSectionDivider = <div className='divider-light'/>;
+        //     }
+        // }
 
         return (
             <div
@@ -764,10 +697,12 @@ export default class AdvancedSettingsDisplay extends React.PureComponent<Props, 
                     />
                     <div className='divider-dark first'/>
                     {ctrlSendSection}
-                    {formattingSectionDivider}
-                    {formattingSection}
-                    <div className='divider-light'/>
-                    <JoinLeaveSection
+                    {/* LZX: 固定开启消息格式化，注释掉 UI 和 divider。 */}
+                    {/* {formattingSectionDivider} */}
+                    {/* {formattingSection} */}
+                    {/* LZX: 固定开启加入/离开消息，注释掉 JoinLeaveSection 及其 divider。 */}
+                    {/* <div className='divider-light'/> */}
+                    {/* <JoinLeaveSection
                         active={this.props.activeSection === AdvancedSections.JOIN_LEAVE}
                         areAllSectionsInactive={this.props.activeSection === ''}
                         onUpdateSection={this.handleUpdateSection}
@@ -775,7 +710,7 @@ export default class AdvancedSettingsDisplay extends React.PureComponent<Props, 
                         adminMode={this.props.adminMode}
                         userPreferences={this.props.userPreferences}
                         userId={this.props.user.id}
-                    />
+                    /> */}
                     <PerformanceDebuggingSection
                         active={this.props.activeSection === AdvancedSections.PERFORMANCE_DEBUGGING}
                         onUpdateSection={this.handleUpdateSection}
@@ -785,9 +720,11 @@ export default class AdvancedSettingsDisplay extends React.PureComponent<Props, 
                     />
                     {unreadScrollPositionSectionDivider}
                     {unreadScrollPositionSection}
-                    {syncDraftsSectionDivider}
-                    {syncDraftsSection}
-                    {formattingSectionDivider}
+                    {/* LZX: 固定开启草稿同步，注释掉 UI 和 divider。 */}
+                    {/* {syncDraftsSectionDivider} */}
+                    {/* {syncDraftsSection} */}
+                    {/* LZX: formattingSectionDivider 已随 formattingSection 注释，此处移除残留引用。 */}
+                    {/* {formattingSectionDivider} */}
                     <EnableConcurrentReactExperimentalSection
                         activeSection={this.props.activeSection}
                         onUpdateSection={this.handleUpdateSection}
