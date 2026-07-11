@@ -118,7 +118,11 @@ export default class LoggedIn extends React.PureComponent<Props> {
     }
 
     public componentWillUnmount(): void {
-        WebSocketActions.close();
+        // The websocket belongs to the authenticated browser session, not to an
+        // individual route. Closing it here makes presence briefly disappear when
+        // switching between top-level routes such as channels and IUIN profiles.
+        // Actual logout and browser unload close it explicitly.
+        window.removeEventListener('beforeunload', this.handleBeforeUnload);
 
         window.removeEventListener('keydown', this.handleBackSpace);
         window.removeEventListener('focus', this.onFocusListener);
