@@ -8,10 +8,12 @@ import type {Channel} from '@mattermost/types/channels';
 
 import {readMultipleChannels} from 'mattermost-redux/actions/channels';
 import Permissions from 'mattermost-redux/constants/permissions';
-
+import {getMyChannelMemberships, getCurrentUserId} from 'mattermost-redux/selectors/entities/common';
 import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
 import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
+import {isChannelMuted} from 'mattermost-redux/utils/channel_utils';
 
+import {unmuteChannel, muteChannel} from 'actions/channel_actions';
 import {markMostRecentPostInChannelAsUnread} from 'actions/post_actions';
 import {openModal} from 'actions/views/modals';
 
@@ -30,6 +32,7 @@ export type OwnProps = {
 }
 
 function mapStateToProps(state: GlobalState, ownProps: OwnProps) {
+    const member = getMyChannelMemberships(state)[ownProps.channel.id];
     const currentTeam = getCurrentTeam(state);
 
     let managePublicChannelMembers = false;
@@ -41,6 +44,8 @@ function mapStateToProps(state: GlobalState, ownProps: OwnProps) {
     }
 
     return {
+        currentUserId: getCurrentUserId(state),
+        isMuted: isChannelMuted(member),
         channelLink: `${getSiteURL()}${ownProps.channelLink}`,
         managePublicChannelMembers,
         managePrivateChannelMembers,
@@ -50,6 +55,8 @@ function mapStateToProps(state: GlobalState, ownProps: OwnProps) {
 const mapDispatchToProps = {
     readMultipleChannels,
     markMostRecentPostInChannelAsUnread,
+    muteChannel,
+    unmuteChannel,
     openModal,
 };
 

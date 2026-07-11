@@ -353,6 +353,51 @@ Mattermost 原始私信并不是一个独立的全局模块，而是团队频道
   - 新增 `more_direct_channels.help` 中文翻译，对应查找成员弹窗标题下方操作提示。
   - 新增 `direct_messages.sidebar.title`、`direct_messages.sidebar.find_members`、`direct_messages.sidebar.unreads`、`direct_messages.sidebar.recent_chats` 中文翻译，供私信侧栏与 TeamSidebar 私信入口复用。
 
+### 12. 私信联系人列表三点菜单（静音入口）
+
+私信侧边栏联系人列表使用自定义的 `DmContactItem` 组件，从未包含过三点菜单。本次新增 hover 显示的三点菜单，内含静音/取消静音入口，交互与频道侧边栏三点菜单一致。
+
+- `webapp/channels/src/selectors/direct_messages.ts`
+  - `DmUnreadInfo` 类型新增 `channelId: string` 和 `isMuted: boolean` 字段。
+  - `getDmUnreadByUserId` selector 在构建每个联系人的 info 对象时同步填充这两个字段（`isChannelMuted(membership)` 来自 `mattermost-redux/utils/channel_utils`）。
+
+- `webapp/channels/src/components/direct_messages_controller/dm_contact_item.tsx`
+  - Props 新增 `currentUserId`、`channelId`、`isMuted`。
+  - 引入 `DotsVerticalIcon`、`useIntl`、`useState`（菜单开关状态）、`Menu`、`MenuItemToggleMuteChannel`。
+  - 在 `__badges` 区域加入 `Menu.Container`，内含 `MenuItemToggleMuteChannel`。
+  - unread badge 在菜单打开时隐藏（`!menuOpen`）；父容器新增 `dm-contact-item--menu-open` class。
+
+- `webapp/channels/src/components/direct_messages_controller/direct_messages_sidebar.tsx`
+  - 引入 `getCurrentUserId` selector；新增 `currentUserId` 变量。
+  - 两处 `DmContactItem` 渲染均补传 `currentUserId`、`channelId={dmInfo?.channelId ?? ''}`、`isMuted={dmInfo?.isMuted ?? false}`。
+
+- `webapp/channels/src/components/direct_messages_controller/direct_messages_sidebar.scss`
+  - `__badges` 新增 `gap: 4px`。
+  - 新增 `__menu-btn` 样式：默认隐藏（`display: none`），hover / active / 菜单开启时显示（`display: flex`），尺寸 24×24，圆角 4px，hover 背景加深。
+
+`MenuItemToggleMuteChannel` 组件本体直接复用，无需修改。
+
+### 13. 静音 DM 视觉灰化与未读行为补完
+
+#### 背景
+
+`calculateUnreadCount` 对静音频道永远返回 `messages = 0`，因为 Redux reducer 在收到 `INCREMENT_UNREAD_MSG_COUNT` 时对静音频道会同步递增 `msg_count`，使差值始终为 0。这导致静音 DM 收到新消息后无法实时进入未读分组、角标也无法实时更新。频道侧栏通过 `getMutedChannelIdsWithMessages`（`channel_sidebar.ts`）使用 `last_post_at > last_viewed_at` 绕过此限制，本次 DM 侧采用相同策略。
+
+#### 已知限制
+
+静音 DM 实时角标只能显示 `1`（有消息的信号），无法实时显示精确计数，退出重进后才从服务端拿到精确数字。这与频道侧栏静音频道的行为一致，属于 Redux 层架构限制，语义上也符合"静音 = 不想被精确计数打扰"。
+
+- `webapp/channels/src/selectors/direct_messages.ts`
+  - `getDmUnreadByUserId`：静音 DM 的 `unread` 用原逻辑算得 0 时，fallback 到 `(dmChannel.last_post_at || 0) > (membership.last_viewed_at || 0) ? 1 : 0`，确保静音 DM 有新消息时仍能进入未读分组并显示角标。
+  - `getTotalUnreadDMs`：过滤掉 `info.isMuted === true` 的项，静音 DM 的消息不计入 TeamSidebar 私信按钮的总数字角标。
+
+- `webapp/channels/src/components/direct_messages_controller/dm_contact_item.tsx`
+  - 根据 `isMuted` prop 给根元素追加 `dm-contact-item--muted` class。
+
+- `webapp/channels/src/components/direct_messages_controller/direct_messages_sidebar.scss`
+  - 新增 `dm-contact-item--muted` modifier：`__avatar-inner`、`__display-name`、`__username`、`__unread-badge` 均设 `opacity: 0.4`，视觉对齐频道侧栏 `.SidebarLink.muted` 的灰化效果。
+  - `__unread-badge` 颜色变量从 `--button-bg`/`--button-color` 改为 `--mention-bg`/`--mention-color`，`border-radius` 从 `9px` 改为 `8px`，`font-weight` 从 600 改为 700，与频道侧栏 `.badge` 样式完全对齐。
+
 ## 四、保留不动与兼容说明
 
 ### 1. 后端不改

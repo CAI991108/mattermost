@@ -718,8 +718,24 @@ export const getTeamsUnreadStatuses: (state: GlobalState) => [Set<Team['id']>, M
                 continue;
             }
 
-            // if channel is muted, we skip its count
+            // if channel is muted, we only count @mentions (not general unreads) towards team badge
             if (isChannelMuted(channelMembership)) {
+                if (channel.type === General.DM_CHANNEL || channel.type === General.GM_CHANNEL) {
+                    continue;
+                }
+                if (channel.delete_at !== 0) {
+                    continue;
+                }
+                const mutedUnreadCount = calculateUnreadCount(channelMessageCounts[channelId], channelMembership, collapsedThreadsEnabled);
+                if (mutedUnreadCount.mentions > 0) {
+                    const prev = teamMentionsMap.has(channel.team_id) ? teamMentionsMap.get(channel.team_id) as number : 0;
+                    teamMentionsMap.set(channel.team_id, prev + mutedUnreadCount.mentions);
+                }
+                if (mutedUnreadCount.hasUrgent) {
+                    if (!teamHasUrgentMap.get(channel.team_id)) {
+                        teamHasUrgentMap.set(channel.team_id, true);
+                    }
+                }
                 continue;
             }
 
