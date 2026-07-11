@@ -11,10 +11,11 @@ import type {InputProps, OnChangeValue, StylesConfig} from 'react-select';
 import {components} from 'react-select';
 import CreatableReactSelect from 'react-select/creatable';
 
-import {LightbulbOutlineIcon} from '@mattermost/compass-icons/components';
+// LZX: 「深入了解通知」外链已移除，以下 import 不再需要
+// import {LightbulbOutlineIcon} from '@mattermost/compass-icons/components';
 import type {UserNotifyProps, UserProfile} from '@mattermost/types/users';
 
-import ExternalLink from 'components/external_link';
+// import ExternalLink from 'components/external_link';
 import SettingItem from 'components/setting_item';
 import SettingItemMax from 'components/setting_item_max';
 import RestrictedIndicator from 'components/widgets/menu/menu_items/restricted_indicator';
@@ -23,11 +24,12 @@ import Constants, {NotificationLevels, MattermostFeatures, LicenseSkus, UserSett
 import {notificationSoundKeys, stopTryNotificationRing} from 'utils/notification_sounds';
 import {a11yFocus} from 'utils/utils';
 
-import DesktopAndMobileNotificationSettings from './desktop_and_mobile_notification_setting';
+// LZX: 已注释掉对应组件（固定默认值），import 也随之注释
+// import DesktopAndMobileNotificationSettings from './desktop_and_mobile_notification_setting';
 import DesktopNotificationSoundsSettings from './desktop_notification_sounds_setting';
-import EmailNotificationSetting from './email_notification_setting';
+// import EmailNotificationSetting from './email_notification_setting';
 import ManageAutoResponder from './manage_auto_responder/manage_auto_responder';
-import SendTestNotificationNotice from './send_test_notification_notice';
+// import SendTestNotificationNotice from './send_test_notification_notice';
 
 import SettingDesktopHeader from '../headers/setting_desktop_header';
 import SettingMobileHeader from '../headers/setting_mobile_header';
@@ -73,7 +75,8 @@ type State = {
 };
 
 function getDefaultStateFromProps(props: Props): State {
-    let desktop: UserNotifyProps['desktop'] = NotificationLevels.MENTION;
+    // LZX: 固定「所有新消息」，不允许用户修改，默认值改为 ALL。
+    let desktop: UserNotifyProps['desktop'] = NotificationLevels.ALL;
     let desktopThreads: UserNotifyProps['desktop_threads'] = NotificationLevels.ALL;
     let pushThreads: UserNotifyProps['push_threads'] = NotificationLevels.ALL;
     let emailThreads: UserNotifyProps['email_threads'] = NotificationLevels.ALL;
@@ -82,7 +85,8 @@ function getDefaultStateFromProps(props: Props): State {
     let desktopNotificationSound: UserNotifyProps['desktop_notification_sound'] = notificationSoundKeys[0] as UserNotifyProps['desktop_notification_sound'];
     let callsNotificationSound: UserNotifyProps['calls_notification_sound'] = 'Calm';
     let comments: UserNotifyProps['comments'] = 'never';
-    let enableEmail: UserNotifyProps['email'] = 'true';
+    // LZX: 后端已关闭邮件通知（系统控制台 5.4 = 否），固定默认值为关闭。
+    let enableEmail: UserNotifyProps['email'] = 'false';
     let pushActivity: UserNotifyProps['push'] = NotificationLevels.MENTION;
     let pushStatus: UserNotifyProps['push_status'] = Constants.UserStatuses.AWAY;
     let autoResponderActive = false;
@@ -142,6 +146,11 @@ function getDefaultStateFromProps(props: Props): State {
             desktopAndMobileSettingsDifferent = areDesktopAndMobileSettingsDifferent(props.user.notify_props.desktop, props.user.notify_props.push, props.user.notify_props?.desktop_threads, props.user.notify_props?.push_threads, props.isCollapsedThreadsEnabled);
         }
     }
+
+    // LZX: 强制覆盖，无视数据库历史记录——桌面/移动端通知固定「所有新消息」，邮件通知固定关闭。
+    desktop = NotificationLevels.ALL;
+    pushActivity = NotificationLevels.ALL;
+    enableEmail = 'false';
 
     let usernameKey = false;
     let firstNameKey = false;
@@ -554,7 +563,7 @@ class NotificationsTab extends React.PureComponent<Props, State> {
                             />
                             <FormattedMessage
                                 id='user.settings.notifications.channelWide'
-                                defaultMessage='Channel-wide mentions "@channel", "@all", "@here"'
+                                defaultMessage='Channel-wide mentions "@all", "@here"'
                             />
                         </label>
                     </div>
@@ -643,7 +652,7 @@ class NotificationsTab extends React.PureComponent<Props, State> {
             selectedMentionKeys.push(user.username);
         }
         if (this.state.channelKey) {
-            selectedMentionKeys.push('@channel');
+            // LZX: @channel 已从自动补全候选中移除，此处同步去掉。
             selectedMentionKeys.push('@all');
             selectedMentionKeys.push('@here');
         }
@@ -1002,6 +1011,7 @@ class NotificationsTab extends React.PureComponent<Props, State> {
                 <div
                     className='user-settings'
                 >
+                    {/* LZX: 移除「深入了解通知」外链（info prop），指向 Mattermost 官网，内网无意义。
                     <SettingDesktopHeader
                         id='notificationSettingsTitle'
                         text={
@@ -1029,8 +1039,19 @@ class NotificationsTab extends React.PureComponent<Props, State> {
                             />
                         }
                     />
+                    */}
+                    <SettingDesktopHeader
+                        id='notificationSettingsTitle'
+                        text={
+                            <FormattedMessage
+                                id='user.settings.notifications.header'
+                                defaultMessage='Notifications'
+                            />
+                        }
+                    />
                     <div className='divider-dark first'/>
-                    <DesktopAndMobileNotificationSettings
+                    {/* LZX: 固定「所有新消息」，不允许用户修改桌面和移动端通知级别。 */}
+                    {/* <DesktopAndMobileNotificationSettings
                         active={this.props.activeSection === UserSettingsNotificationSections.DESKTOP_AND_MOBILE}
                         updateSection={this.handleUpdateSection}
                         onSubmit={this.handleSubmit}
@@ -1047,7 +1068,7 @@ class NotificationsTab extends React.PureComponent<Props, State> {
                         desktopThreads={this.state.desktopThreads}
                         pushThreads={this.state.pushThreads}
                         desktopAndMobileSettingsDifferent={this.state.desktopAndMobileSettingsDifferent}
-                    />
+                    /> */}
                     <div className='divider-light'/>
                     <DesktopNotificationSoundsSettings
                         active={this.props.activeSection === UserSettingsNotificationSections.DESKTOP_NOTIFICATION_SOUND}
@@ -1064,7 +1085,8 @@ class NotificationsTab extends React.PureComponent<Props, State> {
                         callsDesktopSound={this.state.callsDesktopSound}
                         callsNotificationSound={this.state.callsNotificationSound}
                     />
-                    <div className='divider-light'/>
+                    {/* LZX: 后端已关闭邮件通知（系统控制台 5.4 = 否），不展示给用户，避免误导。 */}
+                    {/* <div className='divider-light'/>
                     <EmailNotificationSetting
                         active={this.props.activeSection === UserSettingsNotificationSections.EMAIL}
                         updateSection={this.handleUpdateSection}
@@ -1078,7 +1100,7 @@ class NotificationsTab extends React.PureComponent<Props, State> {
                         enableEmail={this.state.enableEmail === 'true'}
                         onChange={this.handleEmailRadio}
                         threads={this.state.emailThreads || ''}
-                    />
+                    /> */}
                     <div className='divider-light'/>
                     {keywordsWithNotificationSection}
                     {(!this.props.isEnterpriseOrCloudOrSKUStarterFree && this.props.isEnterpriseReady) && (
@@ -1108,7 +1130,8 @@ class NotificationsTab extends React.PureComponent<Props, State> {
                             {keywordsWithHighlightSection}
                         </>
                     )}
-                    <SendTestNotificationNotice adminMode={this.props.adminMode}/>
+                    {/* LZX: 移除「排查通知问题」入口，指向 Mattermost 官网，内网无意义。 */}
+                    {/* <SendTestNotificationNotice adminMode={this.props.adminMode}/> */}
                 </div>
             </div>
 

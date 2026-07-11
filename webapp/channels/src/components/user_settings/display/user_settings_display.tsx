@@ -26,7 +26,7 @@ import {a11yFocus} from 'utils/utils';
 
 import ManageLanguages from './manage_languages';
 import ManageTimezones from './manage_timezones';
-import RenderEmoticonsAsEmoji from './render_emoticons_as_emoji';
+// import RenderEmoticonsAsEmoji from './render_emoticons_as_emoji'; // LZX: 固定开启，组件已注释
 
 import SettingDesktopHeader from '../headers/setting_desktop_header';
 import SettingMobileHeader from '../headers/setting_mobile_header';
@@ -34,7 +34,7 @@ import SettingMobileHeader from '../headers/setting_mobile_header';
 const Preferences = Constants.Preferences;
 
 function getDisplayStateFromProps(props: Props) {
-    return {
+    const result = {
         militaryTime: props.militaryTime,
         teammateNameDisplay: props.teammateNameDisplay,
         availabilityStatusOnPosts: props.availabilityStatusOnPosts,
@@ -48,6 +48,15 @@ function getDisplayStateFromProps(props: Props) {
         oneClickReactionsOnPosts: props.oneClickReactionsOnPosts,
         clickToReply: props.clickToReply,
     };
+    // LZX: 强制覆盖固定值，无视数据库历史记录。
+    result.teammateNameDisplay = 'username'; // 固定显示用户名
+    result.availabilityStatusOnPosts = 'true'; // 固定开启在线状态
+    result.lastActiveDisplay = 'true'; // 固定分享上次活跃时间
+    result.collapseDisplay = 'false'; // 固定展开（false = 展开）
+    result.messageDisplay = 'clean'; // 固定标准模式
+    result.channelDisplayMode = 'full'; // 固定完整宽度
+    result.oneClickReactionsOnPosts = 'true'; // 固定开启快捷表情
+    return result;
 }
 
 type ChildOption = {
@@ -190,34 +199,32 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
         }
     }
 
+        // LZX: submitLastActive 固定开启，UI 已注释，此保存路径不再触发。
+        // submitLastActive = () => {
+        //     const {user, actions} = this.props;
+        //     const {lastActiveDisplay} = this.state;
+        //     const updatedUser = {
+        //         ...user,
+        //         props: { ...user.props, show_last_active: lastActiveDisplay },
+        //     };
+        //     const action = this.props.adminMode ? actions.patchUser : actions.updateMe;
+        //     action(updatedUser).then((res) => {
+        //         if ('data' in res) {
+        //             this.props.updateSection('');
+        //         } else if ('error' in res) {
+        //             const {error} = res;
+        //             let serverError;
+        //             if (error instanceof Error) {
+        //                 serverError = error.message;
+        //             } else {
+        //                 serverError = error as string;
+        //             }
+        //             this.setState({serverError, isSaving: false});
+        //         }
+        //     });
+        // };
     submitLastActive = () => {
-        const {user, actions} = this.props;
-        const {lastActiveDisplay} = this.state;
-
-        const updatedUser = {
-            ...user,
-            props: {
-                ...user.props,
-                show_last_active: lastActiveDisplay,
-            },
-        };
-
-        const action = this.props.adminMode ? actions.patchUser : actions.updateMe;
-        action(updatedUser).
-            then((res) => {
-                if ('data' in res) {
-                    this.props.updateSection('');
-                } else if ('error' in res) {
-                    const {error} = res;
-                    let serverError;
-                    if (error instanceof Error) {
-                        serverError = error.message;
-                    } else {
-                        serverError = error as string;
-                    }
-                    this.setState({serverError, isSaving: false});
-                }
-            });
+        // LZX: 固定 lastActive 开启，此方法保留但不再被 UI 调用。
     };
 
     handleSubmit = async () => {
@@ -229,42 +236,47 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
             name: Preferences.USE_MILITARY_TIME,
             value: this.state.militaryTime,
         };
-        const availabilityStatusOnPostsPreference = {
-            user_id: userId,
-            category: Preferences.CATEGORY_DISPLAY_SETTINGS,
-            name: Preferences.AVAILABILITY_STATUS_ON_POSTS,
-            value: this.state.availabilityStatusOnPosts,
-        };
-        const teammateNameDisplayPreference = {
-            user_id: userId,
-            category: Preferences.CATEGORY_DISPLAY_SETTINGS,
-            name: Preferences.NAME_NAME_FORMAT,
-            value: this.state.teammateNameDisplay,
-        };
-        const channelDisplayModePreference = {
-            user_id: userId,
-            category: Preferences.CATEGORY_DISPLAY_SETTINGS,
-            name: Preferences.CHANNEL_DISPLAY_MODE,
-            value: this.state.channelDisplayMode,
-        };
-        const messageDisplayPreference = {
-            user_id: userId,
-            category: Preferences.CATEGORY_DISPLAY_SETTINGS,
-            name: Preferences.MESSAGE_DISPLAY,
-            value: this.state.messageDisplay,
-        };
+        // LZX: 固定「显示用户名」，不再保存用户修改。
+        // const availabilityStatusOnPostsPreference = {
+        //     user_id: userId,
+        //     category: Preferences.CATEGORY_DISPLAY_SETTINGS,
+        //     name: Preferences.AVAILABILITY_STATUS_ON_POSTS,
+        //     value: this.state.availabilityStatusOnPosts,
+        // };
+        // LZX: 固定「显示用户名」，不再保存用户修改。
+        // const teammateNameDisplayPreference = {
+        //     user_id: userId,
+        //     category: Preferences.CATEGORY_DISPLAY_SETTINGS,
+        //     name: Preferences.NAME_NAME_FORMAT,
+        //     value: this.state.teammateNameDisplay,
+        // };
+        // LZX: 固定「完整宽度」，不再保存用户修改。
+        // const channelDisplayModePreference = {
+        //     user_id: userId,
+        //     category: Preferences.CATEGORY_DISPLAY_SETTINGS,
+        //     name: Preferences.CHANNEL_DISPLAY_MODE,
+        //     value: this.state.channelDisplayMode,
+        // };
+        // LZX: 固定「标准」，不再保存用户修改。
+        // const messageDisplayPreference = {
+        //     user_id: userId,
+        //     category: Preferences.CATEGORY_DISPLAY_SETTINGS,
+        //     name: Preferences.MESSAGE_DISPLAY,
+        //     value: this.state.messageDisplay,
+        // };
         const colorizeUsernamesPreference = {
             user_id: userId,
             category: Preferences.CATEGORY_DISPLAY_SETTINGS,
             name: Preferences.COLORIZE_USERNAMES,
             value: this.state.colorizeUsernames,
         };
-        const collapseDisplayPreference = {
-            user_id: userId,
-            category: Preferences.CATEGORY_DISPLAY_SETTINGS,
-            name: Preferences.COLLAPSE_DISPLAY,
-            value: this.state.collapseDisplay,
-        };
+        // LZX: 固定「展开」，不再保存用户修改。
+        // const collapseDisplayPreference = {
+        //     user_id: userId,
+        //     category: Preferences.CATEGORY_DISPLAY_SETTINGS,
+        //     name: Preferences.COLLAPSE_DISPLAY,
+        //     value: this.state.collapseDisplay,
+        // };
         const collapsedReplyThreadsPreference = {
             user_id: userId,
             category: Preferences.CATEGORY_DISPLAY_SETTINGS,
@@ -277,12 +289,13 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
             name: Preferences.LINK_PREVIEW_DISPLAY,
             value: this.state.linkPreviewDisplay,
         };
-        const oneClickReactionsOnPostsPreference = {
-            user_id: userId,
-            category: Preferences.CATEGORY_DISPLAY_SETTINGS,
-            name: Preferences.ONE_CLICK_REACTIONS_ENABLED,
-            value: this.state.oneClickReactionsOnPosts,
-        };
+        // LZX: 固定「开启快捷表情」，不再保存用户修改。
+        // const oneClickReactionsOnPostsPreference = {
+        //     user_id: userId,
+        //     category: Preferences.CATEGORY_DISPLAY_SETTINGS,
+        //     name: Preferences.ONE_CLICK_REACTIONS_ENABLED,
+        //     value: this.state.oneClickReactionsOnPosts,
+        // };
         // LZX: 点击打开话题固定关闭，不再从显示设置保存该项。
         // const clickToReplyPreference = {
         //     user_id: userId,
@@ -295,16 +308,17 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
 
         const preferences = [
             timePreference,
-            channelDisplayModePreference,
-            messageDisplayPreference,
+            // LZX: 以下固定项不再保存。
+            // channelDisplayModePreference,
+            // messageDisplayPreference,
             collapsedReplyThreadsPreference,
             // LZX: 点击打开话题固定关闭，不再保存用户显示设置开关。
             // clickToReplyPreference,
-            collapseDisplayPreference,
+            // collapseDisplayPreference,
             linkPreviewDisplayPreference,
-            teammateNameDisplayPreference,
-            availabilityStatusOnPostsPreference,
-            oneClickReactionsOnPostsPreference,
+            // teammateNameDisplayPreference,
+            // availabilityStatusOnPostsPreference,
+            // oneClickReactionsOnPostsPreference,
             colorizeUsernamesPreference,
         ];
 
@@ -635,116 +649,117 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
     }
 
     render() {
-        const collapseSection = this.createSection({
-            section: 'collapse',
-            display: 'collapseDisplay',
-            value: this.state.collapseDisplay,
-            defaultDisplay: 'false',
-            title: defineMessage({
-                id: 'user.settings.display.collapseDisplay',
-                defaultMessage: 'Default Appearance of Image Previews',
-            }),
-            firstOption: {
-                value: 'false',
-                radionButtonText: {
-                    label: defineMessage({
-                        id: 'user.settings.display.collapseOn',
-                        defaultMessage: 'Expanded',
-                    }),
-                },
-            },
-            secondOption: {
-                value: 'true',
-                radionButtonText: {
-                    label: defineMessage({
-                        id: 'user.settings.display.collapseOff',
-                        defaultMessage: 'Collapsed',
-                    }),
-                },
-            },
-            description: defineMessage({
-                id: 'user.settings.display.collapseDesc',
-                defaultMessage: 'Set whether previews of image links and image attachment thumbnails show as expanded or collapsed by default. This setting can also be controlled using the slash commands /expand and /collapse.',
-            }),
-        });
+        // LZX: 固定「展开」，section 构建注释保留。
+        // const collapseSection = this.createSection({
+        //     section: 'collapse',
+        //     display: 'collapseDisplay',
+        //     value: this.state.collapseDisplay,
+        //     defaultDisplay: 'false',
+        //     title: defineMessage({
+        //         id: 'user.settings.display.collapseDisplay',
+        //         defaultMessage: 'Default Appearance of Image Previews',
+        //     }),
+        //     firstOption: {
+        //         value: 'false',
+        //         radionButtonText: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.display.collapseOn',
+        //                 defaultMessage: 'Expanded',
+        //             }),
+        //         },
+        //     },
+        //     secondOption: {
+        //         value: 'true',
+        //         radionButtonText: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.display.collapseOff',
+        //                 defaultMessage: 'Collapsed',
+        //             }),
+        //         },
+        //     },
+        //     description: defineMessage({
+        //         id: 'user.settings.display.collapseDesc',
+        //         defaultMessage: 'Set whether previews of image links and image attachment thumbnails show as expanded or collapsed by default. This setting can also be controlled using the slash commands /expand and /collapse.',
+        //     }),
+        // });
 
-        let linkPreviewSection = null;
+        // LZX: 系统控制台 5.7 已关闭链接预览，section 构建注释保留。
+        // let linkPreviewSection = null;
+        // if (this.props.enableLinkPreviews) {
+        //     linkPreviewSection = this.createSection({
+        //         section: 'linkpreview',
+        //         display: 'linkPreviewDisplay',
+        //         value: this.state.linkPreviewDisplay,
+        //         defaultDisplay: 'true',
+        //         title: defineMessage({
+        //             id: 'user.settings.display.linkPreviewDisplay',
+        //             defaultMessage: 'Website Link Previews',
+        //         }),
+        //         firstOption: {
+        //             value: 'true',
+        //             radionButtonText: {
+        //                 label: defineMessage({
+        //                     id: 'user.settings.display.linkPreviewOn',
+        //                     defaultMessage: 'On',
+        //                 }),
+        //             },
+        //         },
+        //         secondOption: {
+        //             value: 'false',
+        //             radionButtonText: {
+        //                 label: defineMessage({
+        //                     id: 'user.settings.display.linkPreviewOff',
+        //                     defaultMessage: 'Off',
+        //                 }),
+        //             },
+        //         },
+        //         description: defineMessage({
+        //             id: 'user.settings.display.linkPreviewDesc',
+        //             defaultMessage: 'When available, the first web link in a message will show a preview of the website content below the message.',
+        //         }),
+        //     });
+        //     this.prevSections.message_display = 'linkpreview';
+        // } else {
+        //     this.prevSections.message_display = this.prevSections.linkpreview;
+        // }
 
-        if (this.props.enableLinkPreviews) {
-            linkPreviewSection = this.createSection({
-                section: 'linkpreview',
-                display: 'linkPreviewDisplay',
-                value: this.state.linkPreviewDisplay,
-                defaultDisplay: 'true',
-                title: defineMessage({
-                    id: 'user.settings.display.linkPreviewDisplay',
-                    defaultMessage: 'Website Link Previews',
-                }),
-                firstOption: {
-                    value: 'true',
-                    radionButtonText: {
-                        label: defineMessage({
-                            id: 'user.settings.display.linkPreviewOn',
-                            defaultMessage: 'On',
-                        }),
-                    },
-                },
-                secondOption: {
-                    value: 'false',
-                    radionButtonText: {
-                        label: defineMessage({
-                            id: 'user.settings.display.linkPreviewOff',
-                            defaultMessage: 'Off',
-                        }),
-                    },
-                },
-                description: defineMessage({
-                    id: 'user.settings.display.linkPreviewDesc',
-                    defaultMessage: 'When available, the first web link in a message will show a preview of the website content below the message.',
-                }),
-            });
-            this.prevSections.message_display = 'linkpreview';
-        } else {
-            this.prevSections.message_display = this.prevSections.linkpreview;
-        }
-
-        let lastActiveSection = null;
-
-        if (this.props.lastActiveTimeEnabled) {
-            lastActiveSection = this.createSection({
-                section: 'lastactive',
-                display: 'lastActiveDisplay',
-                value: this.state.lastActiveDisplay,
-                defaultDisplay: 'true',
-                title: defineMessage({
-                    id: 'user.settings.display.lastActiveDisplay',
-                    defaultMessage: 'Share last active time',
-                }),
-                firstOption: {
-                    value: 'true',
-                    radionButtonText: {
-                        label: defineMessage({
-                            id: 'user.settings.display.lastActiveOn',
-                            defaultMessage: 'On',
-                        }),
-                    },
-                },
-                secondOption: {
-                    value: 'false',
-                    radionButtonText: {
-                        label: defineMessage({
-                            id: 'user.settings.display.lastActiveOff',
-                            defaultMessage: 'Off',
-                        }),
-                    },
-                },
-                description: defineMessage({
-                    id: 'user.settings.display.lastActiveDesc',
-                    defaultMessage: 'When enabled, other users will see when you were last active.',
-                }),
-                onSubmit: this.submitLastActive,
-            });
-        }
+        // LZX: 固定分享上次活跃时间开启，section 构建注释保留。
+        // let lastActiveSection = null;
+        // if (this.props.lastActiveTimeEnabled) {
+        //     lastActiveSection = this.createSection({
+        //         section: 'lastactive',
+        //         display: 'lastActiveDisplay',
+        //         value: this.state.lastActiveDisplay,
+        //         defaultDisplay: 'true',
+        //         title: defineMessage({
+        //             id: 'user.settings.display.lastActiveDisplay',
+        //             defaultMessage: 'Share last active time',
+        //         }),
+        //         firstOption: {
+        //             value: 'true',
+        //             radionButtonText: {
+        //                 label: defineMessage({
+        //                     id: 'user.settings.display.lastActiveOn',
+        //                     defaultMessage: 'On',
+        //                 }),
+        //             },
+        //         },
+        //         secondOption: {
+        //             value: 'false',
+        //             radionButtonText: {
+        //                 label: defineMessage({
+        //                     id: 'user.settings.display.lastActiveOff',
+        //                     defaultMessage: 'Off',
+        //                 }),
+        //             },
+        //         },
+        //         description: defineMessage({
+        //             id: 'user.settings.display.lastActiveDesc',
+        //             defaultMessage: 'When enabled, other users will see when you were last active.',
+        //         }),
+        //         onSubmit: this.submitLastActive,
+        //     });
+        // }
 
         const clockSection = this.createSection({
             section: 'clock',
@@ -779,81 +794,83 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
             }),
         });
 
-        const teammateNameDisplaySection = this.createSection({
-            section: Preferences.NAME_NAME_FORMAT,
-            display: 'teammateNameDisplay',
-            value: this.props.lockTeammateNameDisplay ? this.props.configTeammateNameDisplay : this.state.teammateNameDisplay,
-            defaultDisplay: this.props.configTeammateNameDisplay,
-            title: defineMessage({
-                id: 'user.settings.display.teammateNameDisplayTitle',
-                defaultMessage: 'Teammate Name Display',
-            }),
-            firstOption: {
-                value: Constants.TEAMMATE_NAME_DISPLAY.SHOW_USERNAME,
-                radionButtonText: {
-                    label: defineMessage({
-                        id: 'user.settings.display.teammateNameDisplayUsername',
-                        defaultMessage: 'Show username',
-                    }),
-                },
-            },
-            secondOption: {
-                value: Constants.TEAMMATE_NAME_DISPLAY.SHOW_NICKNAME_FULLNAME,
-                radionButtonText: {
-                    label: defineMessage({
-                        id: 'user.settings.display.teammateNameDisplayNicknameFullname',
-                        defaultMessage: 'Show nickname if one exists, otherwise show first and last name',
-                    }),
-                },
-            },
-            thirdOption: {
-                value: Constants.TEAMMATE_NAME_DISPLAY.SHOW_FULLNAME,
-                radionButtonText: {
-                    label: defineMessage({
-                        id: 'user.settings.display.teammateNameDisplayFullname',
-                        defaultMessage: 'Show first and last name',
-                    }),
-                },
-            },
-            description: defineMessage({
-                id: 'user.settings.display.teammateNameDisplayDescription',
-                defaultMessage: 'Set how to display other user\'s names in posts and the Direct Messages list.',
-            }),
-            disabled: this.props.lockTeammateNameDisplay,
-        });
+        // LZX: 固定「显示用户名」，section 构建注释保留。
+        // const teammateNameDisplaySection = this.createSection({
+        //     section: Preferences.NAME_NAME_FORMAT,
+        //     display: 'teammateNameDisplay',
+        //     value: this.props.lockTeammateNameDisplay ? this.props.configTeammateNameDisplay : this.state.teammateNameDisplay,
+        //     defaultDisplay: this.props.configTeammateNameDisplay,
+        //     title: defineMessage({
+        //         id: 'user.settings.display.teammateNameDisplayTitle',
+        //         defaultMessage: 'Teammate Name Display',
+        //     }),
+        //     firstOption: {
+        //         value: Constants.TEAMMATE_NAME_DISPLAY.SHOW_USERNAME,
+        //         radionButtonText: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.display.teammateNameDisplayUsername',
+        //                 defaultMessage: 'Show username',
+        //             }),
+        //         },
+        //     },
+        //     secondOption: {
+        //         value: Constants.TEAMMATE_NAME_DISPLAY.SHOW_NICKNAME_FULLNAME,
+        //         radionButtonText: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.display.teammateNameDisplayNicknameFullname',
+        //                 defaultMessage: 'Show nickname if one exists, otherwise show first and last name',
+        //             }),
+        //         },
+        //     },
+        //     thirdOption: {
+        //         value: Constants.TEAMMATE_NAME_DISPLAY.SHOW_FULLNAME,
+        //         radionButtonText: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.display.teammateNameDisplayFullname',
+        //                 defaultMessage: 'Show first and last name',
+        //             }),
+        //         },
+        //     },
+        //     description: defineMessage({
+        //         id: 'user.settings.display.teammateNameDisplayDescription',
+        //         defaultMessage: 'Set how to display other user\'s names in posts and the Direct Messages list.',
+        //     }),
+        //     disabled: this.props.lockTeammateNameDisplay,
+        // });
 
-        const availabilityStatusOnPostsSection = this.createSection({
-            section: 'availabilityStatus',
-            display: 'availabilityStatusOnPosts',
-            value: this.state.availabilityStatusOnPosts,
-            defaultDisplay: 'true',
-            title: defineMessage({
-                id: 'user.settings.display.availabilityStatusOnPostsTitle',
-                defaultMessage: 'Show online availability on profile images',
-            }),
-            firstOption: {
-                value: 'true',
-                radionButtonText: {
-                    label: defineMessage({
-                        id: 'user.settings.sidebar.on',
-                        defaultMessage: 'On',
-                    }),
-                },
-            },
-            secondOption: {
-                value: 'false',
-                radionButtonText: {
-                    label: defineMessage({
-                        id: 'user.settings.sidebar.off',
-                        defaultMessage: 'Off',
-                    }),
-                },
-            },
-            description: defineMessage({
-                id: 'user.settings.display.availabilityStatusOnPostsDescription',
-                defaultMessage: 'When enabled, online availability is displayed on profile images in the message list.',
-            }),
-        });
+        // LZX: 固定「开启在线状态」，section 构建注释保留。
+        // const availabilityStatusOnPostsSection = this.createSection({
+        //     section: 'availabilityStatus',
+        //     display: 'availabilityStatusOnPosts',
+        //     value: this.state.availabilityStatusOnPosts,
+        //     defaultDisplay: 'true',
+        //     title: defineMessage({
+        //         id: 'user.settings.display.availabilityStatusOnPostsTitle',
+        //         defaultMessage: 'Show online availability on profile images',
+        //     }),
+        //     firstOption: {
+        //         value: 'true',
+        //         radionButtonText: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.sidebar.on',
+        //                 defaultMessage: 'On',
+        //             }),
+        //         },
+        //     },
+        //     secondOption: {
+        //         value: 'false',
+        //         radionButtonText: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.sidebar.off',
+        //                 defaultMessage: 'Off',
+        //             }),
+        //         },
+        //     },
+        //     description: defineMessage({
+        //         id: 'user.settings.display.availabilityStatusOnPostsDescription',
+        //         defaultMessage: 'When enabled, online availability is displayed on profile images in the message list.',
+        //     }),
+        // });
 
         let timezoneSelection;
         if (!this.props.shouldAutoUpdateTimezone) {
@@ -893,58 +910,59 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
             );
         }
 
-        const messageDisplaySection = this.createSection({
-            section: Preferences.MESSAGE_DISPLAY,
-            display: 'messageDisplay',
-            value: this.state.messageDisplay,
-            defaultDisplay: Preferences.MESSAGE_DISPLAY_CLEAN,
-            title: defineMessage({
-                id: 'user.settings.display.messageDisplayTitle',
-                defaultMessage: 'Message Display',
-            }),
-            firstOption: {
-                value: Preferences.MESSAGE_DISPLAY_CLEAN,
-                radionButtonText: {
-                    label: defineMessage({
-                        id: 'user.settings.display.messageDisplayClean',
-                        defaultMessage: 'Standard',
-                    }),
-                    more: defineMessage({
-                        id: 'user.settings.display.messageDisplayCleanDes',
-                        defaultMessage: 'Easy to scan and read.',
-                    }),
-                },
-            },
-            secondOption: {
-                value: Preferences.MESSAGE_DISPLAY_COMPACT,
-                radionButtonText: {
-                    label: defineMessage({
-                        id: 'user.settings.display.messageDisplayCompact',
-                        defaultMessage: 'Compact',
-                    }),
-                    more: defineMessage({
-                        id: 'user.settings.display.messageDisplayCompactDes',
-                        defaultMessage: 'Fit as many messages on the screen as we can.',
-                    }),
-                },
-                childOption: {
-                    label: defineMessage({
-                        id: 'user.settings.display.colorize',
-                        defaultMessage: 'Colorize usernames',
-                    }),
-                    value: this.state.colorizeUsernames,
-                    display: 'colorizeUsernames',
-                    more: defineMessage({
-                        id: 'user.settings.display.colorizeDes',
-                        defaultMessage: 'Use colors to distinguish users in compact mode',
-                    }),
-                },
-            },
-            description: defineMessage({
-                id: 'user.settings.display.messageDisplayDescription',
-                defaultMessage: 'Select how messages in a channel should be displayed.',
-            }),
-        });
+        // LZX: 固定「标准」消息显示，section 构建注释保留。
+        // const messageDisplaySection = this.createSection({
+        //     section: Preferences.MESSAGE_DISPLAY,
+        //     display: 'messageDisplay',
+        //     value: this.state.messageDisplay,
+        //     defaultDisplay: Preferences.MESSAGE_DISPLAY_CLEAN,
+        //     title: defineMessage({
+        //         id: 'user.settings.display.messageDisplayTitle',
+        //         defaultMessage: 'Message Display',
+        //     }),
+        //     firstOption: {
+        //         value: Preferences.MESSAGE_DISPLAY_CLEAN,
+        //         radionButtonText: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.display.messageDisplayClean',
+        //                 defaultMessage: 'Standard',
+        //             }),
+        //             more: defineMessage({
+        //                 id: 'user.settings.display.messageDisplayCleanDes',
+        //                 defaultMessage: 'Easy to scan and read.',
+        //             }),
+        //         },
+        //     },
+        //     secondOption: {
+        //         value: Preferences.MESSAGE_DISPLAY_COMPACT,
+        //         radionButtonText: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.display.messageDisplayCompact',
+        //                 defaultMessage: 'Compact',
+        //             }),
+        //             more: defineMessage({
+        //                 id: 'user.settings.display.messageDisplayCompactDes',
+        //                 defaultMessage: 'Fit as many messages on the screen as we can.',
+        //             }),
+        //         },
+        //         childOption: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.display.colorize',
+        //                 defaultMessage: 'Colorize usernames',
+        //             }),
+        //             value: this.state.colorizeUsernames,
+        //             display: 'colorizeUsernames',
+        //             more: defineMessage({
+        //                 id: 'user.settings.display.colorizeDes',
+        //                 defaultMessage: 'Use colors to distinguish users in compact mode',
+        //             }),
+        //         },
+        //     },
+        //     description: defineMessage({
+        //         id: 'user.settings.display.messageDisplayDescription',
+        //         defaultMessage: 'Select how messages in a channel should be displayed.',
+        //     }),
+        // });
 
         let collapsedReplyThreads;
 
@@ -1017,38 +1035,39 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
         //     }),
         // });
 
-        const channelDisplayModeSection = this.createSection({
-            section: Preferences.CHANNEL_DISPLAY_MODE,
-            display: 'channelDisplayMode',
-            value: this.state.channelDisplayMode,
-            defaultDisplay: Preferences.CHANNEL_DISPLAY_MODE_FULL_SCREEN,
-            title: defineMessage({
-                id: 'user.settings.display.channelDisplayTitle',
-                defaultMessage: 'Channel Display',
-            }),
-            firstOption: {
-                value: Preferences.CHANNEL_DISPLAY_MODE_FULL_SCREEN,
-                radionButtonText: {
-                    label: defineMessage({
-                        id: 'user.settings.display.fullScreen',
-                        defaultMessage: 'Full width',
-                    }),
-                },
-            },
-            secondOption: {
-                value: Preferences.CHANNEL_DISPLAY_MODE_CENTERED,
-                radionButtonText: {
-                    label: defineMessage({
-                        id: 'user.settings.display.fixedWidthCentered',
-                        defaultMessage: 'Fixed width, centered',
-                    }),
-                },
-            },
-            description: defineMessage({
-                id: 'user.settings.display.channeldisplaymode',
-                defaultMessage: 'Select the width of the center channel.',
-            }),
-        });
+        // LZX: 固定「完整宽度」，section 构建注释保留。
+        // const channelDisplayModeSection = this.createSection({
+        //     section: Preferences.CHANNEL_DISPLAY_MODE,
+        //     display: 'channelDisplayMode',
+        //     value: this.state.channelDisplayMode,
+        //     defaultDisplay: Preferences.CHANNEL_DISPLAY_MODE_FULL_SCREEN,
+        //     title: defineMessage({
+        //         id: 'user.settings.display.channelDisplayTitle',
+        //         defaultMessage: 'Channel Display',
+        //     }),
+        //     firstOption: {
+        //         value: Preferences.CHANNEL_DISPLAY_MODE_FULL_SCREEN,
+        //         radionButtonText: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.display.fullScreen',
+        //                 defaultMessage: 'Full width',
+        //             }),
+        //         },
+        //     },
+        //     secondOption: {
+        //         value: Preferences.CHANNEL_DISPLAY_MODE_CENTERED,
+        //         radionButtonText: {
+        //             label: defineMessage({
+        //                 id: 'user.settings.display.fixedWidthCentered',
+        //                 defaultMessage: 'Fixed width, centered',
+        //             }),
+        //         },
+        //     },
+        //     description: defineMessage({
+        //         id: 'user.settings.display.channeldisplaymode',
+        //         defaultMessage: 'Select the width of the center channel.',
+        //     }),
+        // });
 
         let languagesSection;
         const userLocale = this.props.userLocale;
@@ -1101,79 +1120,81 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
             );
         }
 
-        let oneClickReactionsOnPostsSection;
-        if (this.props.emojiPickerEnabled) {
-            oneClickReactionsOnPostsSection = this.createSection({
-                section: Preferences.ONE_CLICK_REACTIONS_ENABLED,
-                display: 'oneClickReactionsOnPosts',
-                value: this.state.oneClickReactionsOnPosts,
-                defaultDisplay: 'true',
-                title: defineMessage({
-                    id: 'user.settings.display.oneClickReactionsOnPostsTitle',
-                    defaultMessage: 'Quick reactions on messages',
-                }),
-                firstOption: {
-                    value: 'true',
-                    radionButtonText: {
-                        label: defineMessage({
-                            id: 'user.settings.sidebar.on',
-                            defaultMessage: 'On',
-                        }),
-                    },
-                },
-                secondOption: {
-                    value: 'false',
-                    radionButtonText: {
-                        label: defineMessage({
-                            id: 'user.settings.sidebar.off',
-                            defaultMessage: 'Off',
-                        }),
-                    },
-                },
-                description: defineMessage({
-                    id: 'user.settings.display.oneClickReactionsOnPostsDescription',
-                    defaultMessage: 'When enabled, you can react quickly with recently used reactions when hovering over a message.',
-                }),
-            });
-        }
+        // LZX: 固定「开启快捷表情」，section 构建注释保留。
+        // let oneClickReactionsOnPostsSection;
+        // if (this.props.emojiPickerEnabled) {
+        //     oneClickReactionsOnPostsSection = this.createSection({
+        //         section: Preferences.ONE_CLICK_REACTIONS_ENABLED,
+        //         display: 'oneClickReactionsOnPosts',
+        //         value: this.state.oneClickReactionsOnPosts,
+        //         defaultDisplay: 'true',
+        //         title: defineMessage({
+        //             id: 'user.settings.display.oneClickReactionsOnPostsTitle',
+        //             defaultMessage: 'Quick reactions on messages',
+        //         }),
+        //         firstOption: {
+        //             value: 'true',
+        //             radionButtonText: {
+        //                 label: defineMessage({
+        //                     id: 'user.settings.sidebar.on',
+        //                     defaultMessage: 'On',
+        //                 }),
+        //             },
+        //         },
+        //         secondOption: {
+        //             value: 'false',
+        //             radionButtonText: {
+        //                 label: defineMessage({
+        //                     id: 'user.settings.sidebar.off',
+        //                     defaultMessage: 'Off',
+        //                 }),
+        //             },
+        //         },
+        //         description: defineMessage({
+        //             id: 'user.settings.display.oneClickReactionsOnPostsDescription',
+        //             defaultMessage: 'When enabled, you can react quickly with recently used reactions when hovering over a message.',
+        //         }),
+        //     });
+        // }
 
-        const renderEmoticonsAsEmojiSection = (
-            <div>
-                <SettingItem
-                    active={this.props.activeSection === 'renderEmoticonsAsEmoji'}
-                    areAllSectionsInactive={this.props.activeSection === ''}
-                    title={
-                        <FormattedMessage
-                            id='user.settings.display.renderEmoticonsAsEmojiTitle'
-                            defaultMessage='Render emoticons as emojis'
-                        />
-                    }
-                    describe={
-                        this.props.renderEmoticonsAsEmoji === 'true' ? (
-                            <FormattedMessage
-                                id='user.settings.advance.on'
-                                defaultMessage='On'
-                            />
-                        ) : (
-                            <FormattedMessage
-                                id='user.settings.advance.off'
-                                defaultMessage='Off'
-                            />
-                        )
-                    }
-                    section='renderEmoticonsAsEmoji'
-                    updateSection={this.updateSection}
-                    max={(
-                        <RenderEmoticonsAsEmoji
-                            renderEmoticonsAsEmoji={this.props.renderEmoticonsAsEmoji}
-                            user={this.props.user}
-                            updateSection={this.updateSection}
-                        />
-                    )}
-                />
-                <div className='divider-dark'/>
-            </div>
-        );
+        // LZX: 固定「开启表情符号渲染」，section 构建注释保留。
+        // const renderEmoticonsAsEmojiSection = (
+        //     <div>
+        //         <SettingItem
+        //             active={this.props.activeSection === 'renderEmoticonsAsEmoji'}
+        //             areAllSectionsInactive={this.props.activeSection === ''}
+        //             title={
+        //                 <FormattedMessage
+        //                     id='user.settings.display.renderEmoticonsAsEmojiTitle'
+        //                     defaultMessage='Render emoticons as emojis'
+        //                 />
+        //             }
+        //             describe={
+        //                 this.props.renderEmoticonsAsEmoji === 'true' ? (
+        //                     <FormattedMessage
+        //                         id='user.settings.advance.on'
+        //                         defaultMessage='On'
+        //                     />
+        //                 ) : (
+        //                     <FormattedMessage
+        //                         id='user.settings.advance.off'
+        //                         defaultMessage='Off'
+        //                     />
+        //                 )
+        //             }
+        //             section='renderEmoticonsAsEmoji'
+        //             updateSection={this.updateSection}
+        //             max={(
+        //                 <RenderEmoticonsAsEmoji
+        //                     renderEmoticonsAsEmoji={this.props.renderEmoticonsAsEmoji}
+        //                     user={this.props.user}
+        //                     updateSection={this.updateSection}
+        //                 />
+        //             )}
+        //         />
+        //         <div className='divider-dark'/>
+        //     </div>
+        // );
 
         return (
             <div
@@ -1205,18 +1226,27 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
                     {themeSection}
                     {collapsedReplyThreads}
                     {clockSection}
-                    {teammateNameDisplaySection}
-                    {availabilityStatusOnPostsSection}
-                    {lastActiveSection}
+                    {/* LZX: 固定显示用户名，用户无需选择。 */}
+                    {/* {teammateNameDisplaySection} */}
+                    {/* LZX: 固定开启在线状态显示。 */}
+                    {/* {availabilityStatusOnPostsSection} */}
+                    {/* LZX: 固定分享上次活跃时间。 */}
+                    {/* {lastActiveSection} */}
                     {timezoneSelection}
-                    {linkPreviewSection}
-                    {collapseSection}
-                    {messageDisplaySection}
+                    {/* LZX: 系统控制台 5.7 已关闭链接预览，此处不展示。 */}
+                    {/* {linkPreviewSection} */}
+                    {/* LZX: 固定展开图片预览。 */}
+                    {/* {collapseSection} */}
+                    {/* LZX: 固定标准消息显示。 */}
+                    {/* {messageDisplaySection} */}
                     {/* LZX: 点击打开话题固定关闭，不再允许用户编辑。 */}
                     {/* {clickToReply} */}
-                    {channelDisplayModeSection}
-                    {oneClickReactionsOnPostsSection}
-                    {renderEmoticonsAsEmojiSection}
+                    {/* LZX: 固定完整宽度。 */}
+                    {/* {channelDisplayModeSection} */}
+                    {/* LZX: 固定开启快捷添加表情回应。 */}
+                    {/* {oneClickReactionsOnPostsSection} */}
+                    {/* LZX: 固定开启表情符号渲染。 */}
+                    {/* {renderEmoticonsAsEmojiSection} */}
                     {languagesSection}
                 </div>
             </div>
