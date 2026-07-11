@@ -427,6 +427,21 @@ func (ps *PlatformService) processStatusUpdates() {
 			return
 		}
 
+		if broadcast {
+			// A websocket can reconnect after its previous connection queued an
+			// offline update but before this batch is flushed. Do not let that stale
+			// update overwrite the status established by the active connection.
+			for userID, status := range statusBatch {
+				if status.Status == model.StatusOffline && ps.WebConnCountForUser(userID) > 0 {
+					delete(statusBatch, userID)
+				}
+			}
+
+			if len(statusBatch) == 0 {
+				return
+			}
+		}
+
 		// Add each status to cache.
 		for _, status := range statusBatch {
 			ps.AddStatusCache(status)

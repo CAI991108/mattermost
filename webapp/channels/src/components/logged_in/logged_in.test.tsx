@@ -7,6 +7,7 @@ import {Redirect} from 'react-router-dom';
 import type {UserProfile} from '@mattermost/types/users';
 
 import * as GlobalActions from 'actions/global_actions';
+import * as WebSocketActions from 'actions/websocket_actions';
 import BrowserStore from 'stores/browser_store';
 
 import LoggedIn from 'components/logged_in/logged_in';
@@ -39,6 +40,9 @@ describe('components/logged_in/LoggedIn', () => {
     });
     afterEach(() => {
         (Redirect as unknown as jest.Mock).mockClear();
+        (WebSocketActions.initialize as jest.Mock).mockReset();
+        (WebSocketActions.close as jest.Mock).mockReset();
+        jest.useRealTimers();
     });
 
     const children = <span>{'Test'}</span>;
@@ -198,6 +202,67 @@ describe('components/logged_in/LoggedIn', () => {
 
         fireEvent(window, new Event('beforeunload'));
         expect(fetch).not.toHaveBeenCalledWith('/api/v4/channels/members/me/view');
+    });
+
+    it('should keep the monitored presence stable when switching between logged-in routes', () => {
+        jest.useFakeTimers();
+        let socketOpen = true;
+        let status = 'online';
+        const statusChanges = [status];
+        const channelProps = {
+            ...baseProps,
+            location: {
+                pathname: '/team/channels/town-square',
+                search: '',
+            },
+        };
+        const profileProps = {
+            ...baseProps,
+            location: {
+                pathname: '/u/test-user',
+                search: '',
+            },
+        };
+
+        (WebSocketActions.initialize as jest.Mock).mockImplementation(() => {
+            if (!socketOpen) {
+                socketOpen = true;
+                status = 'online';
+                statusChanges.push(status);
+            }
+        });
+        (WebSocketActions.close as jest.Mock).mockImplementation(() => {
+            if (socketOpen) {
+                socketOpen = false;
+                status = '';
+                statusChanges.push(status);
+            }
+        });
+
+        const channelRoute = renderWithContext(<LoggedIn {...channelProps}>{children}</LoggedIn>);
+        channelRoute.unmount();
+        jest.advanceTimersByTime(5000);
+
+        expect(statusChanges).toEqual(['online']);
+
+        const profileRoute = renderWithContext(<LoggedIn {...profileProps}>{children}</LoggedIn>);
+        profileRoute.unmount();
+        jest.advanceTimersByTime(5000);
+
+        expect(statusChanges).toEqual(['online']);
+
+        const returnedChannelRoute = renderWithContext(<LoggedIn {...channelProps}>{children}</LoggedIn>);
+
+        expect(WebSocketActions.initialize).toHaveBeenCalledTimes(3);
+        expect(WebSocketActions.close).not.toHaveBeenCalled();
+        expect(statusChanges).toEqual(['online']);
+
+        fireEvent(window, new Event('beforeunload'));
+
+        expect(WebSocketActions.close).toHaveBeenCalledTimes(1);
+        expect(statusChanges).toEqual(['online', '']);
+
+        returnedChannelRoute.unmount();
     });
 
     describe('custom profile attributes', () => {

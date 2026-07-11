@@ -18,7 +18,6 @@ import {getConfig, getPasswordConfig} from 'mattermost-redux/selectors/entities/
 import {getCurrentUser, getUserByUsername as selectUserByUsername} from 'mattermost-redux/selectors/entities/users';
 
 import {loadCustomEmojisIfNeeded} from 'actions/emoji_actions';
-import {loadStatusesByIds} from 'actions/status_actions';
 import {openModal} from 'actions/views/modals';
 
 import CustomStatusModal from 'components/custom_status/custom_status_modal';
@@ -816,12 +815,6 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
     useEffect(() => {
         setLocalResearchFields(null);
     }, [profile.researchFields, user.id]);
-
-    useEffect(() => {
-        if (currentUser?.id) {
-            dispatch(loadStatusesByIds([currentUser.id]) as any);
-        }
-    }, [currentUser?.id, dispatch]);
 
     useEffect(() => {
         let cancelled = false;
