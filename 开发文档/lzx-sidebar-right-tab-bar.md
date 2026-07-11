@@ -150,3 +150,24 @@ Tab 对应的视图在 RHS 内部走两条不同的渲染路径：
 
 顶部帮助入口替换为键盘快捷键入口时，仅移除了全局头部的可见 UI 入口；旧 `user_guide_dropdown` 组件、插件扩展点、帮助页面、Help Popout 和相关 i18n 文案仍保留。后续如确认要彻底删除帮助下拉菜单代码，需要再单独清理这些旧逻辑定位文件。
 
+
+#### 9.7 公开/私有频道头部菜单恢复静音入口
+
+`channel_header_public_private_menu.tsx` 加回 `MenuItemToggleMuteChannel` import 和 JSX，放在第一个菜单项位置；函数签名中恢复 `isMuted` prop（原已通过 `Props` 接口声明，仅组件参数解构补回）。
+
+#### 9.8 DM/GM 头部菜单恢复（精简版）
+
+**背景**：「9.5 DM/GM 私信头部菜单收口」将 DM/GM 头部改为静态 div（无菜单）。本次恢复下拉菜单，但只保留必要入口。
+
+**修改文件：**
+
+| 文件 | 改动 |
+|---|---|
+| `channel_header_menu.tsx` | 移除 `isDirect || isGroup` 时提前返回静态 div 的逻辑；重新引入 `ChannelDirectMenu`/`ChannelGroupMenu` import；在 `Menu.Container` 内按频道类型分发渲染 |
+| `channel_header_direct_menu.tsx` | 移除 `MenuItemToggleInfo`（详情）、`EditConversationHeader`（编辑标题）、`MenuItemChannelSettings`（频道设置）、`CloseMessage`（关闭私信）及相关 import（`useSelector`、`canAccessChannelSettings`、`CogOutlineIcon`、`GlobalState` 等）；保留静音、书签、插件、自动翻译、移动端置顶；`Props` 从 `extends Menu.FirstMenuItemProps` 改为普通 interface |
+| `channel_header_group_menu.tsx` | 同上，额外移除 `MenuItemNotification`（通知偏好）、`MenuItemOpenMembersRHS`（成员 RHS）、`MenuItemConvertToPrivate`（转私有）、`ChannelPermissionGate`、`FormattedMessage`、`useIntl`、`ChevronRightIcon` 等；保留静音、书签、插件、自动翻译、移动端置顶 |
+
+**保留不动：**
+- `ChannelDirectMenu`/`ChannelGroupMenu` 组件文件本体（已精简后仍作为独立文件）
+- `channel-header__trigger--static` CSS class 保留在 `_headers.scss`，但不再被添加到 DM/GM 头部元素上
+

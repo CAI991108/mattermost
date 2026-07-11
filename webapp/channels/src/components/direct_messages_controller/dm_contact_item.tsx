@@ -1,19 +1,26 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React from 'react';
+import React, {useState} from 'react';
+import {useIntl} from 'react-intl';
+
+import {DotsVerticalIcon} from '@mattermost/compass-icons/components';
+import type {UserProfile} from '@mattermost/types/users';
 
 import {displayUsername} from 'mattermost-redux/utils/user_utils';
 
 import CustomStatusEmoji from 'components/custom_status/custom_status_emoji';
+import * as Menu from 'components/menu';
 import ProfilePicture from 'components/profile_picture';
 import ProfilePopover from 'components/profile_popover';
+import MenuItemToggleMuteChannel from 'components/channel_header_menu/menu_items/toggle_mute_channel';
 import * as Utils from 'utils/utils';
-
-import type {UserProfile} from '@mattermost/types/users';
 
 type Props = {
     user: UserProfile;
+    currentUserId: string;
+    channelId: string;
+    isMuted: boolean;
     status?: string;
     unreadCount: number;
     isActive: boolean;
@@ -23,20 +30,28 @@ type Props = {
 
 export default function DmContactItem({
     user,
+    currentUserId,
+    channelId,
+    isMuted,
     status,
     unreadCount,
     isActive,
     nameDisplaySetting,
     onClick,
 }: Props) {
+    const {formatMessage} = useIntl();
+    const [menuOpen, setMenuOpen] = useState(false);
     const displayName = displayUsername(user, nameDisplaySetting);
     const userProfileSrc = Utils.imageURLForUser(user.id, user.last_picture_update);
 
     const handleClick = () => onClick(user.username);
 
+    // Construct a minimal channel-like object for MenuItemToggleMuteChannel
+    const channelForMute = {id: channelId, type: 'D'} as any;
+
     return (
         <div
-            className={`dm-contact-item${isActive ? ' dm-contact-item--active' : ''}`}
+            className={`dm-contact-item${isActive ? ' dm-contact-item--active' : ''}${menuOpen ? ' dm-contact-item--menu-open' : ''}${isMuted ? ' dm-contact-item--muted' : ''}`}
         >
             <ProfilePopover
                 triggerComponentClass='dm-contact-item__avatar'
@@ -76,11 +91,36 @@ export default function DmContactItem({
                 />
             </button>
             <div className='dm-contact-item__badges'>
-                {unreadCount > 0 && (
+                {unreadCount > 0 && !menuOpen && (
                     <span className='dm-contact-item__unread-badge'>
                         {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                 )}
+                <Menu.Container
+                    menuButton={{
+                        id: `DmContactMenu-Button-${user.id}`,
+                        class: 'dm-contact-item__menu-btn',
+                        'aria-label': formatMessage({
+                            id: 'dm_contact.menu.ariaLabel',
+                            defaultMessage: 'Options for {name}',
+                        }, {name: displayName}),
+                        children: <DotsVerticalIcon size={16}/>,
+                    }}
+                    menu={{
+                        id: `DmContactMenu-MenuList-${user.id}`,
+                        'aria-label': formatMessage({
+                            id: 'dm_contact.menu.ariaLabel',
+                            defaultMessage: 'Options for {name}',
+                        }, {name: displayName}),
+                        onToggle: setMenuOpen,
+                    }}
+                >
+                    <MenuItemToggleMuteChannel
+                        userID={currentUserId}
+                        channel={channelForMute}
+                        isMuted={isMuted}
+                    />
+                </Menu.Container>
             </div>
         </div>
     );

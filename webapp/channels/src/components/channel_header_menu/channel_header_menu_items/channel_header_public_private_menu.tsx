@@ -23,6 +23,7 @@ import MenuItemCloseChannel from '../menu_items/close_channel';
 import MenuItemGroupsMenuItems from '../menu_items/groups';
 import MenuItemLeaveChannel from '../menu_items/leave_channel';
 import MenuItemPluginItems from '../menu_items/plugins_submenu';
+import MenuItemToggleMuteChannel from '../menu_items/toggle_mute_channel';
 import MenuItemUnarchiveChannel from '../menu_items/unarchive_channel';
 import MenuItemViewPinnedPosts from '../menu_items/view_pinned_posts';
 
@@ -39,7 +40,7 @@ interface Props extends Menu.FirstMenuItemProps {
     isChannelAutotranslated: boolean;
 }
 
-const ChannelHeaderPublicMenu = ({channel, user, isDefault, isMobile, isLicensedForLDAPGroups, pluginItems, isChannelBookmarksEnabled, isChannelAutotranslated, ...rest}: Props) => {
+const ChannelHeaderPublicMenu = ({channel, user, isMuted, isDefault, isMobile, isLicensedForLDAPGroups, pluginItems, isChannelBookmarksEnabled, isChannelAutotranslated, ...rest}: Props) => {
     const isGroupConstrained = channel?.group_constrained === true;
     const isArchived = channel.delete_at !== 0;
     const isPrivate = channel?.type === Constants.PRIVATE_CHANNEL;
@@ -55,6 +56,11 @@ const ChannelHeaderPublicMenu = ({channel, user, isDefault, isMobile, isLicensed
 
     return (
         <>
+            <MenuItemToggleMuteChannel
+                userID={user.id}
+                channel={channel}
+                isMuted={isMuted}
+            />
             {!isArchived && (
                 <>
                     <MenuItemChannelSettings
