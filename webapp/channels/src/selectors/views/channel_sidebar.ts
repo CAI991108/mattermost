@@ -18,6 +18,8 @@ import {
 import {
     getAllChannels,
     getCurrentChannelId,
+    getChannelIdsForCurrentTeam,
+    getChannelMessageCounts,
     getMyChannelMemberships,
     getUnreadChannelIds,
     sortUnreadChannels,
@@ -25,6 +27,7 @@ import {
 import {shouldShowUnreadsCategory, isCollapsedThreadsEnabled} from 'mattermost-redux/selectors/entities/preferences';
 import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
 import {memoizeResult} from 'mattermost-redux/utils/helpers';
+import {isChannelMuted} from 'mattermost-redux/utils/channel_utils';
 
 import type {DraggingState, GlobalState} from 'types/store';
 
@@ -69,11 +72,39 @@ export const getChannelsByCategoryForCurrentTeam: (state: GlobalState) => Relati
     });
 })();
 
+// Returns channel ids that are muted but have posts since the user last viewed them.
+// calculateUnreadCount always returns messages=0 for muted channels (msg_count is kept in sync),
+// so we compare last_post_at vs last_viewed_at instead.
+const getMutedChannelIdsWithMessages = createSelector(
+    'getMutedChannelIdsWithMessages',
+    getChannelIdsForCurrentTeam,
+    getMyChannelMemberships,
+    getAllChannels,
+    (teamChannelIds, memberships, allChannels) => {
+        return teamChannelIds.filter((id) => {
+            const member = memberships[id];
+            if (!isChannelMuted(member)) {
+                return false;
+            }
+            const channel = allChannels[id];
+            if (!channel || !member) {
+                return false;
+            }
+            return channel.last_post_at > (member.last_viewed_at || 0);
+        });
+    },
+);
+
 const getUnreadChannelIdsSet = createSelector(
     'getUnreadChannelIdsSet',
     (state: GlobalState) => getUnreadChannelIds(state, state.views.channel.lastUnreadChannel),
-    (unreadChannelIds) => {
-        return new Set(unreadChannelIds);
+    getMutedChannelIdsWithMessages,
+    (unreadChannelIds, mutedWithMessages) => {
+        const set = new Set(unreadChannelIds);
+        for (const id of mutedWithMessages) {
+            set.add(id);
+        }
+        return set;
     },
 );
 

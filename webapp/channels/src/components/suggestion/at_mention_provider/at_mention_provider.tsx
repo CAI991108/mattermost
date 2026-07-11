@@ -125,7 +125,7 @@ export default class AtMentionProvider extends Provider {
             return [];
         }
 
-        return ['here', 'channel', 'all'].filter((item) =>
+        return ['here', 'all'].filter((item) => // LZX: 移除 @channel 候选（与 @all 重复）
             item.startsWith(this.latestPrefix),
         ).map((name) => ({
             username: name,

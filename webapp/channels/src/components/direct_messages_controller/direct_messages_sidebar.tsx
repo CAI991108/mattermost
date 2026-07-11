@@ -8,7 +8,7 @@ import {useRouteMatch} from 'react-router-dom';
 
 import {getMissingProfilesByIds, getMissingProfilesByUsernames} from 'mattermost-redux/actions/users';
 import {getTeammateNameDisplaySetting} from 'mattermost-redux/selectors/entities/preferences';
-import {getUserByUsername, getUsers, getUserStatuses} from 'mattermost-redux/selectors/entities/users';
+import {getCurrentUserId, getUserByUsername, getUsers, getUserStatuses} from 'mattermost-redux/selectors/entities/users';
 
 import {openModal} from 'actions/views/modals';
 import {getDmUnreadByUserId} from 'selectors/direct_messages';
@@ -66,6 +66,7 @@ export default function DirectMessagesSidebar() {
     const statuses = useSelector(getUserStatuses);
     const dmUnreadByUserId = useSelector(getDmUnreadByUserId);
     const nameDisplaySetting = useSelector(getTeammateNameDisplaySetting);
+    const currentUserId = useSelector(getCurrentUserId);
 
     const [isRecentOpen, setIsRecentOpen] = useState(true);
     const [lastUnreadDmUserId, setLastUnreadDmUserId] = useState<string | null>(null);
@@ -212,6 +213,9 @@ export default function DirectMessagesSidebar() {
                             <DmContactItem
                                 key={`unread-${user.id}`}
                                 user={user}
+                                currentUserId={currentUserId}
+                                channelId={dmInfo?.channelId ?? ''}
+                                isMuted={dmInfo?.isMuted ?? false}
                                 status={statuses[user.id]}
                                 unreadCount={dmInfo?.unread ?? 0}
                                 isActive={(activeUsername && user.username.toLowerCase() === activeUsername) || user.id === activeUserId}
@@ -240,6 +244,9 @@ export default function DirectMessagesSidebar() {
                         <DmContactItem
                             key={`recent-${user.id}`}
                             user={user}
+                            currentUserId={currentUserId}
+                            channelId={dmInfo?.channelId ?? ''}
+                            isMuted={dmInfo?.isMuted ?? false}
                             status={statuses[user.id]}
                             unreadCount={dmInfo?.unread ?? 0}
                             isActive={(activeUsername && user.username.toLowerCase() === activeUsername) || user.id === activeUserId}

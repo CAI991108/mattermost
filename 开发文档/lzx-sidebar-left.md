@@ -265,6 +265,7 @@ Mattermost 原本提供一个用户级侧栏设置：`Group unread channels sepa
 
 > 本次只调整「查找频道」弹窗的前端建议列表行为：默认不展示列表，搜索时只返回 public/private 频道。底层 DM/GM 能力和其他入口不受影响。
 
+
 ---
 
 ## 第五章：隐藏消息快捷常用表情
@@ -352,3 +353,78 @@ const showRecentlyUsedReactions = (!isMobileView && !isReadOnly && !isEphemeral 
 - 后端 API、数据库和 Redux 数据结构均不修改
 
 > 本次只是前端渲染层隐藏快捷常用表情入口。用户仍然可以通过表情选择器添加 reaction，最近表情数据也会继续按原逻辑记录，后续如需恢复快捷表情，只需取消 `post_options.tsx` 中 `{showRecentReactions}` 的 JSX 注释并移除 `{showRecentReactions && null}` 即可。
+
+---
+
+
+## 第六章：恢复频道列表三点菜单静音入口
+
+### 本次修改
+
+目标：恢复「lzx-sidebar-right-tab-bar.md第四章 9.4」中被删除的频道列表三点菜单静音/取消静音入口，同时覆盖 DM/GM 类型频道。
+
+#### 修改文件
+
+| 文件 | 改动 |
+|---|---|
+| `sidebar/sidebar_channel/sidebar_channel_menu/index.ts` | 加回 `getMyChannelMemberships`、`getCurrentUserId`、`isChannelMuted` selector 注入，以及 `muteChannel`/`unmuteChannel` action 注入 |
+| `sidebar/sidebar_channel/sidebar_channel_menu/sidebar_channel_menu.tsx` | 加回 `BellOutlineIcon`/`BellOffOutlineIcon` 图标 import，props `currentUserId`/`isMuted`/`muteChannel`/`unmuteChannel`，以及 `muteUnmuteChannelMenuItem` 完整 JSX 块（含 DM/GM 文案分支），并渲染到菜单 `markAsReadUnreadMenuItem` 之后 |
+
+---
+
+## 第七章：静音频道未读逻辑优化
+
+### 功能背景
+
+Mattermost 原生行为下，静音频道完全被排除在 UNREADS 分组之外，团队角标也不反映静音频道的任何状态。本次改造让静音频道的未读状态可见，同时保持不弹通知的特性。
+
+### 本次修改
+
+#### 7.1 静音频道进入 UNREADS 分组
+
+目标：静音频道有新消息时，出现在左侧栏 UNREADS 分组，但不弹系统通知（通知行为由后端 `mark_unread=mention` 控制）。
+
+**根因**：`calculateUnreadCount` 对静音频道 `messages` 永远返回 0，因为 reducer 在 `INCREMENT_UNREAD_MSG_COUNT` 时，静音频道（`onlyMentions=true`）会同步递增 `msg_count` 和 `total`，导致差值始终为 0。
+
+**解决方案**：用 `channel.last_post_at > member.last_viewed_at` 判断静音频道是否有用户未看到的新帖子（`last_viewed_at` 只在用户实际打开频道时更新，不受 mute 逻辑影响）。
+
+| 文件 | 改动 |
+|---|---|
+| `selectors/views/channel_sidebar.ts` | 新增 `getMutedChannelIdsWithMessages` selector，基于 `last_post_at > last_viewed_at` 找出静音但有新消息的频道 id 列表；修改 `getUnreadChannelIdsSet`，将两个 Set 合并，使静音频道也能进入 UNREADS |
+| import 新增 | `getChannelIdsForCurrentTeam`、`getAllChannels`（来自 `mattermost-redux/selectors/entities/channels`）；`isChannelMuted`（来自 `mattermost-redux/utils/channel_utils`）|
+
+**注意**：CRT（折叠话题）模式下 `last_post_at` 包含回复帖，可能轻微多包含一些静音频道，非严重问题。
+
+#### 7.2 静音频道 @提及映射到团队角标
+
+目标：静音频道有 @提及时，团队侧边栏图标出现数字角标；普通消息不影响角标。
+
+| 文件 | 改动 |
+|---|---|
+| `packages/mattermost-redux/src/selectors/entities/channels.ts` | 修改 `getTeamsUnreadStatuses` 中 muted 频道处理逻辑：从「直接 continue 跳过全部」改为「提前排除 DM/GM 和已归档频道后，只计入 mentions 和 hasUrgent（紧急提及）到团队角标，不计入 showUnread」|
+
+#### 保留不动
+
+- `components/sidebar/unread_channels.tsx` — 不修改，UNREADS 渲染组件通过上述 selector 自动生效
+- 后端通知逻辑、`mark_unread` 字段 — 静音不弹通知的行为由后端保证，前端不干预
+
+
+---
+
+## 第八章：移除 @channel 自动补全候选
+
+### 功能背景
+
+`@here`、`@channel`、`@all` 三个频道级提及中，`@channel` 与 `@all` 功能完全相同（均通知频道所有成员），是 Mattermost 历史遗留的重复别名。本次移除 `@channel` 的自动补全候选，只保留 `@here` 和 `@all`，减少用户困惑。
+
+### 本次修改
+
+| 文件 | 改动 |
+|---|---|
+| `components/suggestion/at_mention_provider/at_mention_provider.tsx` | `specialMentions()` 方法中，将 `['here', 'channel', 'all']` 改为 `['here', 'all']`，移除 `@channel` 候选项 |
+
+### 保留不动
+
+- 后端通知逻辑不变——用户手动完整输入 `@channel` 并发送，后端仍正常处理
+- `@here` 和 `@all` 候选保留不变
+

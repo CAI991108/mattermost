@@ -6,7 +6,7 @@ import {getAllChannels, getChannelMessageCount} from 'mattermost-redux/selectors
 import {getMyChannelMemberships} from 'mattermost-redux/selectors/entities/common';
 import {isCollapsedThreadsEnabled} from 'mattermost-redux/selectors/entities/preferences';
 import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
-import {calculateUnreadCount} from 'mattermost-redux/utils/channel_utils';
+import {calculateUnreadCount, isChannelMuted} from 'mattermost-redux/utils/channel_utils';
 
 import {Constants} from 'utils/constants';
 import {getUserIdFromChannelId} from 'utils/utils';
@@ -17,6 +17,8 @@ export type DmUnreadInfo = {
     unread: number;
     lastPostAt: number;
     hasHistory: boolean;
+    channelId: string;
+    isMuted: boolean;
 };
 
 /**
@@ -48,14 +50,24 @@ export const getDmUnreadByUserId = createSelector(
             }
 
             const messageCount = getChannelMessageCount(state, dmChannel.id);
-            const unread = messageCount
+            let unread = messageCount
                 ? calculateUnreadCount(messageCount, membership, crtEnabled).messages
                 : Math.max(0, (dmChannel.total_msg_count || 0) - (membership.msg_count || 0));
+
+            // calculateUnreadCount always returns messages=0 for muted channels because the
+            // reducer keeps msg_count in sync with total_msg_count for muted channels.
+            // Fall back to last_post_at > last_viewed_at (same approach as getMutedChannelIdsWithMessages
+            // in channel_sidebar.ts) so muted DMs with new messages still show up in the unread group.
+            if (unread === 0 && isChannelMuted(membership)) {
+                unread = (dmChannel.last_post_at || 0) > (membership.last_viewed_at || 0) ? 1 : 0;
+            }
 
             result[otherUserId] = {
                 unread,
                 lastPostAt: dmChannel.last_post_at || 0,
                 hasHistory: (dmChannel.last_post_at || 0) > 0,
+                channelId: dmChannel.id,
+                isMuted: isChannelMuted(membership),
             };
         }
 
@@ -76,14 +88,21 @@ export const getHasUnreadDMs = createSelector(
 );
 
 /**
- * Returns total unread messages across all DM channels.
+ * Returns total unread messages across all non-muted DM channels.
+ * Muted DMs are excluded so the TeamSidebar private-message button badge
+ * is not incremented by messages from muted contacts.
  * Used by TeamSidebar DM button to show a numeric badge.
  */
 export const getTotalUnreadDMs = createSelector(
     'getTotalUnreadDMs',
     getDmUnreadByUserId,
     (dmUnreadByUserId) => {
-        return Object.values(dmUnreadByUserId).reduce((total, info) => total + info.unread, 0);
+        return Object.values(dmUnreadByUserId).reduce((total, info) => {
+            if (info.isMuted) {
+                return total;
+            }
+            return total + info.unread;
+        }, 0);
     },
 );
 
