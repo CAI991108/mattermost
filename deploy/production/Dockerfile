@@ -40,7 +40,23 @@ RUN --mount=type=cache,target=/root/.npm \
 
 COPY webapp/ ./webapp/
 
-RUN cd webapp \
+RUN --mount=type=cache,target=/root/.npm \
+    cd webapp \
+    && npm rebuild --ignore-scripts=false --foreground-scripts \
+        gifsicle@5.3.0 \
+        mozjpeg@7.1.1 \
+        optipng-bin@7.0.1 \
+        pngquant-bin@6.0.1 \
+    && test -x node_modules/gifsicle/vendor/gifsicle \
+    && test -x node_modules/mozjpeg/vendor/cjpeg \
+    && test -x node_modules/optipng-bin/vendor/optipng \
+    && test -x node_modules/pngquant-bin/vendor/pngquant \
+    && printf '%s\n' \
+        'f0b4609e4137bbda1b05ec1dc334467fa3de840b0d26cf3114d03754f16fa264  node_modules/gifsicle/vendor/gifsicle' \
+        'ef5610f6a949b4502410d015c47bde743ce27b9f49d4c3905e1d354603f2b6f6  node_modules/mozjpeg/vendor/cjpeg' \
+        '12ef97e434641350a92c1ac08d1afa439ea9acd3c5af791fbeddc120c9efdf55  node_modules/optipng-bin/vendor/optipng' \
+        '54f76704156c2f95a1091996a68d206574b4b0b99635fab4562fa7990f1dbf4c  node_modules/pngquant-bin/vendor/pngquant' \
+        | sha256sum --check --strict - \
     && npm run postinstall \
     && npm run build
 
@@ -50,11 +66,14 @@ COPY NOTICE.txt README.md LICENSE.txt ./
 ARG BUILD_HASH=unknown
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    make -C server \
+    mkdir -p /src/bin \
+    && make -C server \
       BUILD_ENTERPRISE=false \
       BUILD_NUMBER=11.8.3-iuin \
       BUILD_HASH="${BUILD_HASH}" \
-      build-linux-amd64
+      build-linux-amd64 \
+    && test -x /src/bin/mattermost \
+    && test -x /src/bin/mmctl
 
 # Package only the source-built Team server and the pinned Calls plugin. The
 # upstream package target imports Mattermost's plugin signing key and verifies
