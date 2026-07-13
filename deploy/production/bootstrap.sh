@@ -60,6 +60,15 @@ for directory in config logs plugins client-plugins data; do
     install -d -m 0750 -o 2000 -g 2000 "$DATA_ROOT/mattermost/$directory"
 done
 
+seed_source="$REPO_ROOT/server/data/profile/honors"
+seed_target="$DATA_ROOT/seed/profile/honors"
+[[ -d "$seed_source" ]] || die "missing IUIN honor seed directory: $seed_source"
+install -d -m 0755 -o root -g root "$DATA_ROOT/seed" "$DATA_ROOT/seed/profile" "$seed_target"
+cp -RL -- "$seed_source/." "$seed_target/"
+chown -R root:root "$DATA_ROOT/seed"
+find "$DATA_ROOT/seed" -type d -exec chmod 0755 {} +
+find "$DATA_ROOT/seed" -type f -exec chmod 0644 {} +
+
 write_secret() {
     local name=$1 owner=$2 group=$3 mode=$4 value=$5 path
     path="$DATA_ROOT/secrets/$name"

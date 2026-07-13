@@ -136,7 +136,7 @@ services:
         target: /opt/iuin/minio-ops.sh
         read_only: true
       - type: bind
-        source: ../../server/data/profile/honors
+        source: ${DATA_ROOT:-/srv/iuin}/seed/profile/honors
         target: /seed/profile/honors
         read_only: true
       - type: bind
