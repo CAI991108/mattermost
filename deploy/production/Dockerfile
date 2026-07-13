@@ -66,28 +66,30 @@ COPY NOTICE.txt README.md LICENSE.txt ./
 ARG BUILD_HASH=unknown
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    mkdir -p /src/bin \
-    && make -C server \
+    cd server \
+    && mkdir -p bin \
+    && make \
       BUILD_ENTERPRISE=false \
       BUILD_NUMBER=11.8.3-iuin \
       BUILD_HASH="${BUILD_HASH}" \
       build-linux-amd64 \
-    && test -x /src/bin/mattermost \
-    && test -x /src/bin/mmctl
+    && test -x bin/mattermost \
+    && test -x bin/mmctl
 
 # Package only the source-built Team server and the pinned Calls plugin. The
 # upstream package target imports Mattermost's plugin signing key and verifies
 # the downloaded Calls archive signature before placing it in prepackaged_plugins.
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    make -C server \
+    cd server \
+    && make \
       BUILD_ENTERPRISE=false \
       BUILD_NUMBER=11.8.3-iuin \
       BUILD_HASH="${BUILD_HASH}" \
       PLUGIN_PACKAGES=mattermost-plugin-calls-v1.11.5 \
       package-linux-amd64 \
     && mkdir -p /out \
-    && tar -xzf server/dist/mattermost-team-linux-amd64.tar.gz -C /out \
+    && tar -xzf dist/mattermost-team-linux-amd64.tar.gz -C /out \
     && test -x /out/mattermost/bin/mattermost \
     && test -x /out/mattermost/bin/mmctl \
     && test -f /out/mattermost/prepackaged_plugins/mattermost-plugin-calls-v1.11.5-linux-amd64.tar.gz \
