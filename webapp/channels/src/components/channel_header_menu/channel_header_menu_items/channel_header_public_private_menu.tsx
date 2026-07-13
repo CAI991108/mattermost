@@ -3,7 +3,6 @@
 
 import type {ReactNode} from 'react';
 import React from 'react';
-import {FormattedMessage} from 'react-intl';
 
 import type {Channel} from '@mattermost/types/channels';
 import type {UserProfile} from '@mattermost/types/users';
@@ -11,7 +10,6 @@ import type {UserProfile} from '@mattermost/types/users';
 import {Permissions} from 'mattermost-redux/constants';
 import {isGuest} from 'mattermost-redux/utils/user_utils';
 
-import ChannelMoveToSubMenu from 'components/channel_move_to_sub_menu';
 import * as Menu from 'components/menu';
 import ChannelPermissionGate from 'components/permissions_gates/channel_permission_gate';
 
@@ -24,11 +22,7 @@ import MenuItemChannelSettings from '../menu_items/channel_settings_menu';
 import MenuItemCloseChannel from '../menu_items/close_channel';
 import MenuItemGroupsMenuItems from '../menu_items/groups';
 import MenuItemLeaveChannel from '../menu_items/leave_channel';
-import MenuItemNotification from '../menu_items/notification';
-import MenuItemOpenMembersRHS from '../menu_items/open_members_rhs';
 import MenuItemPluginItems from '../menu_items/plugins_submenu';
-import MenuItemToggleFavoriteChannel from '../menu_items/toggle_favorite_channel';
-import MenuItemToggleInfo from '../menu_items/toggle_info';
 import MenuItemToggleMuteChannel from '../menu_items/toggle_mute_channel';
 import MenuItemUnarchiveChannel from '../menu_items/unarchive_channel';
 import MenuItemViewPinnedPosts from '../menu_items/view_pinned_posts';
@@ -40,14 +34,13 @@ interface Props extends Menu.FirstMenuItemProps {
     isReadonly: boolean;
     isDefault: boolean;
     isMobile: boolean;
-    isFavorite: boolean;
     isLicensedForLDAPGroups: boolean;
     pluginItems: ReactNode[];
     isChannelBookmarksEnabled: boolean;
     isChannelAutotranslated: boolean;
 }
 
-const ChannelHeaderPublicMenu = ({channel, user, isMuted, isDefault, isMobile, isFavorite, isLicensedForLDAPGroups, pluginItems, isChannelBookmarksEnabled, isChannelAutotranslated, ...rest}: Props) => {
+const ChannelHeaderPublicMenu = ({channel, user, isMuted, isDefault, isMobile, isLicensedForLDAPGroups, pluginItems, isChannelBookmarksEnabled, isChannelAutotranslated, ...rest}: Props) => {
     const isGroupConstrained = channel?.group_constrained === true;
     const isArchived = channel.delete_at !== 0;
     const isPrivate = channel?.type === Constants.PRIVATE_CHANNEL;
@@ -56,12 +49,13 @@ const ChannelHeaderPublicMenu = ({channel, user, isMuted, isDefault, isMobile, i
     const channelDeletePermission = isPrivate ? Permissions.DELETE_PRIVATE_CHANNEL : Permissions.DELETE_PUBLIC_CHANNEL;
     const channelUnarchivePermission = Permissions.MANAGE_TEAM;
 
+    const showGroupsMenu = !isArchived && !isDefault && isGroupConstrained && isLicensedForLDAPGroups;
+    const showPrimarySection = !isArchived || isChannelAutotranslated || isMobile || showGroupsMenu;
+    const showPluginSection = !isMobile && pluginItems.length > 0;
+    const showDestructiveSection = !isDefault || isArchived;
+
     return (
         <>
-            <MenuItemToggleInfo
-                channel={channel}
-                {...rest}
-            />
             <MenuItemToggleMuteChannel
                 userID={user.id}
                 channel={channel}
@@ -69,12 +63,9 @@ const ChannelHeaderPublicMenu = ({channel, user, isMuted, isDefault, isMobile, i
             />
             {!isArchived && (
                 <>
-                    <MenuItemNotification
-                        user={user}
-                        channel={channel}
-                    />
                     <MenuItemChannelSettings
                         channel={channel}
+                        {...rest}
                     />
                     {isChannelBookmarksEnabled && (
                         <MenuItemChannelBookmarks
@@ -88,83 +79,29 @@ const ChannelHeaderPublicMenu = ({channel, user, isMuted, isDefault, isMobile, i
                     channel={channel}
                 />
             )}
-            <Menu.Separator/>
             {isMobile && (
-                <>
-                    <MenuItemToggleFavoriteChannel
-                        channelID={channel.id}
-                        isFavorite={isFavorite}
-                    />
-                    <MenuItemViewPinnedPosts
-                        channelID={channel.id}
-                    />
-                    <Menu.Separator/>
-                </>
-            )}
-
-            {(isArchived || isDefault) && (
-                <MenuItemOpenMembersRHS
-                    id='channelMembers'
-                    channel={channel}
-                    text={
-                        <FormattedMessage
-                            id='channel_header.members'
-                            defaultMessage='Members'
-                        />
-                    }
+                <MenuItemViewPinnedPosts
+                    channelID={channel.id}
                 />
             )}
 
-            {!isArchived && !isDefault && (
-                <>
-                    <ChannelPermissionGate
-                        channelId={channel.id}
-                        teamId={channel.team_id}
-                        permissions={[channelMembersPermission]}
-                    >
-                        {isGroupConstrained && isLicensedForLDAPGroups && (
-                            <MenuItemGroupsMenuItems
-                                channel={channel}
-                            />
-                        )}
-                        <MenuItemOpenMembersRHS
-                            id='channelMembers'
-                            channel={channel}
-                            text={
-                                <FormattedMessage
-                                    id='channel_header.members'
-                                    defaultMessage='Members'
-                                />
-                            }
-                        />
-                    </ChannelPermissionGate>
-
-                    <ChannelPermissionGate
-                        channelId={channel.id}
-                        teamId={channel.team_id}
-                        permissions={[channelMembersPermission]}
-                        invert={true}
-                    >
-                        <MenuItemOpenMembersRHS
-                            id='channelMembers'
-                            channel={channel}
-                            text={
-                                <FormattedMessage
-                                    id='channel_header.members'
-                                    defaultMessage='Members'
-                                />
-                            }
-                        />
-                    </ChannelPermissionGate>
-                </>
+            {showGroupsMenu && (
+                <ChannelPermissionGate
+                    channelId={channel.id}
+                    teamId={channel.team_id}
+                    permissions={[channelMembersPermission]}
+                >
+                    <MenuItemGroupsMenuItems
+                        channel={channel}
+                    />
+                </ChannelPermissionGate>
             )}
 
-            <Menu.Separator/>
-            <ChannelMoveToSubMenu channel={channel}/>
-            {!isMobile && (
+            {showPrimarySection && (showPluginSection || showDestructiveSection) && <Menu.Separator/>}
+            {showPluginSection && (
                 <MenuItemPluginItems pluginItems={pluginItems}/>
             )}
-            {!isDefault && (
+            {showPluginSection && showDestructiveSection && (
                 <Menu.Separator/>
             )}
             {!isDefault && !isGuest(user.roles) && (

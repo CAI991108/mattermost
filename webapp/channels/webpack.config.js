@@ -53,7 +53,10 @@ var config = {
         filename: '[name].[contenthash].js',
         chunkFilename: '[name].[contenthash].js',
         assetModuleFilename: 'files/[contenthash][ext]',
-        clean: true,
+
+        // In development, clients can keep a previous root/main bundle while the watcher rebuilds.
+        // Keep older hashed chunks available so those clients do not crash on lazy-loaded routes.
+        clean: !DEV,
     },
     module: {
         rules: [
@@ -162,7 +165,7 @@ var config = {
             filename: 'root.html',
             inject: 'head',
             template: 'src/root.html',
-            scriptLoading: 'blocking',
+            scriptLoading: 'defer',
             meta: {
                 csp: {
                     'http-equiv': 'Content-Security-Policy',
@@ -321,8 +324,8 @@ function generateCSP() {
     let csp = 'script-src \'self\' js.stripe.com/v3';
 
     if (DEV) {
-        // Development source maps require eval
-        csp += ' \'unsafe-eval\'';
+        // Development source maps require eval, and the IUIN cache-clear helper is an inline script.
+        csp += ' \'unsafe-eval\' \'unsafe-inline\'';
     }
 
     return csp;

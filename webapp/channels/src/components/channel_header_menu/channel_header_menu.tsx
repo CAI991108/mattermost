@@ -14,7 +14,6 @@ import {
     isChannelAutotranslated as isChannelAutotranslatedSelector,
     getCurrentChannel,
     isCurrentChannelDefault,
-    isCurrentChannelFavorite,
     isCurrentChannelMuted,
 } from 'mattermost-redux/selectors/entities/channels';
 import {getLicense} from 'mattermost-redux/selectors/entities/general';
@@ -28,7 +27,6 @@ import {getIsChannelBookmarksEnabled} from 'components/channel_bookmarks/utils';
 import * as Menu from 'components/menu';
 
 import {Constants} from 'utils/constants';
-import {canPopout, isChannelPopoutWindow} from 'utils/popouts/popout_windows';
 
 import type {GlobalState} from 'types/store';
 
@@ -36,7 +34,6 @@ import ChannelDirectMenu from './channel_header_menu_items/channel_header_direct
 import ChannelGroupMenu from './channel_header_menu_items/channel_header_group_menu';
 import ChannelHeaderMobileMenu from './channel_header_menu_items/channel_header_mobile_menu';
 import ChannelPublicPrivateMenu from './channel_header_menu_items/channel_header_public_private_menu';
-import MenuItemOpenInNewWindow from './menu_items/open_in_new_window';
 
 import ChannelHeaderTitleDirect from '../channel_header/channel_header_title_direct';
 import ChannelHeaderTitleGroup from '../channel_header/channel_header_title_group';
@@ -56,7 +53,6 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
     const user = useSelector(getCurrentUser);
     const channel = useSelector(getCurrentChannel);
     const isDefault = useSelector(isCurrentChannelDefault);
-    const isFavorite = useSelector(isCurrentChannelFavorite);
     const isMuted = useSelector(isCurrentChannelMuted);
     const isLicensedForLDAPGroups = useSelector(getLicense).LDAPGroups === 'true';
     const pluginMenuItems = useSelector(getChannelHeaderMenuPluginComponents);
@@ -74,25 +70,18 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
     const isGroup = (channel.type === Constants.GM_CHANNEL);
 
     let channelTitle: ReactNode = channel.display_name;
-    let ariaLabel = intl.formatMessage({
+    if (isDirect && dmUser) {
+        channelTitle = <ChannelHeaderTitleDirect dmUser={dmUser}/>;
+    } else if (isGroup) {
+        channelTitle = <ChannelHeaderTitleGroup gmMembers={gmMembers}/>;
+    }
+
+    const ariaLabel = intl.formatMessage({
         id: 'channel_header.otherchannel',
         defaultMessage: '{displayName} Channel Menu',
     }, {
         displayName: channel.display_name,
     });
-    if (isDirect && dmUser) {
-        channelTitle = <ChannelHeaderTitleDirect dmUser={dmUser}/>;
-        if (user.id === dmUser.id) {
-            ariaLabel = intl.formatMessage({
-                id: 'channel_header.directchannel',
-                defaultMessage: '{displayName} (you) Channel Menu',
-            }, {
-                displayName: channel.display_name,
-            });
-        }
-    } else if (isGroup) {
-        channelTitle = <ChannelHeaderTitleGroup gmMembers={gmMembers}/>;
-    }
 
     let pluginItems: JSX.Element[] = [];
 
@@ -150,16 +139,12 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
                 horizontal: 'left',
             }}
         >
-            {canPopout() && !isChannelPopoutWindow() && (
-                <MenuItemOpenInNewWindow channel={channel}/>
-            )}
             {isDirect && (
                 <ChannelDirectMenu
                     channel={channel}
                     user={user}
                     isMuted={isMuted}
                     pluginItems={pluginItems}
-                    isFavorite={isFavorite}
                     isMobile={isMobile || false}
                     isChannelBookmarksEnabled={isChannelBookmarksEnabled}
                     isChannelAutotranslated={isChannelAutotranslated}
@@ -171,7 +156,6 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
                     user={user}
                     isMuted={isMuted}
                     pluginItems={pluginItems}
-                    isFavorite={isFavorite}
                     isMobile={isMobile || false}
                     isChannelBookmarksEnabled={isChannelBookmarksEnabled}
                     isChannelAutotranslated={isChannelAutotranslated}
@@ -183,7 +167,6 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
                     user={user}
                     isMuted={isMuted}
                     pluginItems={pluginItems}
-                    isFavorite={isFavorite}
                     isMobile={isMobile || false}
                     isDefault={isDefault}
                     isReadonly={isReadonly}

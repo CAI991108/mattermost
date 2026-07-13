@@ -2,21 +2,17 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback} from 'react';
-import {FormattedMessage, useIntl} from 'react-intl';
-import {useDispatch} from 'react-redux';
+import {useIntl} from 'react-intl';
 
-import {Button} from '@mattermost/shared/components/button';
+import {HomeVariantOutlineIcon, SendIcon} from '@mattermost/compass-icons/components';
 import {WithTooltip} from '@mattermost/shared/components/tooltip';
 
-import {openModal} from 'actions/views/modals';
-
-import UserSettingsModal from 'components/user_settings/modal';
-
-import {ModalIdentifiers} from 'utils/constants';
+import {getHistory} from 'utils/browser_history';
 
 type Props = {
     userId: string;
     currentUserId: string;
+    username: string;
     haveOverrideProp: boolean;
     hide?: () => void;
     returnFocus: () => void;
@@ -27,6 +23,7 @@ type Props = {
 const ProfilePopoverSelfUserRow = ({
     userId,
     currentUserId,
+    username,
     haveOverrideProp,
     hide,
     returnFocus,
@@ -34,17 +31,21 @@ const ProfilePopoverSelfUserRow = ({
     handleShowDirectChannel,
 }: Props) => {
     const {formatMessage} = useIntl();
-    const dispatch = useDispatch();
+    const enterHomepageLabel = formatMessage({
+        id: 'iuin_profile.account.enterHomepage',
+        defaultMessage: 'Enter homepage',
+    });
+    const sendYourselfMessageLabel = formatMessage({
+        id: 'user_profile.send.dm.yourself',
+        defaultMessage: 'Send yourself a message',
+    });
 
-    const handleEditAccountSettings = useCallback(() => {
+    const handleViewHomepage = useCallback(() => {
         hide?.();
-        dispatch(openModal({
-            modalId: ModalIdentifiers.USER_SETTINGS,
-            dialogType: UserSettingsModal,
-            dialogProps: {isContentProductSettings: false, onExited: returnFocus},
-        }));
         handleCloseModals();
-    }, [hide, returnFocus, handleCloseModals]);
+        getHistory().push(`/u/${username}`);
+        returnFocus();
+    }, [hide, returnFocus, handleCloseModals, username]);
 
     if (userId !== currentUserId || haveOverrideProp) {
         return null;
@@ -54,32 +55,30 @@ const ProfilePopoverSelfUserRow = ({
         <div
             className='user-popover__bottom-row-container'
         >
-            <Button
-                type='button'
-                emphasis='primary'
-                size='sm'
-                onClick={handleEditAccountSettings}
-            >
-                <i
-                    className='icon icon-account-outline'
-                    aria-hidden='true'
-                />
-                <FormattedMessage
-                    id='user_profile.account.editProfile'
-                    defaultMessage='Edit Profile'
-                />
-            </Button>
+            <WithTooltip title={enterHomepageLabel}>
+                <button
+                    type='button'
+                    className='btn btn-icon btn-sm'
+                    onClick={handleViewHomepage}
+                    aria-label={enterHomepageLabel}
+                >
+                    <HomeVariantOutlineIcon
+                        size={18}
+                        aria-hidden='true'
+                    />
+                </button>
+            </WithTooltip>
             <WithTooltip
-                title={formatMessage({id: 'user_profile.send.dm.yourself', defaultMessage: 'Send yourself a message'})}
+                title={sendYourselfMessageLabel}
             >
                 <button
                     type='button'
                     className='btn btn-icon btn-sm'
                     onClick={handleShowDirectChannel}
-                    aria-label={formatMessage({id: 'user_profile.send.dm.yourself', defaultMessage: 'Send yourself a message'})}
+                    aria-label={sendYourselfMessageLabel}
                 >
-                    <i
-                        className='icon icon-send'
+                    <SendIcon
+                        size={18}
                         aria-hidden='true'
                     />
                 </button>

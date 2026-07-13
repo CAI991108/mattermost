@@ -12,10 +12,11 @@ import {getCurrentTimezone} from 'mattermost-redux/selectors/entities/timezone';
 
 import {isCustomStatusEnabled, isCustomStatusExpired, makeGetCustomStatus} from 'selectors/views/custom_status';
 
-import RenderEmoji from 'components/emoji/render_emoji';
+import {isIuinStatusImageToken} from 'utils/iuin_status_images';
 
 import type {GlobalState} from 'types/store';
 
+import CustomStatusIcon from './custom_status_icon';
 import ExpiryTime from './expiry_time';
 
 interface Props {
@@ -48,13 +49,14 @@ function CustomStatusEmoji({
 
     const emojiRef = useRef<HTMLSpanElement>(null);
 
-    if (!customStatusEnabled || !customStatus?.emoji || customStatusExpired) {
+    if (!customStatusEnabled || (!customStatus?.emoji && !customStatus?.icon_id) || customStatusExpired) {
         return null;
     }
 
     const statusEmoji = (
-        <RenderEmoji
+        <CustomStatusIcon
             emojiName={customStatus.emoji}
+            statusEmojiId={customStatus.icon_id}
             size={emojiSize}
             emojiStyle={emojiStyle}
             onClick={onClick}
@@ -90,7 +92,7 @@ function CustomStatusEmoji({
                     )}
                 </>
             }
-            emoji={customStatus.emoji}
+            emoji={customStatus.icon_id || isIuinStatusImageToken(customStatus.emoji) ? undefined : customStatus.emoji}
             isEmojiLarge={true}
         >
             <span

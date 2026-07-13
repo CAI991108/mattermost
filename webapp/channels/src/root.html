@@ -7,7 +7,7 @@
     <meta name='robots' content='noindex, nofollow'>
     <meta name='referrer' content='no-referrer'>
 
-    <title>Mattermost</title>
+    <title>IUIN Platform</title>
 
     <meta name='mobile-web-app-capable' content='yes'>
     <meta name='application-name' content='Mattermost'>
@@ -21,6 +21,108 @@
 
     <!-- Initialize subpath empty script for subpath support which will be replaced by server/channels/utils/subpath.go -->
     <script id="publicPathInWindowScript"></script>
+    <script>
+        (function() {
+            var staticRecoveryKey = 'iuin_static_bundle_recovery_at';
+            var staticRecoveryCooldownMs = 2 * 60 * 1000;
+
+            function shouldAttemptStaticRecovery() {
+                var now = Date.now();
+
+                try {
+                    var lastRecovery = Number(window.sessionStorage.getItem(staticRecoveryKey) || 0);
+
+                    if (lastRecovery && now - lastRecovery < staticRecoveryCooldownMs) {
+                        return false;
+                    }
+
+                    window.sessionStorage.setItem(staticRecoveryKey, String(now));
+                } catch (e) {
+                    // If sessionStorage is unavailable, still try one recovery for this page load.
+                }
+
+                return true;
+            }
+
+            function clearBrowserBundleStateAndReload(params) {
+                var tasks = [];
+
+                if ('caches' in window) {
+                    tasks.push(window.caches.keys().then(function(keys) {
+                        return Promise.all(keys.map(function(key) {
+                            return window.caches.delete(key);
+                        }));
+                    }));
+                }
+
+                if ('serviceWorker' in navigator) {
+                    tasks.push(navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                        return Promise.all(registrations.map(function(registration) {
+                            return registration.unregister();
+                        }));
+                    }));
+                }
+
+                Promise.allSettled(tasks).then(function() {
+                    params.set('cache_bust', String(Date.now()));
+
+                    window.location.replace(window.location.pathname + '?' + params.toString() + window.location.hash);
+                });
+            }
+
+            function getStaticAssetURL(target) {
+                if (!target || target === window) {
+                    return '';
+                }
+
+                if (target.tagName === 'SCRIPT') {
+                    return target.src || '';
+                }
+
+                if (target.tagName === 'LINK' && target.rel === 'stylesheet') {
+                    return target.href || '';
+                }
+
+                return '';
+            }
+
+            function isRecoverableStaticAssetFailure(event) {
+                var assetURL = getStaticAssetURL(event.target);
+
+                if (!assetURL) {
+                    return false;
+                }
+
+                try {
+                    var parsedURL = new URL(assetURL, window.location.href);
+
+                    if (parsedURL.origin !== window.location.origin || parsedURL.pathname.indexOf('/static/') === -1) {
+                        return false;
+                    }
+
+                    return (/\.js$|\.css$/).test(parsedURL.pathname);
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            window.addEventListener('error', function(event) {
+                if (!isRecoverableStaticAssetFailure(event) || !shouldAttemptStaticRecovery()) {
+                    return;
+                }
+
+                event.preventDefault();
+                clearBrowserBundleStateAndReload(new URLSearchParams(window.location.search));
+            }, true);
+
+            var params = new URLSearchParams(window.location.search);
+
+            if (params.has('clear_site')) {
+                params.delete('clear_site');
+                clearBrowserBundleStateAndReload(params);
+            }
+        }());
+    </script>
 
     <!--
         This "empty" link element is used as a dynamic inject placeholder for the syntax highlighting css styles:

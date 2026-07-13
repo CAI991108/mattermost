@@ -15,7 +15,7 @@ import {
     useInteractions,
     useRole,
 } from '@floating-ui/react';
-import React, {useCallback} from 'react';
+import React, {type ReactNode, useCallback} from 'react';
 import {useSelector} from 'react-redux';
 
 import type {Emoji} from '@mattermost/types/emojis';
@@ -23,6 +23,7 @@ import type {Emoji} from '@mattermost/types/emojis';
 import {getIsMobileView} from 'selectors/views/browser';
 
 import {RootHtmlPortalId} from 'utils/constants';
+import type {IuinEmoji} from 'utils/iuin_emojis';
 
 import EmojiPickerTabs from './emoji_picker_tabs';
 
@@ -34,7 +35,11 @@ type UseEmojiPickerOptions = {
 
     enableGifPicker?: boolean;
     onAddCustomEmojiClick?: () => void;
+    customEmojiButtonDisabled?: boolean;
+    customEmojiButtonLabel?: ReactNode;
     onEmojiClick: (emoji: Emoji) => void;
+    enableIuinEmojiLibrary?: boolean;
+    onIuinEmojiClick?: (sticker: IuinEmoji) => void;
     onGifClick?: (gif: string) => void;
 
     /**
@@ -53,10 +58,12 @@ export default function useEmojiPicker({
     showEmojiPicker,
     setShowEmojiPicker,
 
-    enableGifPicker,
     onAddCustomEmojiClick,
+    customEmojiButtonDisabled,
+    customEmojiButtonLabel,
     onEmojiClick,
-    onGifClick,
+    enableIuinEmojiLibrary,
+    onIuinEmojiClick,
 
     overrideMiddleware,
 }: UseEmojiPickerOptions): UseEmojiPickerReturn {
@@ -101,11 +108,13 @@ export default function useEmojiPicker({
 
     let emojiPicker = (
         <EmojiPickerTabs
-            enableGifPicker={enableGifPicker}
             onAddCustomEmojiClick={onAddCustomEmojiClick}
+            customEmojiButtonDisabled={customEmojiButtonDisabled}
+            customEmojiButtonLabel={customEmojiButtonLabel}
             onEmojiClose={hideEmojiPicker}
             onEmojiClick={onEmojiClick}
-            onGifClick={onGifClick}
+            enableIuinEmojiLibrary={enableIuinEmojiLibrary}
+            onIuinEmojiClick={onIuinEmojiClick}
         />
     );
 

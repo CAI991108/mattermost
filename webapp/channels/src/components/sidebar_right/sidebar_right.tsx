@@ -4,7 +4,6 @@
 import classNames from 'classnames';
 import React from 'react';
 
-import {isMac} from '@mattermost/shared/utils/user_agent';
 import type {Channel} from '@mattermost/types/channels';
 import type {ProductIdentifier} from '@mattermost/types/products';
 import type {Team} from '@mattermost/types/teams';
@@ -18,6 +17,7 @@ import PostEditHistory from 'components/post_edit_history';
 import ResizableRhs from 'components/resizable_sidebar/resizable_rhs';
 import RhsCard from 'components/rhs_card';
 import RhsThread from 'components/rhs_thread';
+import RhsTabBar from 'components/rhs_tab_bar';
 import Search from 'components/search/index';
 
 import RhsPlugin from 'plugins/rhs_plugin';
@@ -106,9 +106,6 @@ export default class SidebarRight extends React.PureComponent<Props, State> {
     };
 
     handleShortcut = (e: KeyboardEvent) => {
-        const channelInfoShortcutMac = isMac() && e.shiftKey;
-        const channelInfoShortcut = !isMac() && e.altKey;
-
         if (cmdOrCtrlPressed(e, true)) {
             if (e.shiftKey && isKeyPressed(e, Constants.KeyCodes.PERIOD)) {
                 e.preventDefault();
@@ -120,20 +117,6 @@ export default class SidebarRight extends React.PureComponent<Props, State> {
                     }
                 } else {
                     this.props.actions.openAtPrevious(this.previous);
-                }
-            } else if (isKeyPressed(e, Constants.KeyCodes.PERIOD)) {
-                e.preventDefault();
-                if (this.props.isOpen) {
-                    this.props.actions.closeRightHandSide();
-                } else {
-                    this.props.actions.openAtPrevious(this.previous);
-                }
-            } else if (isKeyPressed(e, Constants.KeyCodes.I) && (channelInfoShortcutMac || channelInfoShortcut)) {
-                e.preventDefault();
-                if (this.props.isOpen && this.props.isChannelInfo) {
-                    this.props.actions.closeRightHandSide();
-                } else if (this.props.channel) {
-                    this.props.actions.showChannelInfo(this.props.channel.id);
                 }
             }
         }
@@ -280,7 +263,9 @@ export default class SidebarRight extends React.PureComponent<Props, State> {
             return null;
         }
 
-        const teamNeeded = true;
+        // LZX: 全局私信路由不依赖 team，上下文里可能没有 team。
+        // DM/GM 的 RHS 信息/置顶/文件只需要 current channel。
+        const teamNeeded = !(channel?.type === 'D' || channel?.type === 'G');
         let selectedChannelNeeded;
         let currentChannelNeeded;
         let content = null;
@@ -318,6 +303,9 @@ export default class SidebarRight extends React.PureComponent<Props, State> {
 
         const channelDisplayName = rhsChannel ? rhsChannel.display_name : '';
 
+        const isChannelTab = isChannelInfo || isChannelMembers || this.props.isPinnedPosts || this.props.isChannelFiles;
+        const showTabBar = isChannelTab || (!postRightVisible && !postCardVisible && !isPluginView && !searchVisible && !isPostEditHistory);
+
         const isSidebarRightExpanded = (postRightVisible || postCardVisible || isPluginView || searchVisible || isPostEditHistory) && isExpanded;
         const containerClassName = classNames('sidebar--right', 'move--left is-open', {
             'sidebar--right--expanded expanded': isSidebarRightExpanded,
@@ -337,26 +325,29 @@ export default class SidebarRight extends React.PureComponent<Props, State> {
                     ariaLabel={this.props.ariaLabel}
                     ariaLabeledby={this.props.ariaLabeledby}
                 >
-                    <div
-                        tabIndex={-1}
-                        className='sidebar-right-container'
-                        ref={this.sidebarRight}
-                    >
-                        {isRHSLoading ? (
-                            <div className='sidebar-right__body'>
-                                {/* Sometimes the channel/team is not loaded yet, so we need to wait for it */}
-                                <LoadingScreen centered={true}/>
-                            </div>
-                        ) : (
-                            <Search
-                                isSideBarRight={true}
-                                isSideBarRightOpen={true}
-                                getFocus={this.getSearchBarFocus}
-                                channelDisplayName={channelDisplayName}
-                            >
-                                {content}
-                            </Search>
-                        )}
+                    <div className='sidebar-right-container-wrapper'>
+                        <div
+                            tabIndex={-1}
+                            className='sidebar-right-container'
+                            ref={this.sidebarRight}
+                        >
+                            {isRHSLoading ? (
+                                <div className='sidebar-right__body'>
+                                    {/* Sometimes the channel/team is not loaded yet, so we need to wait for it */}
+                                    <LoadingScreen centered={true}/>
+                                </div>
+                            ) : (
+                                <Search
+                                    isSideBarRight={true}
+                                    isSideBarRightOpen={true}
+                                    getFocus={this.getSearchBarFocus}
+                                    channelDisplayName={channelDisplayName}
+                                >
+                                    {content}
+                                </Search>
+                            )}
+                        </div>
+                        {showTabBar && <RhsTabBar/>}
                     </div>
                 </ResizableRhs>
             </>

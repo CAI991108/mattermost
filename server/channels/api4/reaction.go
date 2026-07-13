@@ -46,6 +46,10 @@ func saveReaction(c *Context, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if appErr := recordIuinRecentEmoji(r.Context(), c.App.Srv().Store().GetInternalMasterDB(), c.AppContext.Session().UserId, reaction.EmojiName); appErr != nil {
+		c.Logger.Warn("Failed to record recent emoji", mlog.String("emoji_name", reaction.EmojiName), mlog.Err(appErr))
+	}
+
 	if err := json.NewEncoder(w).Encode(re); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}

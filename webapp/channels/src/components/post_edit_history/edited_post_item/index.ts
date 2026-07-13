@@ -10,7 +10,7 @@ import {getPost} from 'mattermost-redux/selectors/entities/posts';
 
 import {openModal} from 'actions/views/modals';
 import {editPost} from 'actions/views/posts';
-import {closeRightHandSide} from 'actions/views/rhs';
+import {closeRightHandSide, goBack} from 'actions/views/rhs';
 import {getSelectedPostId} from 'selectors/rhs';
 
 import type {GlobalState} from 'types/store';
@@ -30,6 +30,7 @@ function mapDispatchToProps(dispatch: Dispatch) {
         actions: bindActionCreators({
             editPost,
             closeRightHandSide,
+            goBack,
             openModal,
         }, dispatch),
     };

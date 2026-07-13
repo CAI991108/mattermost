@@ -1,46 +1,28 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {memo} from 'react';
-import {FormattedMessage} from 'react-intl';
-import {Link} from 'react-router-dom';
+import React, {memo, type ReactNode} from 'react';
 
 import {buttonClassNames} from '@mattermost/shared/components/button';
 
-import Permissions from 'mattermost-redux/constants/permissions';
-
-import AnyTeamPermissionGate from 'components/permissions_gates/any_team_permission_gate';
-
 interface Props {
-    customEmojisEnabled: boolean;
-    currentTeamName: string;
+    buttonLabel: ReactNode;
+    disabled?: boolean;
     onClick: () => void;
 }
 
-function EmojiPickerCustomEmojiButton({customEmojisEnabled, currentTeamName, onClick}: Props) {
-    if (!customEmojisEnabled) {
-        return null;
-    }
-
-    if (currentTeamName.length === 0) {
-        return null;
-    }
-
+function EmojiPickerCustomEmojiButton({buttonLabel, disabled, onClick}: Props) {
     return (
-        <AnyTeamPermissionGate permissions={[Permissions.CREATE_EMOJIS]}>
-            <div className='emoji-picker__custom'>
-                <Link
-                    className={buttonClassNames({emphasis: 'tertiary', size: 'sm'})}
-                    to={`/${currentTeamName}/emoji`}
-                    onClick={onClick}
-                >
-                    <FormattedMessage
-                        id='emoji_picker.custom_emoji'
-                        defaultMessage='Custom Emoji'
-                    />
-                </Link>
-            </div>
-        </AnyTeamPermissionGate>
+        <div className='emoji-picker__custom'>
+            <button
+                type='button'
+                className={buttonClassNames({emphasis: 'tertiary', size: 'sm'})}
+                disabled={disabled}
+                onClick={onClick}
+            >
+                {buttonLabel}
+            </button>
+        </div>
     );
 }
 

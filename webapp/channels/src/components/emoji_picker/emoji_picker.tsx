@@ -1,8 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import classNames from 'classnames';
 import throttle from 'lodash/throttle';
-import React, {useRef, useState, useEffect, useCallback, memo, useMemo} from 'react';
+import React, {type ReactNode, useRef, useState, useEffect, useCallback, memo, useMemo} from 'react';
 import {FormattedMessage} from 'react-intl';
 import type {FixedSizeList} from 'react-window';
 import type InfiniteLoader from 'react-window-infinite-loader';
@@ -14,13 +15,12 @@ import {getEmojiName} from 'mattermost-redux/utils/emoji_utils';
 import EmojiPickerCategories from 'components/emoji_picker/components/emoji_picker_categories';
 import EmojiPickerCurrentResults from 'components/emoji_picker/components/emoji_picker_current_results';
 import EmojiPickerCustomEmojiButton from 'components/emoji_picker/components/emoji_picker_custom_emoji_button';
+import EmojiPickerItem from 'components/emoji_picker/components/emoji_picker_item';
 import EmojiPickerPreview from 'components/emoji_picker/components/emoji_picker_preview';
 import EmojiPickerSearch from 'components/emoji_picker/components/emoji_picker_search';
 import EmojiPickerSkin from 'components/emoji_picker/components/emoji_picker_skin';
 import {
     CATEGORIES,
-    RECENT_EMOJI_CATEGORY,
-    RECENT,
     SMILEY_EMOTION,
     SEARCH_RESULTS,
     EMOJI_PER_ROW,
@@ -34,37 +34,54 @@ import {createCategoryAndEmojiRows, getCursorProperties, getUpdatedCategoriesAnd
 import NoResultsIndicator from 'components/no_results_indicator';
 import {NoResultsVariant} from 'components/no_results_indicator/types';
 
+import type {IuinEmoji} from 'utils/iuin_emojis';
+import {listIuinEmojis, listIuinRecentEmojis, uploadIuinEmoji} from 'utils/iuin_emojis';
+
 import type {PropsFromRedux} from './index';
 
 export interface Props extends PropsFromRedux {
     filter: string;
     onEmojiClick: (emoji: Emoji) => void;
+    enableIuinEmojiLibrary?: boolean;
+    onIuinEmojiClick?: (sticker: IuinEmoji) => void;
     handleFilterChange: (filter: string) => void;
     handleEmojiPickerClose: () => void;
     onAddCustomEmojiClick?: () => void;
+    customEmojiButtonDisabled?: boolean;
+    customEmojiButtonLabel?: ReactNode;
 }
 
 const EmojiPicker = ({
     filter,
     onEmojiClick,
+    enableIuinEmojiLibrary,
+    onIuinEmojiClick,
     handleFilterChange,
     handleEmojiPickerClose,
     onAddCustomEmojiClick,
+    customEmojiButtonDisabled,
+    customEmojiButtonLabel,
     customEmojisEnabled = false,
     customEmojiPage = 0,
     emojiMap,
     recentEmojis,
     userSkinTone,
-    currentTeamName,
     actions: {
         getCustomEmojis,
+        loadCustomEmojisIfNeeded,
         searchCustomEmojis,
         incrementEmojiPickerPage,
         setUserSkinTone,
     },
 }: Props) => {
-    const getInitialActiveCategory = () => (recentEmojis.length ? RECENT : SMILEY_EMOTION);
+    type IuinPanel = 'library' | 'recent' | 'emoji';
+
+    const getInitialActiveCategory = () => SMILEY_EMOTION;
     const [activeCategory, setActiveCategory] = useState<EmojiCategory>(getInitialActiveCategory);
+    const [iuinPanel, setIuinPanel] = useState<IuinPanel>(enableIuinEmojiLibrary ? 'library' : 'emoji');
+    const [iuinEmojis, setIuinEmojis] = useState<IuinEmoji[]>([]);
+    const [iuinRecentEmojiNames, setIuinRecentEmojiNames] = useState<string[]>([]);
+    const [iuinPanelError, setIuinPanelError] = useState('');
 
     const [cursor, setCursor] = useState<EmojiCursor>({
         rowIndex: -1,
@@ -73,8 +90,7 @@ const EmojiPicker = ({
     });
 
     // On the first load, categories doesnt contain emojiIds until later when getUpdatedCategoriesAndAllEmojis is called
-    const getInitialCategories = () => (recentEmojis.length ? {...RECENT_EMOJI_CATEGORY, ...CATEGORIES} : CATEGORIES);
-    const [categories, setCategories] = useState<Categories>(getInitialCategories);
+    const [categories, setCategories] = useState<Categories>(CATEGORIES);
 
     const [allEmojis, setAllEmojis] = useState<Record<string, Emoji>>({});
 
@@ -84,6 +100,7 @@ const EmojiPicker = ({
     const [emojiPositions, setEmojiPositionsArray] = useState<EmojiPosition[]>([]);
 
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const emojiUploadInputRef = useRef<HTMLInputElement>(null);
 
     const infiniteLoaderRef = React.useRef<InfiniteLoader & {_listRef: FixedSizeList<CategoryOrEmojiRow[]>}>(null);
 
@@ -124,9 +141,7 @@ const EmojiPicker = ({
 
         const [updatedCategoryOrEmojisRows, updatedEmojiPositions] = createCategoryAndEmojiRows(allEmojis, categories, filter, userSkinTone);
 
-        if (activeCategory !== 'custom') {
-            selectFirstEmoji(updatedEmojiPositions);
-        }
+        selectFirstEmoji(updatedEmojiPositions);
 
         setCategoryOrEmojisRows(updatedCategoryOrEmojisRows);
         setEmojiPositionsArray(updatedEmojiPositions);
@@ -136,6 +151,32 @@ const EmojiPicker = ({
     useEffect(() => {
         searchInputRef.current?.focus();
     }, []);
+
+    useEffect(() => {
+        let mounted = true;
+        if (enableIuinEmojiLibrary) {
+            Promise.all([
+                listIuinEmojis(),
+                listIuinRecentEmojis(),
+            ]).then(([libraryEmojis, recentEmojiNames]) => {
+                if (!mounted) {
+                    return;
+                }
+                setIuinEmojis(libraryEmojis);
+                setIuinRecentEmojiNames(recentEmojiNames);
+                loadCustomEmojisIfNeeded([...recentEmojiNames, ...libraryEmojis.map((emoji) => emoji.name)]);
+                setIuinPanelError('');
+            }).catch(() => {
+                if (mounted) {
+                    setIuinPanelError('Unable to load your emoji library.');
+                }
+            });
+        }
+
+        return () => {
+            mounted = false;
+        };
+    }, [enableIuinEmojiLibrary, loadCustomEmojisIfNeeded]);
 
     // clear out the active category on search input
     useEffect(() => {
@@ -362,6 +403,35 @@ const EmojiPicker = ({
         }
     };
 
+    const handleEmojiUploadClick = useCallback(() => {
+        emojiUploadInputRef.current?.click();
+    }, []);
+
+    const handleEmojiFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) {
+            return;
+        }
+
+        try {
+            const sticker = await uploadIuinEmoji(file);
+            setIuinEmojis((current) => [sticker, ...current.filter((item) => item.id !== sticker.id)]);
+            loadCustomEmojisIfNeeded([sticker.name]);
+            setIuinPanelError('');
+        } catch (error) {
+            setIuinPanelError('Unable to upload this emoji.');
+        }
+    }, [loadCustomEmojisIfNeeded]);
+
+    const handleLibraryEmojiClick = useCallback((sticker: IuinEmoji) => {
+        onIuinEmojiClick?.(sticker);
+    }, [onIuinEmojiClick]);
+
+    const iuinRecentEmojis = useMemo(() => {
+        return iuinRecentEmojiNames.map((emojiName) => emojiMap.get(emojiName)).filter(Boolean) as Emoji[];
+    }, [emojiMap, iuinRecentEmojiNames]);
+
     const cursorEmojiName = useMemo(() => {
         const {emoji} = cursor;
 
@@ -375,20 +445,106 @@ const EmojiPicker = ({
 
     const areSearchResultsEmpty = filter.length !== 0 && categoryOrEmojisRows.length === 1 && categoryOrEmojisRows?.[0]?.items?.[0]?.categoryName === SEARCH_RESULTS;
 
-    return (
-        <>
-            <div
-                aria-live='assertive'
-                className='sr-only'
-            >
-                <FormattedMessage
-                    id='emoji_picker_item.emoji_aria_label'
-                    defaultMessage='{emojiName} emoji'
-                    values={{
-                        emojiName: cursorEmojiName,
+    const renderIuinTabs = () => {
+        if (!enableIuinEmojiLibrary) {
+            return null;
+        }
+
+        return (
+            <div className='emoji-picker__iuin-tabs'>
+                <button
+                    type='button'
+                    className={classNames('emoji-picker__iuin-tab', {'emoji-picker__iuin-tab--active': iuinPanel === 'library'})}
+                    aria-label='My emoji library'
+                    onClick={() => setIuinPanel('library')}
+                >
+                    <i className='icon-heart-outline'/>
+                </button>
+                <button
+                    type='button'
+                    className={classNames('emoji-picker__iuin-tab', {'emoji-picker__iuin-tab--active': iuinPanel === 'recent'})}
+                    aria-label='Recently used emoji'
+                    onClick={() => {
+                        setIuinPanel('recent');
+                        listIuinRecentEmojis().then((recentEmojiNames) => {
+                            setIuinRecentEmojiNames(recentEmojiNames);
+                            loadCustomEmojisIfNeeded(recentEmojiNames);
+                        }).catch(() => undefined);
                     }}
-                />
+                >
+                    <i className='icon-clock-outline'/>
+                </button>
+                <button
+                    type='button'
+                    className={classNames('emoji-picker__iuin-tab', {'emoji-picker__iuin-tab--active': iuinPanel === 'emoji'})}
+                    aria-label='All emoji'
+                    onClick={() => setIuinPanel('emoji')}
+                >
+                    <i className='icon-emoticon-happy-outline'/>
+                </button>
             </div>
+        );
+    };
+
+    const renderIuinLibraryPanel = () => (
+        <div className='emoji-picker__iuin-panel'>
+            <input
+                ref={emojiUploadInputRef}
+                type='file'
+                accept='image/png,image/jpeg,image/gif,image/webp'
+                className='emoji-picker__iuin-file-input'
+                onChange={handleEmojiFileChange}
+            />
+            <div className='emoji-picker__iuin-sticker-grid'>
+                <button
+                    type='button'
+                    className='emoji-picker__iuin-sticker-upload'
+                    aria-label='Upload emoji'
+                    onClick={handleEmojiUploadClick}
+                >
+                    <i className='icon-plus'/>
+                </button>
+                {iuinEmojis.map((sticker) => (
+                    <button
+                        key={sticker.id}
+                        type='button'
+                        className='emoji-picker__iuin-sticker'
+                        title={sticker.filename}
+                        onClick={() => handleLibraryEmojiClick(sticker)}
+                    >
+                        <img
+                            src={sticker.imageUrl}
+                            alt=''
+                        />
+                    </button>
+                ))}
+            </div>
+            {iuinPanelError && <div className='emoji-picker__iuin-error'>{iuinPanelError}</div>}
+        </div>
+    );
+
+    const renderIuinRecentPanel = () => (
+        <div className='emoji-picker__iuin-panel'>
+            {iuinRecentEmojis.length === 0 ? (
+                <div className='emoji-picker__iuin-empty'>{'No recently used emoji.'}</div>
+            ) : (
+                <div className='emoji-picker__iuin-emoji-grid'>
+                    {iuinRecentEmojis.map((emoji) => (
+                        <EmojiPickerItem
+                            key={getEmojiName(emoji)}
+                            emoji={emoji}
+                            rowIndex={0}
+                            onClick={onEmojiClick}
+                            onMouseOver={() => undefined}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
+    const renderEmojiPanel = () => (
+        <>
             <div className='emoji-picker__search-container'>
                 <EmojiPickerSearch
                     ref={searchInputRef}
@@ -445,12 +601,35 @@ const EmojiPicker = ({
             )}
             <div className='emoji-picker__footer'>
                 {areSearchResultsEmpty ? <div/> : <EmojiPickerPreview emoji={cursor.emoji}/>}
-                <EmojiPickerCustomEmojiButton
-                    currentTeamName={currentTeamName}
-                    customEmojisEnabled={customEmojisEnabled}
-                    onClick={onAddCustomEmojiClickInner}
+                {customEmojiButtonLabel && onAddCustomEmojiClick && (
+                    <EmojiPickerCustomEmojiButton
+                        buttonLabel={customEmojiButtonLabel}
+                        disabled={customEmojiButtonDisabled}
+                        onClick={onAddCustomEmojiClickInner}
+                    />
+                )}
+            </div>
+        </>
+    );
+
+    return (
+        <>
+            <div
+                aria-live='assertive'
+                className='sr-only'
+            >
+                <FormattedMessage
+                    id='emoji_picker_item.emoji_aria_label'
+                    defaultMessage='{emojiName} emoji'
+                    values={{
+                        emojiName: cursorEmojiName,
+                    }}
                 />
             </div>
+            {renderIuinTabs()}
+            {iuinPanel === 'library' && renderIuinLibraryPanel()}
+            {iuinPanel === 'recent' && renderIuinRecentPanel()}
+            {iuinPanel === 'emoji' && renderEmojiPanel()}
         </>
     );
 };

@@ -2,25 +2,21 @@
 // See LICENSE.txt for license information.
 
 import React, {useMemo} from 'react';
-import type {MouseEvent, KeyboardEvent} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
 
 import {CheckCircleIcon, ClockIcon, MinusCircleIcon, RadioboxBlankIcon} from '@mattermost/compass-icons/components';
 
-import CustomStatusEmoji from 'components/custom_status/custom_status_emoji';
 import Avatar from 'components/widgets/users/avatar/avatar';
 
 import {UserStatuses} from 'utils/constants';
 
 interface Props {
     profilePicture?: string;
-    openCustomStatusModal: ((event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>) => void);
     status?: string;
 }
 
 export default function UserAccountMenuButton({
     profilePicture,
-    openCustomStatusModal,
     status,
 }: Props) {
     const {formatMessage} = useIntl();
@@ -64,12 +60,6 @@ export default function UserAccountMenuButton({
 
     return (
         <>
-            <CustomStatusEmoji
-                showTooltip={true}
-                emojiStyle={{marginRight: '6px'}}
-                aria-hidden={true}
-                onClick={openCustomStatusModal}
-            />
             <Avatar
                 size='sm'
                 url={profilePicture}

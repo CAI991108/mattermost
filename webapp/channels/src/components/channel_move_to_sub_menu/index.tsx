@@ -8,7 +8,6 @@ import {useDispatch, useSelector} from 'react-redux';
 
 import {
     FolderOutlineIcon,
-    StarOutlineIcon,
     FolderMoveOutlineIcon,
     ChevronRightIcon,
     CheckIcon,
@@ -84,14 +83,6 @@ const ChannelMoveToSubMenu = (props: Props) => {
         const allCategories = categories.map((category: ChannelCategory) => {
             let text = <span>{category.display_name}</span>;
 
-            if (category.type === CategoryTypes.FAVORITES) {
-                text = (
-                    <FormattedMessage
-                        id='sidebar_left.sidebar_channel_menu.favorites'
-                        defaultMessage='Favorites'
-                    />
-                );
-            }
             if (category.type === CategoryTypes.CHANNELS) {
                 text = (
                     <FormattedMessage
@@ -115,7 +106,7 @@ const ChannelMoveToSubMenu = (props: Props) => {
                 <Menu.Item
                     id={`moveToCategory-${props.channel.id}-${category.id}`}
                     key={`moveToCategory-${props.channel.id}-${category.id}`}
-                    leadingElement={category.type === CategoryTypes.FAVORITES ? (<StarOutlineIcon size={18}/>) : (<FolderOutlineIcon size={18}/>)}
+                    leadingElement={<FolderOutlineIcon size={18}/>}
                     labels={text}
                     trailingElements={selectedCategory}
                     onClick={(event) => handleMoveToCategory(event, category.id)}
@@ -145,10 +136,10 @@ const ChannelMoveToSubMenu = (props: Props) => {
 
     function filterCategoriesBasedOnChannelType(categories: ChannelCategory[], isDmOrGm = false) {
         if (isDmOrGm) {
-            return categories.filter((category) => category.type !== CategoryTypes.CHANNELS);
+            return categories.filter((category) => category.type !== CategoryTypes.CHANNELS && category.type !== CategoryTypes.FAVORITES);
         }
 
-        return categories.filter((category) => category.type !== CategoryTypes.DIRECT_MESSAGES);
+        return categories.filter((category) => category.type !== CategoryTypes.DIRECT_MESSAGES && category.type !== CategoryTypes.FAVORITES);
     }
 
     function getMoveToCategorySubmenuItems(categories: ChannelCategory[], currentCategory?: ChannelCategory) {
@@ -174,7 +165,7 @@ const ChannelMoveToSubMenu = (props: Props) => {
         }
 
         // If we have a mix of channel types, we need to filter out both the DM and Channel categories
-        const filteredCategories = categories.filter((category) => category.type !== CategoryTypes.CHANNELS && category.type !== CategoryTypes.DIRECT_MESSAGES);
+        const filteredCategories = categories.filter((category) => category.type !== CategoryTypes.CHANNELS && category.type !== CategoryTypes.DIRECT_MESSAGES && category.type !== CategoryTypes.FAVORITES);
         return createSubmenuItemsForCategoryArray(filteredCategories, currentCategory);
     }
 

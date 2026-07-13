@@ -111,13 +111,18 @@ export const EMOJI_CATEGORIES: Categories = {
     },
 } as const;
 
-const {recent, searchResults, ...standardCategories} = EMOJI_CATEGORIES;
+const {recent, searchResults, ...categoriesWithCustom} = EMOJI_CATEGORIES;
 
+// The IUIN picker has a dedicated recent-history panel, and custom emoji are
+// surfaced there after use. Keep both out of the all-emoji category strip so
+// status-only media and the legacy recent list cannot leak into that view.
 export const RECENT_EMOJI_CATEGORY: Pick<Categories, typeof RECENT> = {recent};
 export const SEARCH_EMOJI_CATEGORY: Pick<Categories, typeof SEARCH_RESULTS> = {searchResults};
 
 // TODO CATEGORIES doesn't contain 'recent' or 'searchResults' as it's type claims
-export const CATEGORIES = standardCategories as Categories;
+export const CATEGORIES = Object.fromEntries(
+    Object.entries(categoriesWithCustom).filter(([categoryName]) => categoryName !== CUSTOM),
+) as Categories;
 
 export const EMOJI_PER_ROW = 9; // needs to match variable `$emoji-per-row` in _variables.scss
 export const ITEM_HEIGHT = 36; //as per .emoji-picker__item height in _emoticons.scss

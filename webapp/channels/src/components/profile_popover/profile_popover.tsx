@@ -6,8 +6,7 @@ import {useDispatch, useSelector} from 'react-redux';
 
 import {getCurrentChannelId, getCurrentUserId} from 'mattermost-redux/selectors/entities/common';
 import {getLicense, getFeatureFlagValue} from 'mattermost-redux/selectors/entities/general';
-import {getCurrentRelativeTeamUrl, getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
-import {getCurrentTimezone} from 'mattermost-redux/selectors/entities/timezone';
+import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
 import {getStatusForUserId, getUser} from 'mattermost-redux/selectors/entities/users';
 
 import {openDirectChannelToUserId} from 'actions/channel_actions';
@@ -18,11 +17,14 @@ import {getSelectedPost} from 'selectors/rhs';
 import {getIsMobileView} from 'selectors/views/browser';
 
 import {usePluginVisibilityInSharedChannel} from 'components/common/hooks/usePluginVisibilityInSharedChannel';
+import {IuinProfilePopoverAchievements, IuinProfilePopoverTitle} from 'components/iuin_profile/iuin_honors';
 
 import Pluggable from 'plugins/pluggable';
 import {getHistory} from 'utils/browser_history';
 import {A11yCustomEventTypes, UserStatuses} from 'utils/constants';
 import type {A11yFocusEventDetail} from 'utils/constants';
+import type {IuinHonorSummary} from 'utils/iuin_honors';
+import {getIuinHonorSummaryCached, IUIN_HONOR_SUMMARY_CHANGED_EVENT} from 'utils/iuin_honors';
 import {isEnterpriseLicense} from 'utils/license_utils';
 import * as Utils from 'utils/utils';
 
@@ -30,14 +32,12 @@ import type {GlobalState} from 'types/store';
 
 import ProfilePopoverAvatar from './profile_popover_avatar';
 import ProfilePopoverCustomAttributes from './profile_popover_custom_attributes';
-import ProfilePopoverCustomStatus from './profile_popover_custom_status';
 import ProfilePopoverEmail from './profile_popover_email';
 import ProfilePopoverLastActive from './profile_popover_last_active';
 import ProfilePopoverName from './profile_popover_name';
 import ProfilePopoverOtherUserRow from './profile_popover_other_user_row';
 import ProfilePopoverOverrideDisclaimer from './profile_popover_override_disclaimer';
 import ProfilePopoverSelfUserRow from './profile_popover_self_user_row';
-import ProfilePopoverTimezone from './profile_popover_timezone';
 import ProfilePopoverTitle from './profile_popover_title';
 
 import './profile_popover.scss';
@@ -78,16 +78,15 @@ const ProfilePopover = ({
     const channelId = useSelector((state: GlobalState) => (channelIdProp || getDefaultChannelId(state)));
     const pluginItemsVisible = usePluginVisibilityInSharedChannel(channelId);
     const isMobileView = useSelector(getIsMobileView);
-    const teamUrl = useSelector(getCurrentRelativeTeamUrl);
     const modals = useSelector((state: GlobalState) => state.views.modals);
     const status = useSelector((state: GlobalState) => getStatusForUserId(state, userId) || UserStatuses.OFFLINE);
-    const currentUserTimezone = useSelector(getCurrentTimezone);
     const currentUserId = useSelector(getCurrentUserId);
     const license = useSelector((state: GlobalState) => getLicense(state));
     const isEnterprise = isEnterpriseLicense(license);
     const enableCustomProfileAttributes = useSelector((state: GlobalState) => getFeatureFlagValue(state, 'CustomProfileAttributes') === 'true' && isEnterprise && !fromWebhook);
 
     const [loadingDMChannel, setLoadingDMChannel] = useState<string>();
+    const [honorSummary, setHonorSummary] = useState<IuinHonorSummary | null>(null);
 
     const handleReturnFocus = useMemo(() => {
         if (returnFocus) {
@@ -137,9 +136,9 @@ const ProfilePopover = ({
             }
             setLoadingDMChannel(undefined);
             hide?.();
-            getHistory().push(`${teamUrl}/messages/@${user.username}`);
+            getHistory().push(`/direct_messages/@${user.username}`);
         }
-    }, [user, loadingDMChannel, handleCloseModals, isMobileView, hide, teamUrl, dispatch]);
+    }, [user, loadingDMChannel, handleCloseModals, isMobileView, hide, dispatch]);
 
     useEffect(() => {
         if (currentTeamId && userId) {
@@ -150,6 +149,42 @@ const ProfilePopover = ({
             ));
         }
     }, [channelId, userId, currentTeamId, dispatch]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadHonorSummary = async () => {
+            if (!userId || user?.is_bot || fromWebhook) {
+                setHonorSummary(null);
+                return;
+            }
+
+            const summary = await getIuinHonorSummaryCached(userId);
+            if (!cancelled) {
+                setHonorSummary(summary);
+            }
+        };
+
+        loadHonorSummary();
+
+        const handleHonorSummaryChanged = (event: Event) => {
+            const detail = (event as CustomEvent<{userId?: string}>).detail;
+            if (detail?.userId === userId) {
+                loadHonorSummary();
+            }
+        };
+
+        if (typeof window !== 'undefined' && userId && !user?.is_bot && !fromWebhook) {
+            window.addEventListener(IUIN_HONOR_SUMMARY_CHANGED_EVENT, handleHonorSummaryChanged);
+        }
+
+        return () => {
+            cancelled = true;
+            if (typeof window !== 'undefined') {
+                window.removeEventListener(IUIN_HONOR_SUMMARY_CHANGED_EVENT, handleHonorSummaryChanged);
+            }
+        };
+    }, [fromWebhook, user?.is_bot, userId]);
 
     if (!user) {
         return null;
@@ -175,13 +210,16 @@ const ProfilePopover = ({
                     urlSrc={urlSrc}
                     username={user.username}
                     status={status}
+                    avatarFrame={honorSummary?.avatarFrame || null}
                 />
                 <ProfilePopoverLastActive userId={user.id}/>
+                <IuinProfilePopoverTitle summary={honorSummary}/>
                 <ProfilePopoverName
                     user={user}
                     haveOverrideProp={haveOverrideProp}
                     fullname={fullname}
                 />
+                <IuinProfilePopoverAchievements summary={honorSummary}/>
                 <hr/>
                 <ProfilePopoverEmail
                     email={Utils.getEmail(user)}
@@ -206,20 +244,6 @@ const ProfilePopover = ({
                         hideStatus={hideStatus}
                     />
                 )}
-                <ProfilePopoverTimezone
-                    currentUserTimezone={currentUserTimezone}
-                    profileUserTimezone={user.timezone}
-                    haveOverrideProp={haveOverrideProp}
-                />
-                <ProfilePopoverCustomStatus
-                    currentUserId={currentUserId}
-                    currentUserTimezone={currentUserTimezone}
-                    haveOverrideProp={haveOverrideProp}
-                    hideStatus={hideStatus}
-                    user={user}
-                    returnFocus={handleReturnFocus}
-                    hide={hide}
-                />
             </div>
             <div className='user-profile-popover-bottom-row'>
                 <hr className='user-popover__bottom-row-hr'/>
@@ -234,6 +258,7 @@ const ProfilePopover = ({
                     haveOverrideProp={haveOverrideProp}
                     returnFocus={handleReturnFocus}
                     userId={user.id}
+                    username={user.username}
                     hide={hide}
                 />
                 <ProfilePopoverOtherUserRow

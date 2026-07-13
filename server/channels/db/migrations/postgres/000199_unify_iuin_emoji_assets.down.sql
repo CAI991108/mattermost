@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS IuinUserEmojis;
+DROP TABLE IF EXISTS IuinEmojiAssets;
+
+DELETE FROM Emoji
+ WHERE Name LIKE 'iuin\_%' ESCAPE '\';

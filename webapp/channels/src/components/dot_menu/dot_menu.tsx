@@ -9,8 +9,6 @@ import type {IntlShape} from 'react-intl';
 import {
     AlertOutlineIcon,
     ArrowRightBoldOutlineIcon,
-    BookmarkIcon,
-    BookmarkOutlineIcon,
     ContentCopyIcon,
     DotsHorizontalIcon,
     EmoticonPlusOutlineIcon,
@@ -83,12 +81,12 @@ type Props = {
     post: Post;
     teamId: string;
     location?: keyof typeof Constants.Locations;
-    isFlagged?: boolean;
     handleCommentClick?: React.EventHandler<any>;
     handleDropdownOpened: (open: boolean) => void;
     handleAddReactionClick?: (showEmojiPicker: boolean) => void;
     isMenuOpen?: boolean;
     isReadOnly?: boolean;
+    isDMorGM?: boolean;
     isLicensed?: boolean; // TechDebt: Made non-mandatory while converting to typescript
     postEditTimeLimit?: string; // TechDebt: Made non-mandatory while converting to typescript
     enableEmojiPicker?: boolean; // TechDebt: Made non-mandatory while converting to typescript
@@ -107,16 +105,6 @@ type Props = {
     canFlagContent?: boolean;
 
     actions: {
-
-        /**
-         * Function flag the post
-         */
-        flagPost: (postId: string) => void;
-
-        /**
-         * Function to unflag the post
-         */
-        unflagPost: (postId: string) => void;
 
         /**
          * Function to set the editing post
@@ -184,7 +172,6 @@ type State = {
 
 export class DotMenuClass extends React.PureComponent<Props, State> {
     public static defaultProps: Partial<Props> = {
-        isFlagged: false,
         isReadOnly: false,
         location: Locations.CENTER,
     };
@@ -237,14 +224,6 @@ export class DotMenuClass extends React.PureComponent<Props, State> {
 
     handleEditDisable = () => {
         this.setState({canEdit: false});
-    };
-
-    handleFlagMenuItemActivated = () => {
-        if (this.props.isFlagged) {
-            this.props.actions.unflagPost(this.props.post.id);
-        } else {
-            this.props.actions.flagPost(this.props.post.id);
-        }
     };
 
     handleAddReactionMenuItemActivated = () => {
@@ -471,12 +450,6 @@ export class DotMenuClass extends React.PureComponent<Props, State> {
             }
             break;
 
-            // save / unsave
-        case Keyboard.isKeyPressed(event, Constants.KeyCodes.S):
-            forceCloseMenu();
-            this.handleFlagMenuItemActivated();
-            break;
-
             // mark as unread
         case Keyboard.isKeyPressed(event, Constants.KeyCodes.U):
             forceCloseMenu();
@@ -557,20 +530,6 @@ export class DotMenuClass extends React.PureComponent<Props, State> {
             return this.props.threadReplyCount ? followThreadLabel : followMessageLabel;
         };
 
-        const removeFlag = (
-            <FormattedMessage
-                id='rhs_root.mobile.unflag'
-                defaultMessage='Remove from Saved'
-            />
-        );
-
-        const saveFlag = (
-            <FormattedMessage
-                id='rhs_root.mobile.flag'
-                defaultMessage='Save Message'
-            />
-        );
-
         const pinPost = (
             <FormattedMessage
                 id='post_info.pin'
@@ -585,12 +544,11 @@ export class DotMenuClass extends React.PureComponent<Props, State> {
             />
         );
 
-        const showReply = !isSystemMessage && !isBurnOnReadPost && this.props.location === Locations.CENTER;
+        const showReply = !this.props.isDMorGM && !isSystemMessage && !isBurnOnReadPost && this.props.location === Locations.CENTER;
         const showForward = this.props.canForward;
         const showReactions = Boolean(isMobile && !isSystemMessage && !this.props.isReadOnly && this.props.enableEmojiPicker);
         const showFollowPost = this.props.canFollowThread;
         const showMarkAsUnread = Boolean(!isSystemMessage && !this.props.channelIsArchived && this.props.location !== Locations.SEARCH);
-        const showSave = !isSystemMessage && !this.props.isUnrevealedBurnOnReadPost;
         const showRemind = !isSystemMessage;
         const showPin = Boolean(!isSystemMessage && !this.props.isReadOnly && !isBurnOnReadPost);
         const showMove = Boolean(!isSystemMessage && this.props.canMove);
@@ -605,7 +563,7 @@ export class DotMenuClass extends React.PureComponent<Props, State> {
         // 2. BoR post meeting above criteria
         const showDelete = (!isBurnOnReadPost && this.state.canDelete) || shouldShowDeleteForBoR;
 
-        const firstSectionHasItems = showReply || showForward || showReactions || showFollowPost || showMarkAsUnread || showSave || showRemind || showPin || showMove;
+        const firstSectionHasItems = showReply || showForward || showReactions || showFollowPost || showMarkAsUnread || showRemind || showPin || showMove;
         const secondSectionHasItems = showShowTranslation || showCopyText || showCopyLink;
         const thirdSectionHasItems = showEdit || showDelete || showFlagContent;
 
@@ -707,16 +665,6 @@ export class DotMenuClass extends React.PureComponent<Props, State> {
                         leadingElement={<MarkAsUnreadIcon size={18}/>}
                         trailingElements={<ShortcutKey shortcutKey='U'/>}
                         onClick={this.handleMarkPostAsUnread}
-                    />
-                }
-                {showSave &&
-                    <Menu.Item
-                        id={`save_post_${this.props.post.id}`}
-                        data-testid={`save_post_${this.props.post.id}`}
-                        labels={this.props.isFlagged ? removeFlag : saveFlag}
-                        leadingElement={this.props.isFlagged ? <BookmarkIcon size={18}/> : <BookmarkOutlineIcon size={18}/>}
-                        trailingElements={<ShortcutKey shortcutKey='S'/>}
-                        onClick={this.handleFlagMenuItemActivated}
                     />
                 }
                 {showRemind &&

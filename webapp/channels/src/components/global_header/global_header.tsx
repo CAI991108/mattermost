@@ -17,7 +17,7 @@ const GlobalHeaderContainer = styled.header`
     flex-shrink: 0;
     align-items: center;
     justify-content: space-between;
-    height: 44px;
+    height: 60px;
     color: rgba(var(--sidebar-text-rgb), 0.64);
     padding: 0 4px 0 8px;
     z-index: 99;

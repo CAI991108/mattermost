@@ -15,6 +15,7 @@ import LocalStorageStore from 'stores/local_storage_store';
 
 import Constants, {ActionTypes, Preferences} from 'utils/constants';
 import {EmojiIndicesByAlias} from 'utils/emoji';
+import {isIuinStatusImageToken} from 'utils/iuin_status_images';
 
 export function loadRecentlyUsedCustomEmojis() {
     return (dispatch, getState) => {
@@ -121,7 +122,7 @@ export function loadCustomEmojisForCustomStatusesByUserIds(userIds) {
 
         userIds.forEach((userId) => {
             const customStatus = getCustomStatus(state, userId);
-            if (!customStatus || !customStatus.emoji) {
+            if (!customStatus || !customStatus.emoji || isIuinStatusImageToken(customStatus.emoji)) {
                 return;
             }
 
@@ -150,7 +151,7 @@ export function loadCustomEmojisForRecentCustomStatuses() {
         const emojisToLoad = new Set();
 
         for (const customStatus of recentCustomStatuses) {
-            if (!customStatus || !customStatus.emoji) {
+            if (!customStatus || !customStatus.emoji || isIuinStatusImageToken(customStatus.emoji)) {
                 continue;
             }
 

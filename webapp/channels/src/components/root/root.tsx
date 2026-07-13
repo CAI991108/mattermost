@@ -32,7 +32,7 @@ import webSocketClient from 'client/web_websocket_client';
 import {initializePlugins} from 'plugins';
 import 'utils/a11y_controller_instance';
 import {expirationScheduler} from 'utils/burn_on_read_expiration_scheduler';
-import {PageLoadContext, SCHEDULED_POST_URL_SUFFIX} from 'utils/constants';
+import {PageLoadContext} from 'utils/constants';
 import DesktopApp from 'utils/desktop_api';
 import {EmojiIndicesByAlias} from 'utils/emoji';
 import {TEAM_NAME_PATH_PATTERN} from 'utils/path';
@@ -68,6 +68,7 @@ const Mfa = makeAsyncComponent('Mfa', lazy(() => import('components/mfa/mfa_cont
 const PreparingWorkspace = makeAsyncComponent('PreparingWorkspace', lazy(() => import('components/preparing_workspace')));
 const LaunchingWorkspace = makeAsyncComponent('LaunchingWorkspace', lazy(() => import('components/preparing_workspace/launching_workspace')));
 const TeamController = makeAsyncComponent('TeamController', lazy(() => import('components/team_controller')));
+const DirectMessagesController = makeAsyncComponent('DirectMessagesController', lazy(() => import('components/direct_messages_controller')));
 const AnnouncementBarController = makeAsyncComponent('AnnouncementBarController', lazy(() => import('components/announcement_bar')));
 const SystemNotice = makeAsyncComponent('SystemNotice', lazy(() => import('components/system_notice')));
 const CloudEffects = makeAsyncComponent('CloudEffects', lazy(() => import('components/cloud_effects')));
@@ -78,6 +79,8 @@ const AppBar = makeAsyncComponent('AppBar', lazy(() => import('components/app_ba
 const ComponentLibrary = makeAsyncComponent('ComponentLibrary', lazy(() => import('components/component_library')));
 const PopoutController = makeAsyncComponent('PopoutController', lazy(() => import('components/popout_controller')));
 const Help = makeAsyncComponent('Help', lazy(() => import('components/help')));
+const IuinHonorsAdminPage = makeAsyncComponent('IuinHonorsAdminPage', lazy(() => import('components/iuin_honors_admin')));
+const IuinProfilePage = makeAsyncComponent('IuinProfilePage', lazy(() => import('components/iuin_profile')));
 
 const Pluggable = makeAsyncPluggableComponent();
 
@@ -408,6 +411,38 @@ export default class Root extends React.PureComponent<Props, State> {
                         path={'/_popout'}
                         component={PopoutController}
                     />
+                    <Route
+                        path={['/u/:username/edit', '/u/:username']}
+                        render={() => (
+                            <WithUserTheme>
+                                <WindowSizeObserver/>
+                                <ModalController/>
+                                <GlobalClassificationBanner position='top'/>
+                                <AnnouncementBarController/>
+                                <SystemNotice/>
+                                <GlobalHeader/>
+                                <div className='iuin-profile-route-main'>
+                                    <Switch>
+                                        <LoggedInRoute
+                                            path={'/u/:username/edit'}
+                                            component={IuinProfilePage}
+                                        />
+                                        <LoggedInRoute
+                                            path={'/u/:username'}
+                                            component={IuinProfilePage}
+                                        />
+                                    </Switch>
+                                </div>
+                                <GlobalClassificationBanner position='bottom'/>
+                                <Pluggable pluggableName='Global'/>
+                                <Readout/>
+                            </WithUserTheme>
+                        )}
+                    />
+                    <LoggedInRoute
+                        path={'/iuin_honors_admin'}
+                        component={IuinHonorsAdminPage}
+                    />
                     <WithUserTheme>
                         {(this.props.showLaunchingWorkspace && !this.props.location.pathname.includes('/preparing-workspace') &&
                             <LaunchingWorkspace
@@ -488,6 +523,10 @@ export default class Root extends React.PureComponent<Props, State> {
                                     />
                                 ))}
                                 <LoggedInRoute
+                                    path={'/direct_messages/:identifier?'}
+                                    component={DirectMessagesController}
+                                />
+                                <LoggedInRoute
                                     path={`/:team(${TEAM_NAME_PATH_PATTERN})`}
                                     component={TeamController}
                                 />
@@ -509,7 +548,9 @@ export default class Root extends React.PureComponent<Props, State> {
 export function doesRouteBelongToTeamControllerRoutes(pathname: RouteComponentProps['location']['pathname']): boolean {
     // Note: we have specifically added admin_console to the negative lookahead as admin_console can have integrations as subpaths (admin_console/integrations/bot_accounts)
     // and we don't want to treat those as team controller routes.
-    const TEAM_CONTROLLER_PATH_PATTERN = new RegExp(`^/(?!admin_console)([a-z0-9\\-_]+)/(channels|messages|threads|recaps|drafts|integrations|emoji|${SCHEDULED_POST_URL_SUFFIX})(/.*)?$`);
+    // LZX: drafts and scheduled_posts routes disabled
+    // const TEAM_CONTROLLER_PATH_PATTERN = new RegExp(`^/(?!admin_console)([a-z0-9\\-_]+)/(channels|messages|threads|recaps|drafts|integrations|emoji|${SCHEDULED_POST_URL_SUFFIX})(/.*)?$`);
+    const TEAM_CONTROLLER_PATH_PATTERN = new RegExp(`^/(?!admin_console)([a-z0-9\\-_]+)/(channels|messages|threads|recaps|integrations|emoji)(/.*)?$`);
 
     return TEAM_CONTROLLER_PATH_PATTERN.test(pathname);
 }

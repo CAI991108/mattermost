@@ -27,8 +27,6 @@ import {isSystemMessage} from 'mattermost-redux/utils/post_utils';
 
 import {burnPostNow} from 'actions/burn_on_read_deletion';
 import {
-    flagPost,
-    unflagPost,
     pinPost,
     unpinPost,
     setEditingPost,
@@ -53,6 +51,7 @@ import DotMenu from './dot_menu';
 type Props = {
     post: Post;
     location?: ComponentProps<typeof DotMenu>['location'];
+    isDMorGM?: ComponentProps<typeof DotMenu>['isDMorGM'];
 };
 
 function makeMapStateToProps() {
@@ -149,8 +148,6 @@ function makeMapStateToProps() {
 function mapDispatchToProps(dispatch: Dispatch) {
     return {
         actions: bindActionCreators({
-            flagPost,
-            unflagPost,
             setEditingPost,
             pinPost,
             unpinPost,

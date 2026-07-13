@@ -11,23 +11,34 @@ import type {RelationOneToOne} from '@mattermost/types/utilities';
 
 import {loadMyChannelMemberAndRole} from 'mattermost-redux/actions/channels';
 import {fetchRemoteClusterInfo} from 'mattermost-redux/actions/shared_channels';
+import {getProfilesInTeam} from 'mattermost-redux/actions/users';
 import {Permissions} from 'mattermost-redux/constants';
 import {createSelector} from 'mattermost-redux/selectors/create_selector';
 import {
+    getAllChannels,
     getCurrentChannel,
     getCurrentChannelStats,
+    getChannelMessageCount,
     getMembersInCurrentChannel,
     getMyCurrentChannelMembership,
     isCurrentChannelArchived,
 } from 'mattermost-redux/selectors/entities/channels';
-import {getTeammateNameDisplaySetting} from 'mattermost-redux/selectors/entities/preferences';
+import {getMyChannelMemberships} from 'mattermost-redux/selectors/entities/common';
+
+import {getTeammateNameDisplaySetting, isCollapsedThreadsEnabled} from 'mattermost-redux/selectors/entities/preferences';
 import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
 import {getRemoteDisplayName} from 'mattermost-redux/selectors/entities/shared_channels';
-import {getCurrentRelativeTeamUrl, getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
+import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
 import {
     getActiveProfilesInCurrentChannelWithoutSorting,
-    getUserStatuses, searchActiveProfilesInCurrentChannel,
+    getCurrentUserId,
+    getProfilesInCurrentTeam,
+    getUserStatuses,
+    searchActiveProfilesInCurrentChannel,
+    searchProfilesInCurrentTeam,
 } from 'mattermost-redux/selectors/entities/users';
+import {calculateUnreadCount} from 'mattermost-redux/utils/channel_utils';
+
 import {displayUsername} from 'mattermost-redux/utils/user_utils';
 
 import {openDirectChannelToUserId} from 'actions/channel_actions';
@@ -38,6 +49,7 @@ import {setChannelMembersRhsSearchTerm} from 'actions/views/search';
 import {getIsEditingMembers, getPreviousRhsState} from 'selectors/rhs';
 
 import {Constants, RHSStates} from 'utils/constants';
+import {getUserIdFromChannelId} from 'utils/utils';
 
 import type {GlobalState} from 'types/store';
 
@@ -83,6 +95,22 @@ const buildProfileList = (
     return channelMembers;
 };
 
+// LZX: 构建团队成员列表（DM 场景），无 membership 过滤，按字母排序
+const buildTeamProfileList = (
+    profiles: UserProfile[],
+    userStatuses: RelationOneToOne<UserProfile, string>,
+    teammateNameDisplaySetting: string,
+): ChannelMember[] => {
+    return profiles.
+        map((profile) => ({
+            user: profile,
+            membership: undefined,
+            status: userStatuses[profile.id],
+            displayName: displayUsername(profile, teammateNameDisplaySetting),
+        })).
+        sort((a, b) => a.displayName.localeCompare(b.displayName));
+};
+
 const getProfiles = createSelector(
     'getProfiles',
     getActiveProfilesInCurrentChannelWithoutSorting,
@@ -103,6 +131,23 @@ const searchProfiles = createSelector(
     buildProfileList,
 );
 
+// LZX: DM 场景 — 全团队成员 selector
+const getTeamProfiles = createSelector(
+    'getTeamProfiles',
+    getProfilesInCurrentTeam,
+    getUserStatuses,
+    getTeammateNameDisplaySetting,
+    buildTeamProfileList,
+);
+
+const searchTeamProfiles = createSelector(
+    'searchTeamProfiles',
+    (state: GlobalState, search: string) => searchProfilesInCurrentTeam(state, search),
+    getUserStatuses,
+    getTeammateNameDisplaySetting,
+    buildTeamProfileList,
+);
+
 function mapStateToProps(state: GlobalState) {
     const channel = getCurrentChannel(state);
     const currentTeam = getCurrentTeam(state);
@@ -119,9 +164,13 @@ function mapStateToProps(state: GlobalState) {
             membersCount,
             canManageMembers: false,
             canGoBack: false,
-            teamUrl: '',
+            teamId: '',
         } as unknown as Props;
     }
+
+    // LZX: DM 场景，使用全团队成员
+    const isDmChannel = channel.type === Constants.DM_CHANNEL;
+    const isGmChannel = channel.type === Constants.GM_CHANNEL;
 
     const isArchived = isCurrentChannelArchived(state);
     const isPrivate = channel.type === Constants.PRIVATE_CHANNEL;
@@ -135,13 +184,65 @@ function mapStateToProps(state: GlobalState) {
     const searchTerms = state.views.search.channelMembersRhsSearch || '';
 
     let channelMembers: ChannelMember[] = [];
-    if (searchTerms === '') {
+    if (isDmChannel) {
+        const allChannels = getAllChannels(state);
+        const myMemberships = getMyChannelMemberships(state);
+        const crtEnabled = isCollapsedThreadsEnabled(state);
+
+        const currentUserId = getCurrentUserId(state);
+        const dmUnreadByUserId: Record<string, {unread: number; lastPostAt: number}> = {};
+
+        for (const dmChannel of Object.values(allChannels)) {
+            if (dmChannel.type !== Constants.DM_CHANNEL) {
+                continue;
+            }
+
+            const membership = myMemberships[dmChannel.id];
+            if (!membership) {
+                continue;
+            }
+
+            const otherUserId = getUserIdFromChannelId(dmChannel.name, currentUserId);
+            const messageCount = getChannelMessageCount(state, dmChannel.id);
+            const unread = messageCount ? calculateUnreadCount(messageCount, membership, crtEnabled).messages : 0;
+            dmUnreadByUserId[otherUserId] = {
+                unread,
+                lastPostAt: dmChannel.last_post_at || 0,
+            };
+        }
+
+        // DM 场景：显示全团队成员，并补充每个成员对应私信的未读数据
+        channelMembers = (searchTerms === '' ? getTeamProfiles(state) : searchTeamProfiles(state, searchTerms.trim())).
+            map((member) => {
+                const dmUnread = dmUnreadByUserId[member.user.id];
+                return {
+                    ...member,
+                    dmUnreadCount: dmUnread?.unread || 0,
+                    dmLastPostAt: dmUnread?.lastPostAt || 0,
+                };
+            }).
+            sort((a, b) => {
+                const aHasUnread = (a.dmUnreadCount || 0) > 0;
+                const bHasUnread = (b.dmUnreadCount || 0) > 0;
+
+                if (aHasUnread && !bHasUnread) {
+                    return -1;
+                }
+                if (!aHasUnread && bHasUnread) {
+                    return 1;
+                }
+                if (aHasUnread && bHasUnread) {
+                    return (b.dmLastPostAt || 0) - (a.dmLastPostAt || 0);
+                }
+
+                return 0;
+            });
+    } else if (searchTerms === '') {
         channelMembers = getProfiles(state);
     } else {
         channelMembers = searchProfiles(state, searchTerms.trim());
     }
 
-    const teamUrl = getCurrentRelativeTeamUrl(state);
     const prevRhsState = getPreviousRhsState(state);
     const hasInfoPrevState = prevRhsState === RHSStates.CHANNEL_INFO ||
         prevRhsState === RHSStates.CHANNEL_FILES ||
@@ -155,11 +256,12 @@ function mapStateToProps(state: GlobalState) {
     return {
         channel,
         currentUserIsChannelAdmin,
-        membersCount,
+        // DM 场景显示全团队成员数量；管理按钮由 canManageMembers 单独控制
+        membersCount: isDmChannel ? channelMembers.length : membersCount,
         searchTerms,
-        teamUrl,
+        teamId: currentTeam?.id || '',
         canGoBack,
-        canManageMembers,
+        canManageMembers: isDmChannel || isGmChannel ? false : canManageMembers,
         channelMembers,
         editing,
     } as Props;
@@ -178,6 +280,7 @@ function mapDispatchToProps(dispatch: Dispatch<AnyAction>) {
             setEditChannelMembers,
             searchProfilesAndChannelMembers,
             fetchRemoteClusterInfo,
+            getProfilesInTeam,
         }, dispatch),
     };
 }

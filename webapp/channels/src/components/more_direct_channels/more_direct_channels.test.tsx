@@ -71,11 +71,9 @@ describe('components/MoreDirectChannels', () => {
             getProfilesInTeam: jest.fn().mockResolvedValue({data: true}),
             loadProfilesMissingStatus: jest.fn().mockResolvedValue({data: true}),
             searchProfiles: jest.fn().mockResolvedValue({data: true}),
-            searchGroupChannels: jest.fn().mockResolvedValue({data: true}),
             setModalSearchTerm: jest.fn().mockResolvedValue({data: true}),
             loadStatusesForProfilesList: jest.fn().mockResolvedValue({data: true}),
             openDirectChannelToUserId: jest.fn().mockResolvedValue({data: {name: 'dm'}}),
-            openGroupChannelToUserIds: jest.fn().mockResolvedValue({data: {name: 'group'}}),
             getTotalUsersStats: jest.fn().mockImplementation(() => {
                 return ((resolve: () => any) => {
                     process.nextTick(() => resolve());
@@ -278,34 +276,8 @@ describe('components/MoreDirectChannels', () => {
             expect(ref.current!.state.saving).toEqual(false);
         });
         expect(handleHide).toHaveBeenCalled();
-        expect(ref.current!.exitToChannel).toEqual(`/${props.currentTeamName}/channels/dm`);
+        expect(ref.current!.exitToChannel).toEqual(`/direct_messages/@${user.username}`);
         rafSpy.mockRestore();
-    });
-
-    test('should open a GM', async () => {
-        const ref = React.createRef<MoreDirectChannels>();
-        renderWithContext(
-            <MoreDirectChannels
-                ref={ref}
-                {...baseProps}
-            />,
-        );
-        const handleHide = jest.fn();
-        const exitToChannel = '';
-
-        ref.current!.handleHide = handleHide;
-        ref.current!.exitToChannel = exitToChannel;
-        await act(async () => {
-            ref.current!.handleSubmit();
-        });
-        expect(baseProps.actions.openGroupChannelToUserIds).toHaveBeenCalledTimes(1);
-        expect(baseProps.actions.openGroupChannelToUserIds).toHaveBeenCalledWith(['user_id_1', 'user_id_2']);
-
-        await waitFor(() => {
-            expect(ref.current!.state.saving).toEqual(false);
-        });
-        expect(handleHide).toHaveBeenCalled();
-        expect(ref.current!.exitToChannel).toEqual(`/${baseProps.currentTeamName}/channels/group`);
     });
 
     test('should exclude deleted users if there is not direct channel between users', () => {

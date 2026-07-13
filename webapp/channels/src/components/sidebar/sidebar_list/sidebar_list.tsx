@@ -32,7 +32,6 @@ import type {ModalData} from 'types/actions';
 import type {DraggingState} from 'types/store';
 import type {StaticPage} from 'types/store/lhs';
 
-const DraftsLink = makeAsyncComponent('DraftsLink', lazy(() => import('components/drafts/drafts_link/drafts_link')));
 const GlobalThreadsLink = makeAsyncComponent('GlobalThreadsLink', lazy(() => import('components/threading/global_threads_link')));
 const RecapsLink = makeAsyncComponent('RecapsLink', lazy(() => import('components/recaps_link')));
 const UnreadChannelIndicator = makeAsyncComponent('UnreadChannelIndicator', lazy(() => import('../unread_channel_indicator')));
@@ -55,7 +54,7 @@ type Props = WrappedComponentProps & {
     currentStaticPageId: string;
     staticPages: StaticPage[];
 
-    handleOpenMoreDirectChannelsModal: (e: Event) => void;
+    // LZX: handleOpenMoreDirectChannelsModal 已移除，私信入口改为侧边栏静态入口
     onDragStart: (initial: DragStart) => void;
     onDragEnd: (result: DropResult) => void;
     markAllAsReadWithoutConfirm: boolean;
@@ -314,8 +313,7 @@ export class SidebarList extends React.PureComponent<Props, State> {
             if (nextIndex >= staticPageIds.length) {
                 this.scrollToChannel(nextId);
             }
-        } else if (cmdOrCtrlPressed(e) && e.shiftKey && isKeyPressed(e, Constants.KeyCodes.K)) {
-            this.props.handleOpenMoreDirectChannelsModal(e);
+            // LZX: Ctrl+Shift+K 快捷键打开 DM modal 已移除
         }
     };
 
@@ -380,7 +378,6 @@ export class SidebarList extends React.PureComponent<Props, State> {
                 category={category}
                 categoryIndex={index}
                 setChannelRef={this.setChannelRef}
-                handleOpenMoreDirectChannelsModal={this.props.handleOpenMoreDirectChannelsModal}
                 isNewCategory={this.props.newCategoryIds.includes(category.id)}
             />
         );
@@ -499,8 +496,9 @@ export class SidebarList extends React.PureComponent<Props, State> {
                 );
             }
 
+            // LZX: DIRECT_MESSAGES is handled by the global TeamSidebar DM entry.
             const managedCategories = categories.filter((c) => c.type === CategoryTypes.MANAGED);
-            const nonManagedCategories = categories.filter((c) => c.type !== CategoryTypes.MANAGED);
+            const nonManagedCategories = categories.filter((c) => c.type !== CategoryTypes.MANAGED && c.type !== CategoryTypes.FAVORITES && c.type !== CategoryTypes.DIRECT_MESSAGES);
 
             const renderedManagedCategories = managedCategories.map(this.renderCategory);
             const renderedNonManagedCategories = nonManagedCategories.map(this.renderCategory);
@@ -558,7 +556,6 @@ export class SidebarList extends React.PureComponent<Props, State> {
             // NOTE: id attribute added to temporarily support the desktop app's at-mention DOM scraping of the old sidebar
             <>
                 <GlobalThreadsLink/>
-                <DraftsLink/>
                 <RecapsLink/>
                 <div
                     id='sidebar-left'

@@ -6,6 +6,8 @@ import {CategorySorting} from '@mattermost/types/channel_categories';
 import type {Channel} from '@mattermost/types/channels';
 import type {RelationOneToOne} from '@mattermost/types/utilities';
 
+import {General} from 'mattermost-redux/constants';
+
 import {createSelector} from 'mattermost-redux/selectors/create_selector';
 import {
     makeGetCategoriesForTeam,
@@ -16,6 +18,8 @@ import {
 import {
     getAllChannels,
     getCurrentChannelId,
+    getChannelIdsForCurrentTeam,
+    getChannelMessageCounts,
     getMyChannelMemberships,
     getUnreadChannelIds,
     sortUnreadChannels,
@@ -23,6 +27,7 @@ import {
 import {shouldShowUnreadsCategory, isCollapsedThreadsEnabled} from 'mattermost-redux/selectors/entities/preferences';
 import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
 import {memoizeResult} from 'mattermost-redux/utils/helpers';
+import {isChannelMuted} from 'mattermost-redux/utils/channel_utils';
 
 import type {DraggingState, GlobalState} from 'types/store';
 
@@ -67,11 +72,39 @@ export const getChannelsByCategoryForCurrentTeam: (state: GlobalState) => Relati
     });
 })();
 
+// Returns channel ids that are muted but have posts since the user last viewed them.
+// calculateUnreadCount always returns messages=0 for muted channels (msg_count is kept in sync),
+// so we compare last_post_at vs last_viewed_at instead.
+const getMutedChannelIdsWithMessages = createSelector(
+    'getMutedChannelIdsWithMessages',
+    getChannelIdsForCurrentTeam,
+    getMyChannelMemberships,
+    getAllChannels,
+    (teamChannelIds, memberships, allChannels) => {
+        return teamChannelIds.filter((id) => {
+            const member = memberships[id];
+            if (!isChannelMuted(member)) {
+                return false;
+            }
+            const channel = allChannels[id];
+            if (!channel || !member) {
+                return false;
+            }
+            return channel.last_post_at > (member.last_viewed_at || 0);
+        });
+    },
+);
+
 const getUnreadChannelIdsSet = createSelector(
     'getUnreadChannelIdsSet',
     (state: GlobalState) => getUnreadChannelIds(state, state.views.channel.lastUnreadChannel),
-    (unreadChannelIds) => {
-        return new Set(unreadChannelIds);
+    getMutedChannelIdsWithMessages,
+    (unreadChannelIds, mutedWithMessages) => {
+        const set = new Set(unreadChannelIds);
+        for (const id of mutedWithMessages) {
+            set.add(id);
+        }
+        return set;
     },
 );
 
@@ -129,6 +162,11 @@ export const getUnreadChannels = (() => {
                 const channel = allChannels[channelId];
 
                 if (channel) {
+                    // LZX: 私信已有单独入口和 RHS 成员未读提醒，未读列表不再展示 DM/GM
+                    if (channel.type === General.DM_CHANNEL || channel.type === General.GM_CHANNEL) {
+                        continue;
+                    }
+
                     // Only include an archived channel if it's the current channel
                     if (channel.delete_at > 0 && channel.id !== currentChannelId) {
                         continue;
@@ -144,8 +182,9 @@ export const getUnreadChannels = (() => {
                 // The current channel is already in unreadChannels if it was previously unread but we need to add it
                 // if it wasn't previously unread
                 if (currentChannelId && unreadChannels.findIndex((channel) => channel.id === currentChannelId) === -1) {
-                    if (allChannels[currentChannelId]) {
-                        unreadChannels.push(allChannels[currentChannelId]);
+                    const currentChannel = allChannels[currentChannelId];
+                    if (currentChannel && currentChannel.type !== General.DM_CHANNEL && currentChannel.type !== General.GM_CHANNEL) {
+                        unreadChannels.push(currentChannel);
                     }
                 }
             }

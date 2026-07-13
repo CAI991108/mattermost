@@ -37,6 +37,7 @@ func (api *API) InitUser() {
 	api.BaseRoutes.Users.Handle("/stats", api.APISessionRequired(getTotalUsersStats)).Methods(http.MethodGet)
 	api.BaseRoutes.Users.Handle("/stats/filtered", api.APISessionRequired(getFilteredUsersStats)).Methods(http.MethodGet)
 	api.BaseRoutes.Users.Handle("/group_channels", api.APISessionRequired(getUsersByGroupChannelIds)).Methods(http.MethodPost)
+	api.BaseRoutes.Users.Handle("/iuin_honors/asset", api.APISessionRequired(getIuinHonorAsset)).Methods(http.MethodGet)
 
 	api.BaseRoutes.User.Handle("", api.APISessionRequired(getUser)).Methods(http.MethodGet)
 	api.BaseRoutes.User.Handle("/image/default", api.APISessionRequiredTrustRequester(getDefaultProfileImage)).Methods(http.MethodGet)
@@ -45,6 +46,16 @@ func (api *API) InitUser() {
 	api.BaseRoutes.User.Handle("/image", api.APISessionRequired(setDefaultProfileImage)).Methods(http.MethodDelete)
 	api.BaseRoutes.User.Handle("", api.APISessionRequired(updateUser)).Methods(http.MethodPut)
 	api.BaseRoutes.User.Handle("/patch", api.APISessionRequired(patchUser)).Methods(http.MethodPut)
+	api.BaseRoutes.User.Handle("/iuin_profile/settings", api.APISessionRequired(getIuinProfileSettings)).Methods(http.MethodGet)
+	api.BaseRoutes.User.Handle("/iuin_profile/workspace", api.APISessionRequired(getIuinProfileWorkspace)).Methods(http.MethodGet)
+	api.BaseRoutes.User.Handle("/iuin_profile/workspace", api.APISessionRequired(putIuinProfileWorkspace)).Methods(http.MethodPut)
+	api.BaseRoutes.User.Handle("/iuin_honors/summary", api.APISessionRequired(getIuinHonorSummary)).Methods(http.MethodGet)
+	api.BaseRoutes.User.Handle("/iuin_achievements", api.APISessionRequired(getIuinAchievements)).Methods(http.MethodGet)
+	api.BaseRoutes.User.Handle("/iuin_achievements/featured", api.APISessionRequired(putIuinFeaturedAchievements)).Methods(http.MethodPut)
+	api.BaseRoutes.User.Handle("/iuin_titles", api.APISessionRequired(getIuinTitles)).Methods(http.MethodGet)
+	api.BaseRoutes.User.Handle("/iuin_titles/equipped", api.APISessionRequired(putIuinEquippedTitle)).Methods(http.MethodPut)
+	api.BaseRoutes.User.Handle("/iuin_avatar_frames", api.APISessionRequired(getIuinAvatarFrames)).Methods(http.MethodGet)
+	api.BaseRoutes.User.Handle("/iuin_avatar_frames/equipped", api.APISessionRequired(putIuinEquippedAvatarFrame)).Methods(http.MethodPut)
 	api.BaseRoutes.User.Handle("", api.APISessionRequired(deleteUser)).Methods(http.MethodDelete)
 	api.BaseRoutes.User.Handle("/roles", api.APISessionRequired(updateUserRoles)).Methods(http.MethodPut)
 	api.BaseRoutes.User.Handle("/active", api.APISessionRequired(updateUserActive)).Methods(http.MethodPut)
@@ -1132,6 +1143,72 @@ func getUsers(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := w.Write(js); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
+}
+
+type iuinProfileSecuritySettings struct {
+	AuthService        string `json:"auth_service"`
+	MFAActive          bool   `json:"mfa_active"`
+	SessionsCount      int    `json:"sessions_count"`
+	OtherSessionsCount int    `json:"other_sessions_count"`
+	CurrentSessionID   string `json:"current_session_id"`
+	CanChangePassword  bool   `json:"can_change_password"`
+	CanUseMFA          bool   `json:"can_use_mfa"`
+}
+
+type iuinProfileSettingsResponse struct {
+	User     *model.User                 `json:"user"`
+	Security iuinProfileSecuritySettings `json:"security"`
+}
+
+func getIuinProfileSettings(c *Context, w http.ResponseWriter, r *http.Request) {
+	c.RequireUserId()
+	if c.Err != nil {
+		return
+	}
+
+	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), c.Params.UserId) {
+		c.SetPermissionError(model.PermissionEditOtherUsers)
+		return
+	}
+
+	user, appErr := c.App.GetUser(c.Params.UserId)
+	if appErr != nil {
+		c.Err = appErr
+		return
+	}
+
+	sessions, appErr := c.App.GetSessions(c.AppContext, user.Id)
+	if appErr != nil {
+		c.Err = appErr
+		return
+	}
+
+	currentSessionID := c.AppContext.Session().Id
+	otherSessionsCount := 0
+	for _, session := range sessions {
+		if session.Id != currentSessionID && session.Props["type"] != "UserAccessToken" {
+			otherSessionsCount++
+		}
+	}
+
+	user.Sanitize(map[string]bool{})
+
+	response := iuinProfileSettingsResponse{
+		User: user,
+		Security: iuinProfileSecuritySettings{
+			AuthService:        user.AuthService,
+			MFAActive:          user.MfaActive,
+			SessionsCount:      len(sessions),
+			OtherSessionsCount: otherSessionsCount,
+			CurrentSessionID:   currentSessionID,
+			CanChangePassword:  user.AuthService == "",
+			CanUseMFA:          *c.App.Config().ServiceSettings.EnableMultifactorAuthentication,
+		},
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
 }

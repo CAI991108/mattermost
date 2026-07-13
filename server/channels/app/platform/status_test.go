@@ -131,6 +131,32 @@ func TestQueueSetStatusOffline(t *testing.T) {
 	}
 }
 
+func TestQueueSetStatusOfflineDoesNotOverrideActiveConnection(t *testing.T) {
+	th := Setup(t).InitBasic(t)
+
+	userID := th.BasicUser.Id
+	th.Service.SetStatusOnline(userID, false)
+
+	webConn := &WebConn{
+		UserId:     userID,
+		reuseCount: 1,
+	}
+	webConn.SetConnectionID(model.NewId())
+	webConn.SetSessionExpiresAt(model.GetMillis() + time.Minute.Milliseconds())
+	require.NoError(t, th.Service.HubRegister(webConn))
+	t.Cleanup(func() {
+		th.Service.HubUnregister(webConn)
+	})
+
+	require.Equal(t, 1, th.Service.WebConnCountForUser(userID))
+	th.Service.QueueSetStatusOffline(userID, false)
+
+	require.Never(t, func() bool {
+		status, err := th.Service.GetStatus(userID)
+		return err == nil && status.Status == model.StatusOffline
+	}, 2*statusUpdateBatchInterval, 50*time.Millisecond, "active websocket status was overwritten by a queued offline update")
+}
+
 func TestSetStatusOffline(t *testing.T) {
 	th := Setup(t).InitBasic(t)
 

@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	imageProfilePixelDimension = 128
+	imageProfilePixelDimension = 512
 )
 
 func (us *UserService) GetProfileImage(user *model.User) ([]byte, bool, error) {

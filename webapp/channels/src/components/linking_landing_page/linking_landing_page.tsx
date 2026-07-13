@@ -247,29 +247,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
         );
     };
 
-    renderDownloadLinkText = () => {
-        const isMobile = UserAgent.isMobile();
-
-        if (isMobile) {
-            return (
-                <FormattedMessage
-                    id='get_app.dontHaveTheMobileApp'
-                    defaultMessage={'Don\'t have the Mobile App?'}
-                />
-            );
-        }
-
-        return (
-            <FormattedMessage
-                id='get_app.dontHaveTheDesktopApp'
-                defaultMessage={'Don\'t have the Desktop App?'}
-            />
-        );
-    };
-
     renderDownloadLinkSection = () => {
-        const downloadLink = this.getDownloadLink();
-
         if (this.state.redirectPage) {
             return (
                 <div className='get-app__download-link'>
@@ -289,34 +267,17 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                     />
                 </div>
             );
-        } else if (downloadLink) {
-            return (
-                <div className='get-app__download-link'>
-                    {this.renderDownloadLinkText()}
-                    {'\u00A0'}
-                    <br/>
-                    <a href={downloadLink}>
-                        <FormattedMessage
-                            id='get_app.downloadTheAppNow'
-                            defaultMessage='Download the app now.'
-                        />
-                    </a>
-                </div>
-            );
         }
 
         return null;
     };
 
     renderDialogHeader = () => {
-        const downloadLink = this.getDownloadLink();
-        const isMobile = UserAgent.isMobile();
-
         let openingLink = (
-            <FormattedMessage
-                id='get_app.openingLink'
-                defaultMessage='Opening link in Mattermost...'
-            />
+                <FormattedMessage
+                    id='get_app.openingLink'
+                    defaultMessage='正在 IUIN Platform 中打开链接...'
+                />
         );
         if (this.props.enableCustomBrand) {
             openingLink = (
@@ -324,7 +285,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                     id='get_app.openingLinkWhiteLabel'
                     defaultMessage='Opening link in {appName}...'
                     values={{
-                        appName: this.props.siteName || 'Mattermost',
+                        appName: this.props.siteName || 'IUIN Platform',
                     }}
                 />
             );
@@ -340,38 +301,8 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                             defaultMessage='You will be redirected in a few moments.'
                         />
                         <br/>
-                        {this.renderDownloadLinkText()}
-                        {'\u00A0'}
-                        <br className='mobile-only'/>
-                        <a href={downloadLink}>
-                            <FormattedMessage
-                                id='get_app.downloadTheAppNow'
-                                defaultMessage='Download the app now.'
-                            />
-                        </a>
                     </div>
                 </h1>
-            );
-        }
-
-        let viewApp = (
-            <FormattedMessage
-                id='get_app.ifNothingPrompts'
-                defaultMessage='You can view {siteName} in the desktop app or continue in your web browser.'
-                values={{
-                    siteName: this.props.enableCustomBrand ? '' : ' Mattermost',
-                }}
-            />
-        );
-        if (isMobile) {
-            viewApp = (
-                <FormattedMessage
-                    id='get_app.ifNothingPromptsMobile'
-                    defaultMessage='You can view {siteName} in the mobile app or continue in your web browser.'
-                    values={{
-                        siteName: this.props.enableCustomBrand ? '' : ' Mattermost',
-                    }}
-                />
             );
         }
 
@@ -380,11 +311,8 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                 <FormattedMessage
                     id='get_app.launching'
                     tagName='h1'
-                    defaultMessage='Where would you like to view this?'
+                    defaultMessage='欢迎来到人工智能学院'
                 />
-                <div className='get-app__alternative'>
-                    {viewApp}
-                </div>
             </div>
         );
     };
@@ -421,19 +349,6 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                         />
                     </a>
                 </div>
-                <label className='get-app__preference'>
-                    <input
-                        type='checkbox'
-                        checked={this.state.rememberChecked}
-                        className='get-app__checkbox'
-                        onChange={this.handleChecked}
-                    />
-                    <FormattedMessage
-                        id='get_app.rememberMyPreference'
-                        defaultMessage='Remember my preference'
-                    />
-                </label>
-                {this.renderDownloadLinkSection()}
             </div>
         );
     };

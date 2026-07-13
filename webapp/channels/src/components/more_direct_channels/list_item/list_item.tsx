@@ -3,18 +3,12 @@
 
 import classNames from 'classnames';
 import React, {useCallback} from 'react';
-import {useIntl} from 'react-intl';
 
-import {useUserIdsInGroupChannel} from 'components/common/hooks/useUserIdsInGroupChannel';
 import Timestamp from 'components/timestamp';
 
 import UserDetails from './user_details';
 
-import {isGroupChannel} from '../types';
-import type {
-    GroupChannel,
-    OptionValue,
-} from '../types';
+import type {OptionValue} from '../types';
 
 const TIME_SPEC: React.ComponentProps<typeof Timestamp> = {
     useTime: false,
@@ -45,16 +39,8 @@ const ListItem = React.forwardRef((props: Props, ref?: React.Ref<HTMLDivElement>
         add,
         select,
     } = props;
-    const intl = useIntl();
 
     const {last_post_at: lastPostAt} = option;
-
-    let details;
-    if (isGroupChannel(option)) {
-        details = <GMDetails option={option}/>;
-    } else {
-        details = <UserDetails option={option}/>;
-    }
 
     const handleClick = useCallback(() => add(option), [option, add]);
     const handleMouseEnter = useCallback(() => select(option), [option, select]);
@@ -66,7 +52,7 @@ const ListItem = React.forwardRef((props: Props, ref?: React.Ref<HTMLDivElement>
             onClick={handleClick}
             onMouseEnter={handleMouseEnter}
         >
-            {details}
+            <UserDetails option={option}/>
 
             {isMobileView && Boolean(lastPostAt) &&
                 <div className='more-modal__lastPostAt'>
@@ -76,43 +62,9 @@ const ListItem = React.forwardRef((props: Props, ref?: React.Ref<HTMLDivElement>
                     />
                 </div>
             }
-
-            <div className='more-modal__actions'>
-                <button
-                    className='more-modal__actions--round'
-                    aria-label={intl.formatMessage({
-                        id: 'more_direct_channels.new_convo_add.label',
-                        defaultMessage: 'Add option {label}',
-                    }, {label: option.label})}
-                >
-                    <i className='icon icon-plus'/>
-                </button>
-            </div>
         </div>
     );
 });
 ListItem.displayName = 'ListItem';
 
 export default ListItem;
-
-function GMDetails(props: {option: GroupChannel}) {
-    const {option} = props;
-
-    // Indirectly populate option.profiles when needed
-    useUserIdsInGroupChannel(option.id);
-
-    return (
-        <>
-            <div className='more-modal__gm-icon'>
-                {option.profiles.length}
-            </div>
-            <div className='more-modal__details'>
-                <div className='more-modal__name'>
-                    <span>
-                        {option.profiles.map((profile) => `@${profile.username}`).join(', ')}
-                    </span>
-                </div>
-            </div>
-        </>
-    );
-}

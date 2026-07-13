@@ -5,11 +5,7 @@ import React from 'react';
 
 import type {DeepPartial} from '@mattermost/types/utilities';
 
-import {Preferences} from 'mattermost-redux/constants';
-
-import mergeObjects from 'packages/mattermost-redux/test/merge_objects';
 import {renderWithContext, screen, userEvent} from 'tests/react_testing_utils';
-import {TestHelper} from 'utils/test_helper';
 
 import type {GlobalState} from 'types/store';
 
@@ -33,7 +29,7 @@ describe('CustomStatusModal', () => {
         },
     };
 
-    test('should render suggested statuses until the user starts typing', async () => {
+    test('should render GitHub-style status controls', async () => {
         renderWithContext(
             <CustomStatusModal
                 {...baseProps}
@@ -41,18 +37,24 @@ describe('CustomStatusModal', () => {
             initialState,
         );
 
-        expect(screen.getByText('SUGGESTIONS')).toBeInTheDocument();
-        expect(screen.getByText('Out for lunch')).toBeInTheDocument();
-        expect(screen.getByLabelText(':hamburger:')).toBeInTheDocument();
-
-        await userEvent.type(screen.getByPlaceholderText('Set a status'), 'Test status, please ignore');
-
-        expect(screen.queryByText('SUGGESTIONS')).not.toBeInTheDocument();
-        expect(screen.queryByText('Out for lunch')).not.toBeInTheDocument();
-        expect(screen.queryByLabelText(':hamburger:')).not.toBeInTheDocument();
+        expect(screen.getByText('Edit status')).toBeInTheDocument();
+        expect(screen.getByLabelText("What's happening")).toBeInTheDocument();
+        expect(document.querySelector('.StatusModal__image-input')).toHaveAttribute('hidden');
+        expect(screen.getByText('80 characters remaining')).toBeInTheDocument();
+        expect(screen.getByRole('button', {name: /On vacation/})).toBeInTheDocument();
+        expect(screen.getByRole('button', {name: /Out sick/})).toBeInTheDocument();
+        expect(screen.getByRole('button', {name: /Working from home/})).toBeInTheDocument();
+        expect(screen.getByRole('button', {name: /Focusing/})).toBeInTheDocument();
+        expect(screen.queryByLabelText(/Busy/)).not.toBeInTheDocument();
+        expect(screen.queryByText('Expiration')).not.toBeInTheDocument();
+        expect(screen.queryByText('Visible to')).not.toBeInTheDocument();
+        expect(screen.getByText('Clear status')).toBeInTheDocument();
+        expect(screen.getByText('Set status')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', {name: 'select an emoji'}));
+        expect(screen.getByRole('button', {name: /Upload Status Image/})).toBeInTheDocument();
     });
 
-    test('should render suggested statuses until the user selects an emoji', async () => {
+    test('should update remaining characters as the user types', async () => {
         renderWithContext(
             <CustomStatusModal
                 {...baseProps}
@@ -60,83 +62,23 @@ describe('CustomStatusModal', () => {
             initialState,
         );
 
-        expect(screen.getByText('SUGGESTIONS')).toBeInTheDocument();
-        expect(screen.getByLabelText(':hamburger:')).toBeInTheDocument();
-        expect(screen.getByText('Out for lunch')).toBeInTheDocument();
+        await userEvent.type(screen.getByLabelText("What's happening"), 'Focusing');
 
-        await userEvent.click(screen.getByLabelText('select an emoji'));
-        await userEvent.click(screen.getByLabelText('grinning emoji'));
-
-        expect(screen.queryByText('SUGGESTIONS')).not.toBeInTheDocument();
-        expect(screen.queryByText('Out for lunch')).not.toBeInTheDocument();
-        expect(screen.queryByLabelText(':hamburger:')).not.toBeInTheDocument();
+        expect(screen.getByText('72 characters remaining')).toBeInTheDocument();
+        expect(screen.getByRole('button', {name: /On vacation/})).toBeInTheDocument();
     });
 
-    test('should render recently used statuses as suggestions', () => {
-        const testState = mergeObjects(initialState, {
-            entities: {
-                preferences: {
-                    myPreferences: TestHelper.getPreferencesMock([
-                        {
-                            category: Preferences.CATEGORY_CUSTOM_STATUS,
-                            name: Preferences.NAME_RECENT_CUSTOM_STATUSES,
-                            value: JSON.stringify([
-                                TestHelper.getCustomStatusMock({emoji: 'taco', text: 'Eating a taco'}),
-                            ]),
-                        },
-                    ]),
-                },
-            },
-        });
-
+    test('should populate the status from a suggestion chip', async () => {
         renderWithContext(
             <CustomStatusModal
                 {...baseProps}
             />,
-            testState,
+            initialState,
         );
 
-        expect(screen.getByText('SUGGESTIONS')).toBeInTheDocument();
-        expect(screen.getByText('Eating a taco')).toBeInTheDocument();
-        expect(screen.getByLabelText(':taco:')).toBeInTheDocument();
-    });
+        await userEvent.click(screen.getByRole('button', {name: /Focusing/}));
 
-    test('should render recently used statuses with custom emojis which exist', () => {
-        const existentEmoji = TestHelper.getCustomEmojiMock({name: 'existent'});
-
-        const testState = mergeObjects(initialState, {
-            entities: {
-                emojis: {
-                    customEmoji: {
-                        [existentEmoji.id]: existentEmoji,
-                    },
-                },
-                preferences: {
-                    myPreferences: TestHelper.getPreferencesMock([
-                        {
-                            category: Preferences.CATEGORY_CUSTOM_STATUS,
-                            name: Preferences.NAME_RECENT_CUSTOM_STATUSES,
-                            value: JSON.stringify([
-                                TestHelper.getCustomStatusMock({emoji: 'existent', text: 'Existing'}),
-                                TestHelper.getCustomStatusMock({emoji: 'nonexistent', text: 'Not existing'}),
-                            ]),
-                        },
-                    ]),
-                },
-            },
-        });
-
-        renderWithContext(
-            <CustomStatusModal
-                {...baseProps}
-            />,
-            testState,
-        );
-
-        expect(screen.getByText('SUGGESTIONS')).toBeInTheDocument();
-        expect(screen.getByText('Existing')).toBeInTheDocument();
-        expect(screen.getByLabelText(':existent:')).toBeInTheDocument();
-        expect(screen.queryByText('Not existing')).not.toBeInTheDocument();
-        expect(screen.queryByLabelText(':nonexistent:')).not.toBeInTheDocument();
+        expect(screen.getByLabelText("What's happening")).toHaveValue('Focusing');
+        expect(screen.getByText('72 characters remaining')).toBeInTheDocument();
     });
 });

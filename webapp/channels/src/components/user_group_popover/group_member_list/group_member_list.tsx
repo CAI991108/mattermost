@@ -71,7 +71,6 @@ export type Props = {
      * @internal
      */
     members: GroupMember[];
-    teamUrl: string;
     searchTerm: string;
 
     actions: {
@@ -87,7 +86,6 @@ const GroupMemberList = (props: Props) => {
         actions,
         members,
         hide,
-        teamUrl,
         searchTerm,
         searchState,
     } = props;
@@ -137,7 +135,7 @@ const GroupMemberList = (props: Props) => {
                 actions.closeRightHandSide();
                 setCurrentDMLoading(undefined);
                 hide?.();
-                history.push(`${teamUrl}/messages/@${user.username}`);
+                history.push(`/direct_messages/@${user.username}`);
             }
         });
     };

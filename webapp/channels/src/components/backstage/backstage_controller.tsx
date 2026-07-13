@@ -10,8 +10,6 @@ import {createGlobalStyle} from 'styled-components';
 import type {Team} from '@mattermost/types/teams';
 import type {UserProfile} from '@mattermost/types/users';
 
-import Emoji from 'components/emoji';
-import AddEmoji from 'components/emoji/add_emoji';
 import Integrations from 'components/integrations';
 import AddIncomingWehook from 'components/integrations/add_incoming_webhook';
 import AddOauthApp from 'components/integrations/add_oauth_app';
@@ -74,13 +72,11 @@ type Props = {
     match: match<{url: string}>;
 
     siteName?: string;
-    enableCustomEmoji: boolean;
     enableIncomingWebhooks: boolean;
     enableOutgoingWebhooks: boolean;
     enableCommands: boolean;
     enableOAuthServiceProvider: boolean;
     enableOutgoingOAuthConnections: boolean;
-    canCreateOrDeleteCustomEmoji: boolean;
     canManageIntegrations: boolean;
 }
 
@@ -114,13 +110,11 @@ const BackstageController = (props: Props) => {
                 <Pluggable pluggableName='Root'/>
                 <BackstageSidebar
                     team={props.team}
-                    enableCustomEmoji={props.enableCustomEmoji}
                     enableIncomingWebhooks={props.enableIncomingWebhooks}
                     enableOutgoingWebhooks={props.enableOutgoingWebhooks}
                     enableCommands={props.enableCommands}
                     enableOAuthServiceProvider={props.enableOAuthServiceProvider}
                     enableOutgoingOAuthConnections={props.enableOutgoingOAuthConnections}
-                    canCreateOrDeleteCustomEmoji={props.canCreateOrDeleteCustomEmoji}
                     canManageIntegrations={props.canManageIntegrations}
                 />
                 <Switch>
@@ -205,17 +199,6 @@ const BackstageController = (props: Props) => {
                         extraProps={extraProps}
                         path={`${props.match.url}/confirm`}
                         component={ConfirmIntegration}
-                    />
-                    <BackstageRoute
-                        extraProps={extraProps}
-                        exact={true}
-                        path={'/:team/emoji'}
-                        component={Emoji}
-                    />
-                    <BackstageRoute
-                        extraProps={extraProps}
-                        path={`${props.match.url}/add`}
-                        component={AddEmoji}
                     />
                     <BackstageRoute
                         extraProps={extraProps}

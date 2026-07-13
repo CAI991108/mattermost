@@ -7,7 +7,7 @@ import {withRouter} from 'react-router-dom';
 import {Permissions} from 'mattermost-redux/constants';
 import {getConfig} from 'mattermost-redux/selectors/entities/general';
 import {haveITeamPermission, haveISystemPermission} from 'mattermost-redux/selectors/entities/roles';
-import {getMyTeams, getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
+import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
 import {getCurrentUser} from 'mattermost-redux/selectors/entities/users';
 
 import type {GlobalState} from 'types/store';
@@ -21,22 +21,11 @@ function mapStateToProps(state: GlobalState) {
     const config = getConfig(state);
 
     const siteName = config.SiteName;
-    const enableCustomEmoji = config.EnableCustomEmoji === 'true';
     const enableIncomingWebhooks = config.EnableIncomingWebhooks === 'true';
     const enableOutgoingWebhooks = config.EnableOutgoingWebhooks === 'true';
     const enableCommands = config.EnableCommands === 'true';
     const enableOAuthServiceProvider = config.EnableOAuthServiceProvider === 'true';
     const enableOutgoingOAuthConnections = config.EnableOutgoingOAuthConnections === 'true';
-
-    let canCreateOrDeleteCustomEmoji = (haveISystemPermission(state, {permission: Permissions.CREATE_EMOJIS}) || haveISystemPermission(state, {permission: Permissions.DELETE_EMOJIS}));
-    if (!canCreateOrDeleteCustomEmoji) {
-        for (const t of getMyTeams(state)) {
-            if (haveITeamPermission(state, t.id, Permissions.CREATE_EMOJIS) || haveITeamPermission(state, t.id, Permissions.DELETE_EMOJIS)) {
-                canCreateOrDeleteCustomEmoji = true;
-                break;
-            }
-        }
-    }
 
     const canManageTeamIntegrations = (
         haveITeamPermission(state, team?.id, Permissions.MANAGE_SLASH_COMMANDS) ||
@@ -54,13 +43,11 @@ function mapStateToProps(state: GlobalState) {
         user,
         team,
         siteName,
-        enableCustomEmoji,
         enableIncomingWebhooks,
         enableOutgoingWebhooks,
         enableCommands,
         enableOAuthServiceProvider,
         enableOutgoingOAuthConnections,
-        canCreateOrDeleteCustomEmoji,
         canManageIntegrations,
     };
 }

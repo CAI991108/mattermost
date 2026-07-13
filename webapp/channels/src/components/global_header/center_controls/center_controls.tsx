@@ -10,12 +10,12 @@ import Pluggable from 'plugins/pluggable';
 import {isChannels} from 'utils/products';
 
 import GlobalSearchNav from './global_search_nav/global_search_nav';
-import UserGuideDropdown from './user_guide_dropdown';
+import KeyboardShortcutsButton from './keyboard_shortcuts_button';
 
 const CenterControlsContainer = styled.div`
     display: flex;
     align-items: center;
-    height: 40px;
+    height: 100%;
     justify-content: center;
     flex-grow: 1;
     flex-basis: 40%;
@@ -35,7 +35,7 @@ const CenterControls = ({productId = null}: Props): JSX.Element => {
             {isChannels(productId) ? (
                 <>
                     <GlobalSearchNav/>
-                    <UserGuideDropdown/>
+                    <KeyboardShortcutsButton/>
                 </>
             ) : (
                 <Pluggable

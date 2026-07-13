@@ -35,6 +35,9 @@ import type {Props as MenuItemProps} from './menu_item';
 
 import './menu.scss';
 
+const SUB_MENU_OPEN_ANIMATION_DURATION = 150;
+const SUB_MENU_CLOSE_ANIMATION_DURATION = 100;
+
 interface Props {
     id: MenuItemProps['id'];
     leadingElement?: MenuItemProps['leadingElement'];
@@ -71,6 +74,7 @@ export function SubMenu(props: Props) {
     } = props;
 
     const [anchorElement, setAnchorElement] = useState<null | HTMLElement>(null);
+    const [openedFromKeyboard, setOpenedFromKeyboard] = useState(false);
     const isSubMenuOpen = Boolean(anchorElement);
 
     const isMobileView = useSelector(getIsMobileView);
@@ -81,6 +85,7 @@ export function SubMenu(props: Props) {
     useEffect(() => {
         if (anyModalOpen && !isMobileView) {
             setAnchorElement(null);
+            setOpenedFromKeyboard(false);
         }
     }, [anyModalOpen, isMobileView]);
 
@@ -91,6 +96,7 @@ export function SubMenu(props: Props) {
     // Handler function injected in the menu items to close the submenu
     const closeSubMenu = useCallback(() => {
         setAnchorElement(null);
+        setOpenedFromKeyboard(false);
     }, []);
 
     const providerValue = useMenuContextValue(closeSubMenu, Boolean(anchorElement));
@@ -102,12 +108,14 @@ export function SubMenu(props: Props) {
 
     function handleMouseEnter(event: MouseEvent<HTMLLIElement>) {
         event.preventDefault();
+        setOpenedFromKeyboard(false);
         setAnchorElement(event.currentTarget);
     }
 
     function handleMouseLeave(event: MouseEvent<HTMLLIElement>) {
         event.preventDefault();
         setAnchorElement(null);
+        setOpenedFromKeyboard(false);
     }
 
     function handleKeyDown(event: KeyboardEvent<HTMLLIElement>) {
@@ -117,6 +125,7 @@ export function SubMenu(props: Props) {
             isKeyPressed(event, Constants.KeyCodes.RIGHT)
         ) {
             event.preventDefault();
+            setOpenedFromKeyboard(true);
             setAnchorElement(event.currentTarget);
         }
     }
@@ -128,6 +137,7 @@ export function SubMenu(props: Props) {
         } else if (isKeyPressed(event, Constants.KeyCodes.ESCAPE) || isKeyPressed(event, Constants.KeyCodes.LEFT)) {
             event.preventDefault();
             setAnchorElement(null);
+            setOpenedFromKeyboard(false);
         }
     }
 
@@ -178,6 +188,21 @@ export function SubMenu(props: Props) {
                     anchorOrigin={originOfAnchorAndTransform.anchorOrigin}
                     transformOrigin={originOfAnchorAndTransform.transformOrigin}
                     className='menu_menuStyled AsSubMenu'
+                    marginThreshold={0}
+                    hideBackdrop={true}
+                    disableAutoFocus={true}
+                    disableEnforceFocus={true}
+                    disableRestoreFocus={true}
+                    disableScrollLock={true}
+                    PaperProps={{style: {pointerEvents: 'auto'}}}
+                    TransitionProps={{
+                        mountOnEnter: true,
+                        unmountOnExit: true,
+                        timeout: {
+                            enter: SUB_MENU_OPEN_ANIMATION_DURATION,
+                            exit: SUB_MENU_CLOSE_ANIMATION_DURATION,
+                        },
+                    }}
                 >
                     {subMenuHeader}
                     <MuiMenuList
@@ -186,7 +211,7 @@ export function SubMenu(props: Props) {
                         aria-describedby={menuAriaDescribedBy}
                         className={A11yClassNames.POPUP}
                         onKeyDown={handleSubMenuKeyDown}
-                        autoFocusItem={isSubMenuOpen}
+                        autoFocusItem={isSubMenuOpen && openedFromKeyboard}
                         sx={{
                             py: 0,
                             pointerEvents: 'auto',

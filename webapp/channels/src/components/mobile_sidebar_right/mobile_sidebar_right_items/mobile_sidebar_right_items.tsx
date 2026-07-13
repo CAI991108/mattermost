@@ -43,23 +43,6 @@ export class MobileSidebarRightItems extends React.PureComponent<Props> {
         pluginMenuItems: [],
     };
 
-    onRecentMentionItemClick = (e: Event): void => {
-        e.preventDefault();
-
-        if (this.props.isMentionSearch) {
-            this.props.actions.closeRightHandSide();
-        } else {
-            this.props.actions.closeRhsMenu();
-            this.props.actions.showMentions();
-        }
-    };
-
-    onShowFlaggedPostItemClick = (e: Event): void => {
-        e.preventDefault();
-        this.props.actions.showFlaggedPosts();
-        this.props.actions.closeRhsMenu();
-    };
-
     onLogoutItemClick = (): void => {
         emitUserLoggedOutEvent();
     };
@@ -92,7 +75,7 @@ export class MobileSidebarRightItems extends React.PureComponent<Props> {
             />
         ));
 
-        const isCustomStatusSet = !this.props.isCustomStatusExpired && this.props.customStatus && ((this.props.customStatus.text && this.props.customStatus.text.length > 0) || (this.props.customStatus.emoji && this.props.customStatus.emoji.length > 0));
+        const isCustomStatusSet = !this.props.isCustomStatusExpired && this.props.customStatus && ((this.props.customStatus.text && this.props.customStatus.text.length > 0) || (this.props.customStatus.emoji && this.props.customStatus.emoji.length > 0) || Boolean(this.props.customStatus.icon_id));
         const shouldConfirmBeforeStatusChange = this.props.autoResetPref === '' && this.props.status === UserStatuses.OUT_OF_OFFICE;
 
         return (
@@ -161,30 +144,6 @@ export class MobileSidebarRightItems extends React.PureComponent<Props> {
                             openCustomStatusModal={this.openCustomStatusModal}
                         />
                     )}
-                </Menu.Group>
-                <Menu.Group>
-                    <Menu.ItemAction
-                        id='recentMentions'
-                        onClick={this.onRecentMentionItemClick}
-                        icon={
-                            <i
-                                className='icon icon-at'
-                                style={{color: 'var(--sidebar-text)'}}
-                            />
-                        }
-                        text={formatMessage({id: 'sidebar_right_menu.recentMentions', defaultMessage: 'Recent Mentions'})}
-                    />
-                    <Menu.ItemAction
-                        id='flaggedPosts'
-                        onClick={this.onShowFlaggedPostItemClick}
-                        icon={
-                            <i
-                                className='icon icon-bookmark'
-                                style={{color: 'var(--sidebar-text)'}}
-                            />
-                        }
-                        text={formatMessage({id: 'sidebar_right_menu.flagged', defaultMessage: 'Saved messages'})}
-                    />
                 </Menu.Group>
                 <Menu.Group>
                     <Menu.ItemToggleModalRedux

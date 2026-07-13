@@ -39,15 +39,6 @@ const spyProduct = jest.spyOn(productUtils, 'useCurrentProductId');
 spyProduct.mockReturnValue(null);
 
 describe('components/global/product_switcher', () => {
-    beforeEach(() => {
-        const products = [
-            TestHelper.makeProduct(TopLevelProducts.BOARDS),
-            TestHelper.makeProduct(TopLevelProducts.PLAYBOOKS),
-        ];
-        const spyProducts = jest.spyOn(productUtils, 'useProducts');
-        spyProducts.mockReturnValue(products);
-    });
-
     const baseState = {
         entities: {
             general: {
@@ -63,92 +54,27 @@ describe('components/global/product_switcher', () => {
         },
     };
 
-    it('should match snapshot', () => {
-        const {container} = renderWithContext(
-            <ProductMenu/>,
-            baseState,
-        );
-
-        expect(container).toMatchSnapshot();
-    });
-
-    it('should match snapshot without license', () => {
-        const state = {
-            ...baseState,
-            entities: {
-                ...baseState.entities,
-                general: {
-                    ...baseState.entities.general,
-                    license: {
-                        IsLicensed: 'false',
-                    },
-                },
-            },
-        };
-
-        const {container} = renderWithContext(
-            <ProductMenu/>,
-            state,
-        );
-
-        expect(container).toMatchSnapshot();
-    });
-
-    it('should render once when there are no top level products available', () => {
-        const state = {
-            ...baseState,
-            views: {
-                ...baseState.views,
-                productMenu: {
-                    switcherOpen: true,
-                },
-            },
-        };
-
-        const {container} = renderWithContext(
-            <ProductMenu/>,
-            state,
-        );
-
-        const spyProducts = jest.spyOn(productUtils, 'useProducts');
-        spyProducts.mockReturnValue([]);
-
-        const menuItems = screen.getAllByRole('menuitem');
-        expect(menuItems.length).toBeGreaterThanOrEqual(1);
-        expect(menuItems.at(0)).toBeDefined();
-        expect(container).toMatchSnapshot();
-    });
-
-    it('should render the correct amount of times when there are products available', () => {
-        const state = {
-            ...baseState,
-            views: {
-                ...baseState.views,
-                productMenu: {
-                    switcherOpen: true,
-                },
-            },
-        };
-
+    beforeEach(() => {
         const products = [
             TestHelper.makeProduct(TopLevelProducts.BOARDS),
             TestHelper.makeProduct(TopLevelProducts.PLAYBOOKS),
         ];
-
         const spyProducts = jest.spyOn(productUtils, 'useProducts');
         spyProducts.mockReturnValue(products);
-
-        const {container} = renderWithContext(
-            <ProductMenu/>,
-            state,
-        );
-
-        // Channels + 2 products
-        expect(screen.getAllByRole('menuitem')).toHaveLength(3);
-        expect(container).toMatchSnapshot();
     });
 
-    it('should have an active button state when the switcher menu is open', () => {
+    it('should render the product switcher button collapsed', () => {
+        renderWithContext(
+            <ProductMenu/>,
+            baseState,
+        );
+
+        const button = screen.getByRole('button', {name: 'Product switch menu'});
+        expect(button).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+    });
+
+    it('should render Channels and product entries when the switcher menu is open', () => {
         const state = {
             ...baseState,
             views: {
@@ -159,17 +85,24 @@ describe('components/global/product_switcher', () => {
             },
         };
 
-        const {container} = renderWithContext(
+        renderWithContext(
             <ProductMenu/>,
             state,
         );
 
         const button = screen.getByRole('button', {name: 'Product switch menu'});
         expect(button).toHaveAttribute('aria-expanded', 'true');
-        expect(container).toMatchSnapshot();
+        expect(screen.getByText('Channels')).toBeInTheDocument();
+        expect(screen.getByText('Boards')).toBeInTheDocument();
+        expect(screen.getByText('Playbooks')).toBeInTheDocument();
+        expect(screen.getAllByRole('menuitem')).toHaveLength(3);
+        expect(screen.getByTestId('product-menu-list')).toBeInTheDocument();
     });
 
-    it('should match snapshot with product switcher menu', () => {
+    it('should render Channels when there are no top level products available', () => {
+        const spyProducts = jest.spyOn(productUtils, 'useProducts');
+        spyProducts.mockReturnValue([]);
+
         const state = {
             ...baseState,
             views: {
@@ -180,13 +113,13 @@ describe('components/global/product_switcher', () => {
             },
         };
 
-        const {container} = renderWithContext(
+        renderWithContext(
             <ProductMenu/>,
             state,
         );
 
-        expect(screen.getByTestId('product-menu-list')).toBeInTheDocument();
-        expect(container).toMatchSnapshot();
+        expect(screen.getByText('Channels')).toBeInTheDocument();
+        expect(screen.getAllByRole('menuitem')).toHaveLength(1);
     });
 
     it('should render ProductBrandingFreeEdition for Entry license', () => {
@@ -282,28 +215,5 @@ describe('components/global/product_switcher', () => {
 
         expect(screen.getByTestId('product-branding')).toBeInTheDocument();
         expect(screen.queryByTestId('product-branding-free-edition')).not.toBeInTheDocument();
-    });
-
-    it('should match snapshot for Entry license', () => {
-        const state = {
-            ...baseState,
-            entities: {
-                ...baseState.entities,
-                general: {
-                    ...baseState.entities.general,
-                    license: {
-                        IsLicensed: 'true',
-                        SkuShortName: 'entry',
-                    },
-                },
-            },
-        };
-
-        const {container} = renderWithContext(
-            <ProductMenu/>,
-            state,
-        );
-
-        expect(container).toMatchSnapshot();
     });
 });

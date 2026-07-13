@@ -2,9 +2,10 @@
 // See LICENSE.txt for license information.
 
 import classNames from 'classnames';
-import React from 'react';
+import React, {useEffect} from 'react';
 import type {MouseEvent, KeyboardEvent} from 'react';
 import {useIntl} from 'react-intl';
+import {useLocation} from 'react-router-dom';
 
 import CustomStatusModal from 'components/custom_status/custom_status_modal';
 import * as Menu from 'components/menu';
@@ -34,6 +35,25 @@ export const ELEMENT_ID_FOR_USER_ACCOUNT_MENU = 'userAccountMenu';
 
 export default function UserAccountMenu(props: Props) {
     const {formatMessage} = useIntl();
+    const {pathname} = useLocation();
+    const {loadStatusesByIds: loadStatusesByIdsAction} = props.actions;
+
+    useEffect(() => {
+        if (!props.userId) {
+            return undefined;
+        }
+
+        const userIds = [props.userId];
+        loadStatusesByIdsAction(userIds);
+
+        const refreshTimer = window.setTimeout(() => {
+            loadStatusesByIdsAction(userIds);
+        }, 1000);
+
+        return () => {
+            window.clearTimeout(refreshTimer);
+        };
+    }, [loadStatusesByIdsAction, pathname, props.userId]);
 
     function openCustomStatusModal(event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>) {
         event.stopPropagation();
@@ -43,7 +63,7 @@ export default function UserAccountMenu(props: Props) {
         });
     }
 
-    const isCustomStatusSet = !props.isCustomStatusExpired && props.customStatus && (props.customStatus.text?.length > 0 || props.customStatus.emoji?.length > 0);
+    const isCustomStatusSet = !props.isCustomStatusExpired && props.customStatus && (props.customStatus.text?.length > 0 || props.customStatus.emoji?.length > 0 || Boolean(props.customStatus.icon_id));
     const shouldConfirmBeforeStatusChange = props.autoResetPref === '' && props.status === UserStatuses.OUT_OF_OFFICE;
 
     return (
@@ -58,7 +78,6 @@ export default function UserAccountMenu(props: Props) {
                 children: (
                     <UserAccountMenuButton
                         profilePicture={props.profilePicture}
-                        openCustomStatusModal={openCustomStatusModal}
                         status={props.status}
                     />
                 ),
@@ -128,6 +147,7 @@ export default function UserAccountMenu(props: Props) {
             <Menu.Separator/>
             <UserAccountProfileMenuItem
                 userId={props.userId}
+                username={props.username}
             />
             <Menu.Separator/>
             <UserAccountLogoutMenuItem/>

@@ -82,8 +82,30 @@ func (a *App) UpdateDNDStatusOfUsers() {
 }
 
 func (a *App) SetCustomStatus(rctx request.CTX, userID string, cs *model.CustomStatus) *model.AppError {
-	if cs == nil || (cs.Emoji == "" && cs.Text == "") {
+	if cs == nil || (cs.Emoji == "" && cs.IconID == "" && cs.Text == "") {
 		return model.NewAppError("SetCustomStatus", "api.custom_status.set_custom_statuses.update.app_error", nil, "", http.StatusBadRequest)
+	}
+
+	if cs.IconID != "" {
+		if cs.IconType != "status_emoji" || !model.IsValidId(cs.IconID) {
+			return model.NewAppError("SetCustomStatus", "api.custom_status.set_custom_statuses.status_emoji_invalid", nil, "", http.StatusBadRequest)
+		}
+		var owned bool
+		err := a.Srv().Store().GetInternalReplicaDB().QueryRowContext(rctx.Context(), `
+			SELECT EXISTS (
+				SELECT 1
+				  FROM IuinStatusImages
+				 WHERE Id = $1 AND CreatorUserId = $2 AND DeleteAt = 0
+			)`, cs.IconID, userID).Scan(&owned)
+		if err != nil {
+			return model.NewAppError("SetCustomStatus", "api.custom_status.set_custom_statuses.status_emoji_not_owned", nil, "", http.StatusForbidden).Wrap(err)
+		}
+		if !owned {
+			return model.NewAppError("SetCustomStatus", "api.custom_status.set_custom_statuses.status_emoji_not_owned", nil, "", http.StatusForbidden)
+		}
+		cs.Emoji = ""
+	} else {
+		cs.IconType = "emoji"
 	}
 
 	// Ensure the emoji exists before saving the custom status even if it's deleted afterwards

@@ -7,27 +7,18 @@ import type {Dispatch} from 'redux';
 
 import type {UserProfile} from '@mattermost/types/users';
 
-import {searchGroupChannels} from 'mattermost-redux/actions/channels';
 import {
-    getProfiles,
-    getProfilesInTeam,
-    getTotalUsersStats,
     searchProfiles,
     canUserDirectMessage,
 } from 'mattermost-redux/actions/users';
 import {getConfig, getFeatureFlagValue} from 'mattermost-redux/selectors/entities/general';
-import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
 import {
     getCurrentUserId,
-    getProfiles as selectProfiles,
     getProfilesInCurrentChannel,
-    getProfilesInCurrentTeam,
     makeSearchProfilesStartingWithTerm,
-    searchProfilesInCurrentTeam,
-    getTotalUsersStats as getTotalUsersStatsSelector,
 } from 'mattermost-redux/selectors/entities/users';
 
-import {openDirectChannelToUserId, openGroupChannelToUserIds} from 'actions/channel_actions';
+import {openDirectChannelToUserId} from 'actions/channel_actions';
 import {loadStatusesForProfilesList, loadProfilesMissingStatus} from 'actions/status_actions';
 import {setModalSearchTerm} from 'actions/views/search';
 
@@ -61,30 +52,19 @@ export const makeMapStateToProps = () => {
         }
 
         let users: UserProfile[];
+        // LZX: 无搜索词时不展示默认成员列表；输入搜索词后继续走全局用户搜索。
         if (searchTerm) {
-            if (restrictDirectMessage === 'any') {
-                users = searchProfilesStartingWithTerm(state, searchTerm, false, filters);
-            } else {
-                users = searchProfilesInCurrentTeam(state, searchTerm, false, filters);
-            }
-        } else if (restrictDirectMessage === 'any') {
-            users = selectProfiles(state, filters);
+            users = searchProfilesStartingWithTerm(state, searchTerm, false, filters);
         } else {
-            users = getProfilesInCurrentTeam(state, filters);
+            users = [];
         }
 
-        const team = getCurrentTeam(state);
-        const stats = getTotalUsersStatsSelector(state) || {total_users_count: 0};
-
         return {
-            currentTeamId: team?.id,
-            currentTeamName: team?.name,
             searchTerm,
             users,
             currentChannelMembers,
             currentUserId,
             restrictDirectMessage,
-            totalCount: stats.total_users_count ?? 0,
         };
     };
 };
@@ -92,15 +72,10 @@ export const makeMapStateToProps = () => {
 function mapDispatchToProps(dispatch: Dispatch) {
     return {
         actions: bindActionCreators({
-            getProfiles,
-            getProfilesInTeam,
             loadProfilesMissingStatus,
-            getTotalUsersStats,
             loadStatusesForProfilesList,
             openDirectChannelToUserId,
-            openGroupChannelToUserIds,
             searchProfiles,
-            searchGroupChannels,
             setModalSearchTerm,
             canUserDirectMessage,
         }, dispatch),

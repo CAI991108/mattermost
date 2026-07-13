@@ -116,15 +116,6 @@ exports[`components/emoji_picker/EmojiPicker should match snapshot 1`] = `
         class="icon-flag-outline"
       />
     </button>
-    <button
-      aria-label="Custom"
-      aria-pressed="false"
-      class="style--none emoji-picker__category"
-    >
-      <i
-        class="icon-emoticon-custom-outline"
-      />
-    </button>
   </div>
   <div
     class="emoji-picker__items"
@@ -139,7 +130,7 @@ exports[`components/emoji_picker/EmojiPicker should match snapshot 1`] = `
         style="position: relative; height: 100px; width: 100px; overflow: auto; -webkit-overflow-scrolling: touch; will-change: transform; direction: ltr;"
       >
         <div
-          style="height: 7740px; width: 100%;"
+          style="height: 7668px; width: 100%;"
         >
           <div
             class="emoji-picker__row"

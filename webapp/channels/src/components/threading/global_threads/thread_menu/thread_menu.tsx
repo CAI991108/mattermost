@@ -10,21 +10,13 @@ import type {UserThread} from '@mattermost/types/threads';
 
 import {setThreadFollow, updateThreadRead, markLastPostInThreadAsUnread} from 'mattermost-redux/actions/threads';
 import {getChannel} from 'mattermost-redux/selectors/entities/channels';
-import {getPost, isPostFlagged} from 'mattermost-redux/selectors/entities/posts';
+import {getPost} from 'mattermost-redux/selectors/entities/posts';
 
-import {
-    flagPost as savePost,
-    unflagPost as unsavePost,
-} from 'actions/post_actions';
 import {manuallyMarkThreadAsUnread} from 'actions/views/threads';
 
 import * as Menu from 'components/menu';
-import {focusPost} from 'components/permalink_view/actions';
-import PopoutMenuItem from 'components/popout_menu_item';
-import {getThreadPopoutTitle} from 'components/thread_popout/thread_popout';
 
 import {useReadout} from 'hooks/useReadout';
-import {isThreadPopoutWindow, popoutThread} from 'utils/popouts/popout_windows';
 import {getSiteURL} from 'utils/url';
 import {copyToClipboard} from 'utils/utils';
 
@@ -59,7 +51,6 @@ function ThreadMenu({
         goToInChannel,
     } = useThreadRouting();
 
-    const isSaved = useSelector((state: GlobalState) => isPostFlagged(state, threadId));
     const post = useSelector((state: GlobalState) => getPost(state, threadId));
     const channel = useSelector((state: GlobalState) => getChannel(state, post.channel_id));
     const readAloud = useReadout();
@@ -89,16 +80,6 @@ function ThreadMenu({
         unreadTimestamp,
     ]);
 
-    const popout = useCallback(() => {
-        popoutThread(
-            intl.formatMessage(getThreadPopoutTitle(channel)),
-            threadId,
-            team,
-            (postId, returnTo) => {
-                dispatch(focusPost(postId, returnTo, currentUserId, {skipRedirectReplyPermalink: true}));
-            });
-    }, [threadId, team, intl, dispatch, currentUserId, channel]);
-
     return (
         <Menu.Container
             menuButton={{
@@ -122,7 +103,6 @@ function ThreadMenu({
                 id: `${idPrefix}-dropdown-${threadId}`,
             }}
         >
-            {!isThreadPopoutWindow(team, threadId) && <PopoutMenuItem onClick={popout}/>}
             <Menu.Item
                 labels={isFollowing ? (
                     <>
@@ -190,31 +170,6 @@ function ThreadMenu({
                     />
                 )}
                 onClick={handleReadUnread}
-            />
-            <Menu.Item
-                labels={isSaved ? (
-                    <FormattedMessage
-                        id='threading.threadMenu.unsave'
-                        defaultMessage='Unsave'
-                    />
-                ) : (
-                    <FormattedMessage
-                        id='threading.threadMenu.save'
-                        defaultMessage='Save'
-                    />
-                )}
-                onClick={useCallback((e: React.MouseEvent | React.KeyboardEvent) => {
-                    e.stopPropagation();
-
-                    dispatch(isSaved ? unsavePost(threadId) : savePost(threadId));
-                    readAloud(isSaved ? formatMessage({
-                        id: 'threading.threadMenu.unsaved',
-                        defaultMessage: 'Unsaved',
-                    }) : formatMessage({
-                        id: 'threading.threadMenu.saved',
-                        defaultMessage: 'Saved',
-                    }));
-                }, [threadId, isSaved])}
             />
             <Menu.Item
                 labels={

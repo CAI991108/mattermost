@@ -32,7 +32,7 @@ import {handleNewPost} from 'actions/post_actions';
 import {loadProfilesForSidebar} from 'actions/user_actions';
 import {clearUserCookie} from 'actions/views/cookie';
 import {close as closeLhs} from 'actions/views/lhs';
-import {closeRightHandSide, closeMenu as closeRhsMenu, updateRhsState} from 'actions/views/rhs';
+import {closeRightHandSide, closeMenu as closeRhsMenu, updateRhsState, showChannelMembers, showPinnedPosts} from 'actions/views/rhs';
 import * as WebsocketActions from 'actions/websocket_actions';
 import {getCurrentLocale} from 'selectors/i18n';
 import {getIsRhsOpen, getPreviousRhsState, getRhsState} from 'selectors/rhs';
@@ -70,16 +70,22 @@ export function emitChannelClickEvent(channel: Channel) {
 
         dispatch(getChannelStats(chan.id));
 
-        const penultimate = LocalStorageStore.getPreviousChannelName(userId, teamId);
-        const penultimateType = LocalStorageStore.getPreviousViewedType(userId, teamId);
-        if (penultimate !== chan.name) {
-            LocalStorageStore.setPenultimateChannelName(userId, teamId, penultimate);
-            LocalStorageStore.setPreviousChannelName(userId, teamId, chan.name);
-        }
+        const isDirectOrGroupMessage = chan.type === 'D' || chan.type === 'G';
 
-        if (penultimateType !== PreviousViewedTypes.CHANNELS || penultimate !== chan.name) {
-            LocalStorageStore.setPreviousViewedType(userId, teamId, PreviousViewedTypes.CHANNELS);
-            LocalStorageStore.setPenultimateViewedType(userId, teamId, penultimateType);
+        // LZX: DM/GM 属于全局私信模块，不应污染当前团队的 last channel 记录
+        // 否则从私信回团队时，CenterChannel 会恢复到 DM 而不是团队频道
+        if (!isDirectOrGroupMessage) {
+            const penultimate = LocalStorageStore.getPreviousChannelName(userId, teamId);
+            const penultimateType = LocalStorageStore.getPreviousViewedType(userId, teamId);
+            if (penultimate !== chan.name) {
+                LocalStorageStore.setPenultimateChannelName(userId, teamId, penultimate);
+                LocalStorageStore.setPreviousChannelName(userId, teamId, chan.name);
+            }
+
+            if (penultimateType !== PreviousViewedTypes.CHANNELS || penultimate !== chan.name) {
+                LocalStorageStore.setPreviousViewedType(userId, teamId, PreviousViewedTypes.CHANNELS);
+                LocalStorageStore.setPenultimateViewedType(userId, teamId, penultimateType);
+            }
         }
 
         // When switching to a different channel if the pinned posts is showing
@@ -112,6 +118,25 @@ export function emitChannelClickEvent(channel: Channel) {
 
         if (appsEnabled(state)) {
             dispatch(fetchAppBindings(chan.id));
+        }
+
+        // LZX: 进入频道/DM 时默认打开 RHS Tab
+        // - 普通频道：默认打开成员 Tab
+        // - DM/GM：默认打开置顶 Tab（详情功能保留，但不再作为 RHS TabBar 入口）
+        const currentRhsState = getRhsState(state);
+        const isChannelTabView = currentRhsState === RHSStates.CHANNEL_INFO ||
+            currentRhsState === RHSStates.CHANNEL_MEMBERS ||
+            currentRhsState === RHSStates.PIN ||
+            currentRhsState === RHSStates.CHANNEL_FILES;
+
+        if (!isRHSOpened || isChannelTabView) {
+            // LZX: DM/GM 进入时默认打开置顶 Tab（成员/详情 Tab 在 DM 下不作为入口显示）
+            // 普通频道进入时默认打开成员 Tab
+            if (isDirectOrGroupMessage) {
+                dispatch(showPinnedPosts(chan.id));
+            } else {
+                dispatch(showChannelMembers(chan.id));
+            }
         }
     }
 

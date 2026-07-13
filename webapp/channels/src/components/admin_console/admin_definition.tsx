@@ -2872,7 +2872,7 @@ const AdminDefinition: AdminDefinitionType = {
                             type: 'bool',
                             key: 'TeamSettings.EnableCustomUserStatuses',
                             label: defineMessage({id: 'admin.team.customUserStatusesTitle', defaultMessage: 'Enable Custom Statuses: '}),
-                            help_text: defineMessage({id: 'admin.team.customUserStatusesDescription', defaultMessage: 'When true, users can set a descriptive status message and status emoji visible to all users.'}),
+                            help_text: defineMessage({id: 'admin.team.customUserStatusesDescription', defaultMessage: 'When true, users can set a descriptive status and upload private status emoji. Status emoji are isolated from the message emoji library; other users can see them only when rendering the owner\'s status.'}),
                             isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.USERS_AND_TEAMS)),
                         },
                         {
@@ -3210,7 +3210,7 @@ const AdminDefinition: AdminDefinitionType = {
                             type: 'bool',
                             key: 'ServiceSettings.EnableCustomEmoji',
                             label: defineMessage({id: 'admin.customization.enableCustomEmojiTitle', defaultMessage: 'Enable Custom Emoji:'}),
-                            help_text: defineMessage({id: 'admin.customization.enableCustomEmojiDesc', defaultMessage: 'Enable users to create custom emoji for use in messages. When enabled, custom emoji settings can be accessed in Channels through the emoji picker.'}),
+                            help_text: defineMessage({id: 'admin.customization.enableCustomEmojiDesc', defaultMessage: 'Enable the unified message emoji library. User uploads are private to their picker, files are deduplicated in a shared asset pool, and the same emoji can be used as a sticker, inline emoji, reaction, or recent item. Status emoji are separate.'}),
                             isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.EMOJI)),
                         },
                     ],

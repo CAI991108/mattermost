@@ -20,11 +20,11 @@ import {ModalIdentifiers} from 'utils/constants';
 
 import type {GlobalState} from 'types/store';
 
-type Props = {
+type Props = Menu.FirstMenuItemProps & {
     channel: Channel;
 }
 
-const ChannelSettingsMenu = ({channel}: Props): JSX.Element | null => {
+const ChannelSettingsMenu = ({channel, ...rest}: Props): JSX.Element | null => {
     const dispatch = useDispatch();
     const canAccess = useSelector((state: GlobalState) => canAccessChannelSettings(state, channel.id));
 
@@ -58,6 +58,7 @@ const ChannelSettingsMenu = ({channel}: Props): JSX.Element | null => {
             }
             onClick={handleOpenChannelSettings}
             leadingElement={<CogOutlineIcon size={18}/>}
+            {...rest}
         />
     );
 };

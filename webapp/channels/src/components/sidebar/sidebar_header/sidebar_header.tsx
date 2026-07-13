@@ -16,10 +16,9 @@ export type Props = {
     showMoreChannelsModal: () => void;
     showCreateUserGroupModal: () => void;
     invitePeopleModal: () => void;
-    showCreateCategoryModal: () => void;
     canCreateChannel: boolean;
     canJoinPublicChannel: boolean;
-    handleOpenDirectMessagesModal: () => void;
+    // LZX: 移除 handleOpenDirectMessagesModal，私信入口已改为侧边栏静态入口
     unreadFilterEnabled: boolean;
     canCreateCustomGroups: boolean;
 }
@@ -40,11 +39,9 @@ const SidebarHeader = (props: Props) => {
                     onCreateNewChannelClick={props.showNewChannelModal}
                     canJoinPublicChannel={props.canJoinPublicChannel}
                     onBrowseChannelClick={props.showMoreChannelsModal}
-                    onOpenDirectMessageClick={props.handleOpenDirectMessagesModal}
                     canCreateCustomGroups={props.canCreateCustomGroups}
                     onCreateNewUserGroupClick={props.showCreateUserGroupModal}
                     unreadFilterEnabled={props.unreadFilterEnabled}
-                    onCreateNewCategoryClick={props.showCreateCategoryModal}
                     onInvitePeopleClick={props.invitePeopleModal}
                 />
             )}

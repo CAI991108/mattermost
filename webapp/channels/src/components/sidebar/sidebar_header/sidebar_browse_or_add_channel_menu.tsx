@@ -8,10 +8,8 @@ import {useSelector} from 'react-redux';
 import {
     PlusIcon,
     AccountPlusOutlineIcon,
-    FolderPlusOutlineIcon,
     AccountMultiplePlusOutlineIcon,
     GlobeIcon,
-    AccountOutlineIcon,
 } from '@mattermost/compass-icons/components';
 
 import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
@@ -30,11 +28,9 @@ type Props = {
     onCreateNewChannelClick: () => void;
     canJoinPublicChannel: boolean;
     onBrowseChannelClick: () => void;
-    onOpenDirectMessageClick: () => void;
     canCreateCustomGroups: boolean;
     onCreateNewUserGroupClick: () => void;
     unreadFilterEnabled: boolean;
-    onCreateNewCategoryClick: () => void;
     onInvitePeopleClick: () => void;
 };
 
@@ -83,21 +79,7 @@ export default function SidebarBrowserOrAddChannelMenu(props: Props) {
         );
     }
 
-    const createDirectMessageMenuItem = (
-        <Menu.Item
-            id='openDirectMessageMenuItem'
-            onClick={props.onOpenDirectMessageClick}
-            leadingElement={<AccountOutlineIcon size={18}/>}
-            labels={(
-                <FormattedMessage
-                    id='sidebarLeft.browserOrCreateChannelMenu.openDirectMessageMenuItem.primaryLabel'
-                    defaultMessage='Open a direct message'
-                />
-            )}
-            aria-haspopup='true'
-        />
-    );
-
+    // LZX: 移除「Open a direct message」菜单项，私信入口已改为左侧边栏「私信」静态入口
     let createUserGroupMenuItem: JSX.Element | null = null;
     if (props.canCreateCustomGroups) {
         createUserGroupMenuItem = (
@@ -109,24 +91,6 @@ export default function SidebarBrowserOrAddChannelMenu(props: Props) {
                     <FormattedMessage
                         id='sidebarLeft.browserOrCreateChannelMenu.createUserGroupMenuItem.primaryLabel'
                         defaultMessage='Create new user group'
-                    />
-                )}
-                aria-haspopup='true'
-            />
-        );
-    }
-
-    let createNewCategoryMenuItem: JSX.Element | null = null;
-    if (!props.unreadFilterEnabled) {
-        createNewCategoryMenuItem = (
-            <Menu.Item
-                id='createCategoryMenuItem'
-                onClick={props.onCreateNewCategoryClick}
-                leadingElement={<FolderPlusOutlineIcon size={18}/>}
-                labels={(
-                    <FormattedMessage
-                        id='sidebarLeft.browserOrCreateChannelMenu.createCategoryMenuItem.primaryLabel'
-                        defaultMessage='Create new category'
                     />
                 )}
                 aria-haspopup='true'
@@ -198,13 +162,8 @@ export default function SidebarBrowserOrAddChannelMenu(props: Props) {
         >
             {createNewChannelMenuItem}
             {browseChannelsMenuItem}
-            {createDirectMessageMenuItem}
             {createUserGroupMenuItem}
             {pluggableMenuItems}
-            {Boolean(createNewCategoryMenuItem) &&
-                <Menu.Separator/>
-            }
-            {createNewCategoryMenuItem}
             <Menu.Separator/>
             {invitePeopleMenuItem}
         </Menu.Container>

@@ -4,29 +4,33 @@
 import React from 'react';
 import {FormattedMessage} from 'react-intl';
 import {useDispatch, useSelector} from 'react-redux';
+import {useLocation} from 'react-router-dom';
 
-import {AccountOutlineIcon} from '@mattermost/compass-icons/components';
+import {ForumOutlineIcon, HomeVariantOutlineIcon} from '@mattermost/compass-icons/components';
 import type {UserProfile} from '@mattermost/types/users';
 
 import {savePreferences} from 'mattermost-redux/actions/preferences';
 import {getInt} from 'mattermost-redux/selectors/entities/preferences';
 
-import {openModal} from 'actions/views/modals';
+import {redirectUserToDefaultTeam} from 'actions/global_actions';
 
 import * as Menu from 'components/menu';
 import {OnboardingTaskCategory, OnboardingTasksName, TaskNameMapToSteps, CompleteYourProfileTour} from 'components/onboarding_tasks';
-import UserSettingsModal from 'components/user_settings/modal';
 
-import {ModalIdentifiers} from 'utils/constants';
+import {getHistory} from 'utils/browser_history';
 
 import type {GlobalState} from 'types/store';
 
 interface Props {
     userId: UserProfile['id'];
+    username?: UserProfile['username'];
 }
 
 export default function UserAccountProfileMenuItem(props: Props) {
     const dispatch = useDispatch();
+    const {pathname} = useLocation();
+    const isHomepageRoute = pathname.startsWith('/u/');
+    const LeadingIcon = isHomepageRoute ? ForumOutlineIcon : HomeVariantOutlineIcon;
 
     const onboardingTaskStep = useSelector((state: GlobalState) => getInt(state, OnboardingTaskCategory, OnboardingTasksName.COMPLETE_YOUR_PROFILE, 0));
     const isCompleteYourProfileTaskPending = onboardingTaskStep === TaskNameMapToSteps[OnboardingTasksName.COMPLETE_YOUR_PROFILE].STARTED;
@@ -44,16 +48,13 @@ export default function UserAccountProfileMenuItem(props: Props) {
     }
 
     function handleClick() {
-        dispatch(openModal({
-            modalId: ModalIdentifiers.USER_SETTINGS,
-            dialogType: UserSettingsModal,
-            dialogProps: {
-                isContentProductSettings: false,
-                focusOriginElement: 'userAccountMenuButton',
-            },
-        }));
+        if (isHomepageRoute) {
+            redirectUserToDefaultTeam();
+        } else if (props.username) {
+            getHistory().push(`/u/${props.username}`);
+        }
 
-        if (isCompleteYourProfileTaskPending) {
+        if (!isHomepageRoute && isCompleteYourProfileTaskPending) {
             handleTourClick();
         }
     }
@@ -61,18 +62,25 @@ export default function UserAccountProfileMenuItem(props: Props) {
     return (
         <Menu.Item
             leadingElement={
-                <AccountOutlineIcon
+                <LeadingIcon
                     size={18}
                     aria-hidden='true'
                 />
             }
             labels={
-                <FormattedMessage
-                    id='userAccountMenu.profileMenuItem.label'
-                    defaultMessage='Profile'
-                />
+                isHomepageRoute ? (
+                    <FormattedMessage
+                        id='iuin_profile.account_menu.enter_channel'
+                        defaultMessage='Enter channel'
+                    />
+                ) : (
+                    <FormattedMessage
+                        id='iuin_profile.account_menu.enter_homepage'
+                        defaultMessage='Enter homepage'
+                    />
+                )
             }
-            trailingElements={isCompleteYourProfileTaskPending && (
+            trailingElements={!isHomepageRoute && isCompleteYourProfileTaskPending && (
                 <CompleteYourProfileTour/>
             )}
             aria-haspopup={true}

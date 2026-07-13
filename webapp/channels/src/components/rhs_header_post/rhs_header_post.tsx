@@ -11,13 +11,10 @@ import type {Team} from '@mattermost/types/teams';
 import KeyboardShortcutSequence, {
     KEYBOARD_SHORTCUTS,
 } from 'components/keyboard_shortcuts/keyboard_shortcuts_sequence';
-import PopoutButton from 'components/popout_button';
-import {getThreadPopoutTitle} from 'components/thread_popout/thread_popout';
 import FollowButton from 'components/threading/common/follow_button';
 
 import {getHistory} from 'utils/browser_history';
 import {RHSStates} from 'utils/constants';
-import {popoutThread} from 'utils/popouts/popout_windows';
 
 import type {RhsState} from 'types/store/rhs';
 
@@ -46,7 +43,6 @@ class RhsHeaderPost extends React.PureComponent<Props> {
 
         switch (this.props.previousRhsState) {
         case RHSStates.SEARCH:
-        case RHSStates.MENTION:
         case RHSStates.FLAG:
         case RHSStates.PIN:
             this.props.goBack();
@@ -74,21 +70,6 @@ class RhsHeaderPost extends React.PureComponent<Props> {
         this.props.setThreadFollow(currentUserId, currentTeam.id, rootPostId, !isFollowingThread);
     };
 
-    popout = async () => {
-        const {currentTeam, intl, rootPostId, focusPost, currentUserId, channel} = this.props;
-        if (!currentTeam) {
-            return;
-        }
-        await popoutThread(
-            intl.formatMessage(getThreadPopoutTitle(channel)),
-            rootPostId,
-            currentTeam.name,
-            (postId, returnTo) => {
-                focusPost(postId, returnTo, currentUserId, {skipRedirectReplyPermalink: true});
-            },
-        );
-    };
-
     render() {
         let back;
         const {isFollowingThread} = this.props;
@@ -104,7 +85,6 @@ class RhsHeaderPost extends React.PureComponent<Props> {
 
         switch (this.props.previousRhsState) {
         case RHSStates.SEARCH:
-        case RHSStates.MENTION:
             backToResultsTooltip = (
                 <FormattedMessage
                     id='rhs_header.backToResultsTooltip'
@@ -209,7 +189,6 @@ class RhsHeaderPost extends React.PureComponent<Props> {
                             onClick={this.handleFollowChange}
                         />
                     ) : null}
-                    <PopoutButton onClick={this.popout}/>
                     <WithTooltip
                         title={rhsHeaderTooltipContent}
                     >
@@ -236,7 +215,7 @@ class RhsHeaderPost extends React.PureComponent<Props> {
                             type='button'
                             className='sidebar--right__close btn btn-icon btn-sm'
                             aria-label='Close'
-                            onClick={this.props.closeRightHandSide}
+                            onClick={this.props.goBack}
                         >
                             <i
                                 className='icon icon-close'

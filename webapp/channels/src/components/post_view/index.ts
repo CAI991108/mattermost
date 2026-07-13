@@ -27,6 +27,12 @@ export const isChannelLoading = (params: RouteViewParams, channel?: Channel, tea
 
     const identifier = params.identifier?.toLowerCase();
 
+    // LZX: 全局私信路由 /direct_messages/:identifier 没有 team 参数
+    // 此时只要 channel 存在且类型是 DM，就认为加载完成
+    if (!params.team && channel && channel.type === Constants.DM_CHANNEL) {
+        return false;
+    }
+
     if (channel && team) {
         if (channel.type !== Constants.DM_CHANNEL && channel.name !== identifier) {
             return true;

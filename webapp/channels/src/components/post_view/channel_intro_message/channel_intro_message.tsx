@@ -4,8 +4,7 @@
 import React from 'react';
 import {FormattedDate, FormattedMessage, defineMessages} from 'react-intl';
 
-import {BellRingOutlineIcon, GlobeIcon, PencilOutlineIcon, StarOutlineIcon, LockOutlineIcon, StarIcon} from '@mattermost/compass-icons/components';
-import {WithTooltip} from '@mattermost/shared/components/tooltip';
+import {BellRingOutlineIcon, GlobeIcon, PencilOutlineIcon, LockOutlineIcon} from '@mattermost/compass-icons/components';
 import type {Channel, ChannelMembership} from '@mattermost/types/channels';
 import type {UserProfile as UserProfileType} from '@mattermost/types/users';
 
@@ -40,7 +39,6 @@ type Props = {
     channelProfiles: UserProfileType[];
     enableUserCreation?: boolean;
     isReadOnly?: boolean;
-    isFavorite: boolean;
     isInManagedCategory: boolean;
     teamIsGroupConstrained?: boolean;
     creatorName: string;
@@ -53,24 +51,10 @@ type Props = {
     isMobileView: boolean;
     actions: {
         getTotalUsersStats: () => any;
-        favoriteChannel: (channelId: string) => any;
-        unfavoriteChannel: (channelId: string) => any;
     };
 }
 
 export default class ChannelIntroMessage extends React.PureComponent<Props> {
-    toggleFavorite = () => {
-        if (!this.props.channel) {
-            return;
-        }
-
-        if (this.props.isFavorite) {
-            this.props.actions.unfavoriteChannel(this.props.channel.id);
-        } else {
-            this.props.actions.favoriteChannel(this.props.channel.id);
-        }
-    };
-
     componentDidMount() {
         if (!this.props.stats?.total_users_count) {
             this.props.actions.getTotalUsersStats();
@@ -86,7 +70,6 @@ export default class ChannelIntroMessage extends React.PureComponent<Props> {
             channelProfiles,
             enableUserCreation,
             isReadOnly,
-            isFavorite,
             isInManagedCategory,
             teamIsGroupConstrained,
             creatorName,
@@ -109,15 +92,15 @@ export default class ChannelIntroMessage extends React.PureComponent<Props> {
         }
 
         if (channel.type === Constants.DM_CHANNEL) {
-            return createDMIntroMessage(channel, centeredIntro, currentUser, isFavorite, isMobileView, this.toggleFavorite, teammate, teammateName);
+            return createDMIntroMessage(channel, centeredIntro, currentUser, isMobileView, teammate, teammateName);
         } else if (channel.type === Constants.GM_CHANNEL) {
-            return createGMIntroMessage(channel, centeredIntro, isFavorite, isMobileView, this.toggleFavorite, channelProfiles, currentUserId, currentUser, channelMember);
+            return createGMIntroMessage(channel, centeredIntro, isMobileView, channelProfiles, currentUserId, currentUser, channelMember);
         } else if (channel.name === Constants.DEFAULT_CHANNEL) {
-            return createDefaultIntroMessage(channel, centeredIntro, currentUser, isFavorite, isMobileView, this.toggleFavorite, stats, usersLimit, enableUserCreation, isReadOnly, teamIsGroupConstrained, isInManagedCategory);
+            return createDefaultIntroMessage(channel, centeredIntro, currentUser, isMobileView, stats, usersLimit, enableUserCreation, isReadOnly, teamIsGroupConstrained, isInManagedCategory);
         } else if (channel.name === Constants.OFFTOPIC_CHANNEL) {
-            return createOffTopicIntroMessage(channel, centeredIntro, isFavorite, isMobileView, currentUser, this.toggleFavorite, stats, usersLimit, isInManagedCategory);
+            return createOffTopicIntroMessage(channel, centeredIntro, isMobileView, currentUser, stats, usersLimit, isInManagedCategory);
         } else if (channel.type === Constants.OPEN_CHANNEL || channel.type === Constants.PRIVATE_CHANNEL) {
-            return createStandardIntroMessage(channel, centeredIntro, currentUser, isFavorite, isMobileView, this.toggleFavorite, stats, usersLimit, locale, creatorName, isInManagedCategory);
+            return createStandardIntroMessage(channel, centeredIntro, currentUser, isMobileView, stats, usersLimit, locale, creatorName, isInManagedCategory);
         }
         return null;
     }
@@ -166,9 +149,7 @@ const getGMIntroMessageSpecificPart = (userProfile: UserProfileType | undefined,
 function createGMIntroMessage(
     channel: Channel,
     centeredIntro: string,
-    isFavorite: boolean,
     isMobileView: boolean,
-    toggleFavorite: () => void,
     profiles: UserProfileType[],
     currentUserId: string,
     currentUser: UserProfileType,
@@ -193,7 +174,6 @@ function createGMIntroMessage(
 
         const actionButtons = (
             <div className='channel-intro__actions'>
-                {createFavoriteButton(isFavorite, toggleFavorite)}
                 {createSetHeaderButton(channel)}
                 {!isMobileView && createNotificationPreferencesButton(channel, currentUser)}
                 <PluggableIntroButtons channel={channel}/>
@@ -242,9 +222,7 @@ function createDMIntroMessage(
     channel: Channel,
     centeredIntro: string,
     currentUser: UserProfileType,
-    isFavorite: boolean,
     isMobileView: boolean,
-    toggleFavorite: () => void,
     teammate?: UserProfileType,
     teammateName?: string,
 ) {
@@ -253,16 +231,17 @@ function createDMIntroMessage(
         const src = teammate ? Utils.imageURLForUser(teammate.id, teammate.last_picture_update) : '';
 
         let pluggableButton = null;
-        let setHeaderButton = null;
+        // LZX: DM intro should not show the Set header action, keep the original button logic commented for traceability.
+        // let setHeaderButton = null;
         if (!teammate?.is_bot) {
             pluggableButton = <PluggableIntroButtons channel={channel}/>;
-            setHeaderButton = createSetHeaderButton(channel);
+            // setHeaderButton = createSetHeaderButton(channel);
         }
 
         const actionButtons = (
             <div className='channel-intro__actions'>
-                {createFavoriteButton(isFavorite, toggleFavorite)}
-                {setHeaderButton}
+                {/* LZX: DM intro should not show the Set header action. */}
+                {/* {setHeaderButton} */}
                 {pluggableButton}
             </div>
         );
@@ -318,10 +297,8 @@ function createDMIntroMessage(
 function createOffTopicIntroMessage(
     channel: Channel,
     centeredIntro: string,
-    isFavorite: boolean,
     isMobileView: boolean,
     currentUser: UserProfileType,
-    toggleFavorite: () => void,
     stats: any,
     usersLimit: number,
     isInManagedCategory?: boolean,
@@ -364,7 +341,6 @@ function createOffTopicIntroMessage(
     } else {
         actionButtons = (
             <div className='channel-intro__actions'>
-                {createFavoriteButton(isFavorite, toggleFavorite, isInManagedCategory)}
                 {setHeaderButton}
                 {createNotificationPreferencesButton(channel, currentUser)}
             </div>
@@ -398,9 +374,7 @@ function createDefaultIntroMessage(
     channel: Channel,
     centeredIntro: string,
     currentUser: UserProfileType,
-    isFavorite: boolean,
     isMobileView: boolean,
-    toggleFavorite: () => void,
     stats: any,
     usersLimit: number,
     enableUserCreation?: boolean,
@@ -481,7 +455,6 @@ function createDefaultIntroMessage(
     } else {
         actionButtons = (
             <div className='channel-intro__actions'>
-                {createFavoriteButton(isFavorite, toggleFavorite, isInManagedCategory)}
                 {setHeaderButton}
                 {createNotificationPreferencesButton(channel, currentUser)}
                 {teamIsGroupConstrained && pluginButtons}
@@ -527,9 +500,7 @@ function createStandardIntroMessage(
     channel: Channel,
     centeredIntro: string,
     currentUser: UserProfileType,
-    isFavorite: boolean,
     isMobileView: boolean,
-    toggleFavorite: () => void,
     stats: any,
     usersLimit: number,
     locale: string,
@@ -669,7 +640,6 @@ function createStandardIntroMessage(
     } else {
         actionButtons = (
             <div className='channel-intro__actions'>
-                {createFavoriteButton(isFavorite, toggleFavorite, isInManagedCategory)}
                 {teamInviteLink}
                 {setHeaderButton}
                 {!isMobileView && createNotificationPreferencesButton(channel, currentUser)}
@@ -723,53 +693,6 @@ function createSetHeaderButton(channel: Channel) {
             />
         </ToggleModalButton>
     );
-}
-
-function createFavoriteButton(isFavorite: boolean, toggleFavorite: () => void, disabled?: boolean, classes?: string) {
-    let favoriteText;
-    if (isFavorite) {
-        favoriteText = (
-            <FormattedMessage
-                id='channel_info_rhs.top_buttons.favorited'
-                defaultMessage='Favorited'
-            />);
-    } else {
-        favoriteText = (
-            <FormattedMessage
-                id='channel_info_rhs.top_buttons.favorite'
-                defaultMessage='Favorite'
-            />);
-    }
-
-    const button = (
-        <button
-            id='toggleFavoriteIntroButton'
-            className={`action-button ${isFavorite ? 'active' : ''}  ${classes}`}
-            onClick={toggleFavorite}
-            disabled={disabled}
-            aria-label={'Favorite'}
-        >
-            {isFavorite ? <StarIcon size={24}/> : <StarOutlineIcon size={24}/>}
-            {favoriteText}
-        </button>
-    );
-
-    if (disabled) {
-        return (
-            <WithTooltip
-                title={
-                    <FormattedMessage
-                        id='channelHeader.managedCategoryFavoriteDisabled'
-                        defaultMessage='Channels in managed categories cannot be favorited.'
-                    />
-                }
-            >
-                {button}
-            </WithTooltip>
-        );
-    }
-
-    return button;
 }
 
 function createNotificationPreferencesButton(channel: Channel, currentUser: UserProfileType) {

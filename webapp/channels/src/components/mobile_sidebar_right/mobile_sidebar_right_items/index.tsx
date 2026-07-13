@@ -23,11 +23,10 @@ import {getCurrentTimezone} from 'mattermost-redux/selectors/entities/timezone';
 import {getCurrentUser, getStatusForUserId} from 'mattermost-redux/selectors/entities/users';
 
 import {openModal} from 'actions/views/modals';
-import {showMentions, showFlaggedPosts, closeRightHandSide, closeMenu as closeRhsMenu} from 'actions/views/rhs';
-import {getRhsState} from 'selectors/rhs';
+import {closeRightHandSide, closeMenu as closeRhsMenu} from 'actions/views/rhs';
 import {makeGetCustomStatus, isCustomStatusExpired, isCustomStatusEnabled} from 'selectors/views/custom_status';
 
-import {RHSStates, CloudProducts} from 'utils/constants';
+import {CloudProducts} from 'utils/constants';
 import {isCloudLicense} from 'utils/license_utils';
 
 import type {GlobalState} from 'types/store';
@@ -48,7 +47,6 @@ function mapStateToProps(state: GlobalState) {
 
     const joinableTeams = getJoinableTeamIds(state);
     const moreTeamsToJoin = joinableTeams && joinableTeams.length > 0;
-    const rhsState = getRhsState(state);
 
     const subscription = selectCloudSubscription(state);
     const license = getLicense(state);
@@ -71,7 +69,6 @@ function mapStateToProps(state: GlobalState) {
         siteName,
         teamId: currentTeam?.id,
         teamName: currentTeam?.name,
-        isMentionSearch: rhsState === RHSStates.MENTION,
         teamIsGroupConstrained: Boolean(currentTeam?.group_constrained),
         isLicensedForLDAPGroups: state.entities.general.license.LDAPGroups === 'true',
         guestAccessEnabled: config.EnableGuestAccounts === 'true',
@@ -93,8 +90,6 @@ function mapStateToProps(state: GlobalState) {
 function mapDispatchToProps(dispatch: Dispatch) {
     return {
         actions: bindActionCreators({
-            showMentions,
-            showFlaggedPosts,
             closeRightHandSide,
             closeRhsMenu,
             openModal,

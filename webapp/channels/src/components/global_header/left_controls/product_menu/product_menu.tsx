@@ -52,7 +52,7 @@ export const ProductMenuButton = styled.button.attrs(() => ({
     background: transparent;
     border: none;
     border-radius: 4px;
-    padding: 3px 6px 3px 5px;
+    padding: 6px 8px 6px 6px;
 
     &:hover, &:focus {
         color: rgba(var(--sidebar-text-rgb), 0.56);
@@ -158,11 +158,7 @@ const ProductMenu = (): JSX.Element => {
                         onClick={handleClick}
                         handleVisitConsoleClick={handleVisitConsoleClick}
                     />
-                    <Menu.Group>
-                        <Menu.StartTrial
-                            id='startTrial'
-                        />
-                    </Menu.Group>
+                    {/* LZX修改，前端隐藏底部版本提示，保留 Menu.StartTrial 组件逻辑。 */}
                 </Menu>
             </MenuWrapper>
         </div>

@@ -16,7 +16,6 @@ import ChannelNotificationsModal from 'components/channel_notifications_modal';
 import Scrollbars from 'components/common/scrollbars';
 import EditChannelHeaderModal from 'components/edit_channel_header_modal';
 import EditChannelPurposeModal from 'components/edit_channel_purpose_modal';
-import MoreDirectChannels from 'components/more_direct_channels';
 import ChannelPermissionGate from 'components/permissions_gates/channel_permission_gate';
 import RenameChannelModal from 'components/rename_channel_modal';
 import UnarchiveChannelModal from 'components/unarchive_channel_modal';
@@ -80,9 +79,8 @@ export interface Props {
     channel: Channel;
     channelStats: ChannelStats;
     currentUser: UserProfile;
-    currentTeam: Team;
+    currentTeam?: Team;
     isArchived: boolean;
-    isFavorite: boolean;
     isMuted: boolean;
     isInvitingPeople: boolean;
     isMobile: boolean;
@@ -93,8 +91,6 @@ export interface Props {
     channelMembers: UserProfile[];
     actions: {
         closeRightHandSide: () => void;
-        unfavoriteChannel: (channelId: string) => void;
-        favoriteChannel: (channelId: string) => void;
         unmuteChannel: (userId: string, channelId: string) => void;
         muteChannel: (userId: string, channelId: string) => void;
         openModal: <P>(modalData: ModalData<P>) => void;
@@ -109,7 +105,6 @@ const ChannelInfoRhs = ({
     channel,
     channelStats,
     isArchived,
-    isFavorite,
     isMuted,
     isInvitingPeople,
     isMobile,
@@ -123,15 +118,7 @@ const ChannelInfoRhs = ({
     actions,
 }: Props) => {
     const currentUserId = currentUser.id;
-    const channelURL = getSiteURL() + '/' + currentTeam.name + '/channels/' + channel.name;
-
-    const toggleFavorite = () => {
-        if (isFavorite) {
-            actions.unfavoriteChannel(channel.id);
-            return;
-        }
-        actions.favoriteChannel(channel.id);
-    };
+    const channelURL = currentTeam ? getSiteURL() + '/' + currentTeam.name + '/channels/' + channel.name : '';
 
     const toggleMute = () => {
         if (isMuted) {
@@ -142,14 +129,6 @@ const ChannelInfoRhs = ({
     };
 
     const addPeople = () => {
-        if (channel.type === Constants.GM_CHANNEL) {
-            return actions.openModal({
-                modalId: ModalIdentifiers.CREATE_DM_CHANNEL,
-                dialogType: MoreDirectChannels,
-                dialogProps: {isExistingChannel: true, focusOriginElement: 'channelInfoRHSAddPeopleButton'},
-            });
-        }
-
         return actions.openModal({
             modalId: ModalIdentifiers.CHANNEL_INVITE,
             dialogType: ChannelInviteModal,
@@ -172,7 +151,7 @@ const ChannelInfoRhs = ({
     const editChannelName = () => actions.openModal({
         modalId: ModalIdentifiers.RENAME_CHANNEL,
         dialogType: RenameChannelModal,
-        dialogProps: {channel, teamName: currentTeam.name},
+        dialogProps: {channel, teamName: currentTeam?.name || ''},
     });
 
     const openNotificationSettings = () => actions.openModal({
@@ -200,8 +179,6 @@ const ChannelInfoRhs = ({
         >
             <Header
                 channel={channel}
-                isMobile={isMobile}
-                onClose={actions.closeRightHandSide}
             />
             <Scrollbars
                 color='--center-channel-color-rgb'
@@ -245,13 +222,12 @@ const ChannelInfoRhs = ({
                     <TopButtons
                         channelType={channel.type}
                         channelURL={channelURL}
-                        isFavorite={isFavorite}
                         isMuted={isMuted}
                         isInvitingPeople={isInvitingPeople}
                         isArchived={isArchived}
                         isInManagedCategory={isInManagedCategory}
                         canAddPeople={!isArchived && canManageMembers}
-                        actions={{toggleFavorite, toggleMute, addPeople}}
+                        actions={{toggleMute, addPeople}}
                     />
                     <AboutArea
                         channel={channel}

@@ -141,6 +141,9 @@ export default class EmoticonProvider extends Provider {
                 }
             } else if (name.indexOf(partialName) !== -1) {
                 // This is a custom emoji so it only has one name
+                if (name.startsWith('status_')) {
+                    continue;
+                }
                 if (emojiMap.hasSystemEmoji(name)) {
                     // System emojis take precedence over custom ones
                     continue;

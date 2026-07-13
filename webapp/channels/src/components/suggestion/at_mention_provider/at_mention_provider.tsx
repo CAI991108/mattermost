@@ -52,6 +52,7 @@ export type Props = {
     searchAssociatedGroupsForReference: (prefix: string) => Promise<{data: Group[]}>;
     priorityProfiles: UserProfile[] | undefined;
     defaultAgent?: Agent;
+    isDMChannel?: boolean;
 }
 
 // Data structure returned by autocomplete API
@@ -74,6 +75,7 @@ export default class AtMentionProvider extends Provider {
     public searchAssociatedGroupsForReference: (prefix: string) => Promise<{data: Group[]}>;
     public priorityProfiles: UserProfile[] | undefined;
     public defaultAgent?: Agent;
+    public isDMChannel: boolean;
 
     public data: AutocompleteData | null;
     public lastCompletedWord: string;
@@ -85,7 +87,7 @@ export default class AtMentionProvider extends Provider {
     constructor(props: Props) {
         super();
 
-        const {currentUserId, channelId, autocompleteUsersInChannel, useChannelMentions, autocompleteGroups, searchAssociatedGroupsForReference, priorityProfiles, defaultAgent} = props;
+        const {currentUserId, channelId, autocompleteUsersInChannel, useChannelMentions, autocompleteGroups, searchAssociatedGroupsForReference, priorityProfiles, defaultAgent, isDMChannel} = props;
 
         this.currentUserId = currentUserId;
         this.channelId = channelId;
@@ -95,6 +97,7 @@ export default class AtMentionProvider extends Provider {
         this.searchAssociatedGroupsForReference = searchAssociatedGroupsForReference;
         this.priorityProfiles = priorityProfiles;
         this.defaultAgent = defaultAgent;
+        this.isDMChannel = isDMChannel ?? false;
 
         this.data = null;
         this.lastCompletedWord = '';
@@ -104,7 +107,7 @@ export default class AtMentionProvider extends Provider {
         this.addLastViewAtToProfiles = makeAddLastViewAtToProfiles();
     }
 
-    setProps({currentUserId, channelId, autocompleteUsersInChannel, useChannelMentions, autocompleteGroups, searchAssociatedGroupsForReference, priorityProfiles, defaultAgent}: Props) {
+    setProps({currentUserId, channelId, autocompleteUsersInChannel, useChannelMentions, autocompleteGroups, searchAssociatedGroupsForReference, priorityProfiles, defaultAgent, isDMChannel}: Props) {
         this.currentUserId = currentUserId;
         this.channelId = channelId;
         this.autocompleteUsersInChannel = autocompleteUsersInChannel;
@@ -113,6 +116,7 @@ export default class AtMentionProvider extends Provider {
         this.searchAssociatedGroupsForReference = searchAssociatedGroupsForReference;
         this.priorityProfiles = priorityProfiles;
         this.defaultAgent = defaultAgent;
+        this.isDMChannel = isDMChannel ?? false;
     }
 
     // specialMentions matches one of @here, @channel or @all, unless using /msg.
@@ -121,7 +125,7 @@ export default class AtMentionProvider extends Provider {
             return [];
         }
 
-        return ['here', 'channel', 'all'].filter((item) =>
+        return ['here', 'all'].filter((item) => // LZX: 移除 @channel 候选（与 @all 重复）
             item.startsWith(this.latestPrefix),
         ).map((name) => ({
             username: name,
@@ -427,6 +431,11 @@ export default class AtMentionProvider extends Provider {
     }
 
     handlePretextChanged(pretext: string, resultCallback: ResultsCallback<unknown>) {
+        // DM/GM channels don't support @ mentions
+        if (this.isDMChannel) {
+            return false;
+        }
+
         const captured = regexForAtMention.exec(pretext.toLowerCase());
         if (!captured) {
             return false;

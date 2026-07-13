@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS IuinUserAvatarFrameLoadouts;
+DROP TABLE IF EXISTS IuinUserAvatarFrames;
+DROP TABLE IF EXISTS IuinAvatarFrames;
+DROP TABLE IF EXISTS IuinUserTitleLoadouts;
+DROP TABLE IF EXISTS IuinUserTitles;
+DROP TABLE IF EXISTS IuinTitles;
+DROP TABLE IF EXISTS IuinFeaturedAchievements;
+DROP TABLE IF EXISTS IuinUserAchievements;
+DROP TABLE IF EXISTS IuinAchievements;

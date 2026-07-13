@@ -15,7 +15,6 @@ import {fetchRemoteClusterInfo} from 'mattermost-redux/actions/shared_channels';
 import {getMissingProfilesByIds} from 'mattermost-redux/actions/users';
 import {getCurrentChannel} from 'mattermost-redux/selectors/entities/channels';
 import {getTeammateNameDisplaySetting} from 'mattermost-redux/selectors/entities/preferences';
-import {getCurrentRelativeTeamUrl} from 'mattermost-redux/selectors/entities/teams';
 import {getUsers, getUserStatuses} from 'mattermost-redux/selectors/entities/users';
 import {displayUsername} from 'mattermost-redux/utils/user_utils';
 
@@ -66,7 +65,6 @@ function NotificationFromMembersModal(props: Props) {
     }, [dispatch, props.userIds]);
 
     const channel = useSelector(getCurrentChannel);
-    const teamUrl = useSelector(getCurrentRelativeTeamUrl);
     const userProfiles = useSelector(getUsers);
     const userStatuses = useSelector(getUserStatuses);
     const displaySetting = useSelector(getTeammateNameDisplaySetting);
@@ -91,8 +89,8 @@ function NotificationFromMembersModal(props: Props) {
         await dispatch(openDirectChannelToUserId(user.id));
 
         // ... and then redirect to it
-        history.push(teamUrl + '/messages/@' + user.username);
-    }, [openDirectChannelToUserId, history, teamUrl]);
+        history.push(`/direct_messages/@${user.username}`);
+    }, [openDirectChannelToUserId, history]);
 
     const handleFetchRemoteClusterInfo = useCallback((remoteId: string, includeDeleted?: boolean, forceRefresh?: boolean) => {
         dispatch(fetchRemoteClusterInfo(remoteId, includeDeleted, forceRefresh));

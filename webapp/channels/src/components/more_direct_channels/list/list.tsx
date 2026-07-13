@@ -11,21 +11,23 @@ import {openModal} from 'actions/views/modals';
 
 import MultiSelect from 'components/multiselect/multiselect';
 import NewChannelModal from 'components/new_channel_modal/new_channel_modal';
+import NoResultsIndicator from 'components/no_results_indicator/no_results_indicator';
+import {NoResultsVariant} from 'components/no_results_indicator/types';
 
-import Constants, {ModalIdentifiers} from 'utils/constants';
+import {ModalIdentifiers} from 'utils/constants';
 
 import ListItem from '../list_item';
 import {optionValue} from '../types';
 import type {Option, OptionValue} from '../types';
 
-const MAX_SELECTABLE_VALUES = Constants.MAX_USERS_IN_GM - 1;
+// LZX: 禁止多人群聊，只允许1对1私信
+const MAX_SELECTABLE_VALUES = 1;
 export const USERS_PER_PAGE = 50;
 
 type Props = {
     addValue: (value: OptionValue) => void;
     currentUserId: string;
     handleDelete: (values: OptionValue[]) => void;
-    handlePageChange: (page: number, prevPage: number) => void;
     handleSubmit: (values?: OptionValue[]) => void;
     handleHide: () => void;
     isExistingChannel: boolean;
@@ -33,8 +35,8 @@ type Props = {
     options: Option[];
     saving: boolean;
     search: (term: string) => void;
+    searchTerm: string;
     selectedItemRef: React.RefObject<HTMLDivElement>;
-    totalCount: number;
     users: UserProfile[];
 
     /**
@@ -64,9 +66,10 @@ const List = React.forwardRef((props: Props, ref?: React.Ref<MultiSelect<OptionV
 
     const dispatch = useDispatch();
 
-    const handleSubmitImmediatelyOn = useCallback((value: OptionValue) => {
-        return value.id === props.currentUserId || Boolean(value.delete_at);
-    }, [props.currentUserId]);
+    // LZX: 点击任何用户都立即跳转私信，不需要"转到"按钮
+    const handleSubmitImmediatelyOn = useCallback((_value: OptionValue) => {
+        return true;
+    }, []);
 
     const handleCreateChannel = (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
         e.preventDefault();
@@ -130,6 +133,7 @@ const List = React.forwardRef((props: Props, ref?: React.Ref<MultiSelect<OptionV
         return props.options.map(optionValue);
     }, [props.options]);
 
+
     return (
         <MultiSelect<OptionValue>
             ref={ref}
@@ -141,31 +145,20 @@ const List = React.forwardRef((props: Props, ref?: React.Ref<MultiSelect<OptionV
             valueRenderer={renderValue}
             ariaLabelRenderer={renderAriaLabel}
             perPage={USERS_PER_PAGE}
-            handlePageChange={props.handlePageChange}
             handleInput={props.search}
             handleDelete={props.handleDelete}
             handleAdd={props.addValue}
             handleSubmit={props.handleSubmit}
-            noteText={note}
-            maxValues={MAX_SELECTABLE_VALUES}
-            numRemainingText={remainingText}
-            buttonSubmitText={
-                <FormattedMessage
-                    id='multiselect.go'
-                    defaultMessage='Go'
-                />
-            }
-            buttonSubmitLoadingText={
-                <FormattedMessage
-                    id='multiselect.loading'
-                    defaultMessage='Loading...'
-                />
-            }
             submitImmediatelyOn={handleSubmitImmediatelyOn}
             saving={props.saving}
             loading={props.loading}
-            users={props.users}
-            totalCount={props.totalCount}
+            customNoOptionsMessage={props.searchTerm ? (
+                <NoResultsIndicator
+                    variant={NoResultsVariant.Search}
+                    titleValues={{channelName: props.searchTerm}}
+                />
+            ) : <></>}
+            saveButtonPosition='none'
             placeholderText={intl.formatMessage({id: 'multiselect.placeholder', defaultMessage: 'Search for people'})}
         />
     );

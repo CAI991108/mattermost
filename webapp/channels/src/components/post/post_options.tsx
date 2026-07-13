@@ -16,7 +16,6 @@ import ActionsMenu from 'components/actions_menu';
 import CommentIcon from 'components/common/comment_icon';
 import {usePluginVisibilityInSharedChannel} from 'components/common/hooks/usePluginVisibilityInSharedChannel';
 import DotMenu from 'components/dot_menu';
-import PostFlagIcon from 'components/post_view/post_flag_icon';
 import PostReaction from 'components/post_view/post_reaction';
 import PostRecentReactions from 'components/post_view/post_recent_reactions';
 
@@ -25,10 +24,11 @@ import {isSystemMessage, fromAutoResponder} from 'utils/post_utils';
 
 import type {PostActionComponent} from 'types/store/plugins';
 
+import AddIuinStickerFavoriteButton from './add_iuin_sticker_favorite_button';
+
 type Props = {
     post: Post;
     teamId: string;
-    isFlagged: boolean;
     removePost: (post: Post) => void;
     enableEmojiPicker?: boolean;
     isReadOnly?: boolean;
@@ -46,6 +46,7 @@ type Props = {
     hasReplies?: boolean;
     isFirstReply?: boolean;
     canReply?: boolean;
+    isDMorGM?: boolean;
     replyCount?: number;
     location: keyof typeof Locations;
     isLastPost?: boolean;
@@ -105,6 +106,8 @@ const PostOptions = (props: Props): JSX.Element => {
     const isEphemeral = isPostEphemeral(post);
     const systemMessage = isSystemMessage(post);
     const isFromAutoResponder = fromAutoResponder(post);
+    const legacyStickerId = typeof post.props?.iuin_sticker_id === 'string' ? post.props.iuin_sticker_id : '';
+    const iuinStickerId = typeof post.props?.iuin_emoji_id === 'string' ? post.props.iuin_emoji_id : legacyStickerId;
 
     function removePost() {
         props.removePost(props.post);
@@ -123,7 +126,7 @@ const PostOptions = (props: Props): JSX.Element => {
     const isPostDeleted = post && post.state === Posts.POST_DELETED;
     const hoverLocal = props.hover || showEmojiPicker || showDotMenu || showActionsMenu;
     const isBurnOnReadPost = props.isBurnOnReadPost || false;
-    const showCommentIcon = !isBurnOnReadPost && (isFromAutoResponder || (!systemMessage && (isMobileView ||
+    const showCommentIcon = !props.isDMorGM && !isBurnOnReadPost && (isFromAutoResponder || (!systemMessage && (isMobileView ||
             hoverLocal || (!post.root_id && Boolean(props.hasReplies)) ||
             props.isFirstReply) && props.location === Locations.CENTER));
     const commentIconExtraClass = isMobileView ? '' : 'pull-right';
@@ -180,19 +183,14 @@ const PostOptions = (props: Props): JSX.Element => {
         );
     }
 
-    // Don't show save button for unrevealed BoR posts
-    let flagIcon: ReactNode = null;
-    if (!isMobileView && (!isEphemeral && !post.failed && !systemMessage) && !props.shouldDisplayBurnOnReadConcealed) {
-        flagIcon = (
-            <li>
-                <PostFlagIcon
-                    location={props.location}
-                    postId={post.id}
-                    isFlagged={props.isFlagged}
-                />
-            </li>
-        );
-    }
+    const addIuinStickerFavorite = iuinStickerId ? (
+        <li>
+            <AddIuinStickerFavoriteButton
+                postId={post.id}
+                stickerId={iuinStickerId}
+            />
+        </li>
+    ) : null;
 
     // Action menus
     const showActionsMenuIcon = props.shouldShowActionsMenu && (isMobileView || hoverLocal);
@@ -227,22 +225,23 @@ const PostOptions = (props: Props): JSX.Element => {
             }) || [];
     }
 
-    const dotMenu = (
+    const dotMenu = !iuinStickerId && (
         <li>
             <DotMenu
                 post={props.post}
                 location={props.location}
-                isFlagged={props.isFlagged}
                 handleDropdownOpened={handleDotMenuOpened}
                 handleCommentClick={props.handleCommentClick}
                 handleAddReactionClick={toggleEmojiPicker}
                 isReadOnly={isReadOnly || channelIsArchived}
+                isDMorGM={props.isDMorGM}
                 isMenuOpen={showDotMenu}
                 enableEmojiPicker={props.enableEmojiPicker}
                 isChannelAutotranslated={props.isChannelAutotranslated}
             />
         </li>
     );
+    const postMenuActions = iuinStickerId ? addIuinStickerFavorite : dotMenu;
 
     // Build post options
     let options: ReactNode;
@@ -264,8 +263,7 @@ const PostOptions = (props: Props): JSX.Element => {
         options = (
             <ul className='col__controls post-menu'>
                 {dotMenu}
-                {flagIcon}
-                {props.canReply && !hasCRTFooter &&
+                {props.canReply && !props.isDMorGM && !hasCRTFooter &&
                 <li>
                     <CommentIcon
                         location={props.location}
@@ -297,14 +295,14 @@ const PostOptions = (props: Props): JSX.Element => {
                 data-testid={`post-menu-${props.post.id}`}
                 className={classnames('col post-menu', {'post-menu--position': !hoverLocal && showCommentIcon})}
             >
-                {!collapsedThreadsEnabled && !showRecentlyUsedReactions && dotMenu}
-                {showRecentReactions}
+                {!collapsedThreadsEnabled && !showRecentlyUsedReactions && postMenuActions}
+                {/* {showRecentReactions} */}
+                {showRecentReactions && null}
                 {postReaction}
-                {flagIcon}
                 {pluginItems}
                 {actionsMenu}
                 {commentIcon}
-                {(collapsedThreadsEnabled || showRecentlyUsedReactions) && dotMenu}
+                {(collapsedThreadsEnabled || showRecentlyUsedReactions) && postMenuActions}
             </ul>
         );
     }

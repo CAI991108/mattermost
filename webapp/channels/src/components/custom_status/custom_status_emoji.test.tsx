@@ -54,4 +54,17 @@ describe('components/custom_status/custom_status_emoji', () => {
 
         expect(container).toBeEmptyDOMElement();
     });
+
+    it('renders a status-owned emoji without using the message emoji map', () => {
+        const privateStatus = {
+            emoji: '',
+            icon_type: 'status_emoji',
+            icon_id: 'abcdefghijklmnopqrstuvwxyz',
+            text: 'Private status icon',
+        };
+        (CustomStatusSelectors.makeGetCustomStatus as jest.Mock).mockReturnValue(() => privateStatus);
+
+        const {container} = renderWithContext(<CustomStatusEmoji/>);
+        expect(container.querySelector('img')).toHaveAttribute('src', '/api/v4/iuin/status_emojis/abcdefghijklmnopqrstuvwxyz/image');
+    });
 });
