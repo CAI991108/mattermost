@@ -89,10 +89,10 @@ if ! cmp -s "$DATA_ROOT/secrets/postgres_password" "$DATA_ROOT/secrets/mattermos
     die "database secret copies differ; repair them manually before continuing"
 fi
 
-write_secret minio_root_user 1000 1000 0600 "$(openssl rand -hex 10)"
-write_secret minio_root_password 1000 1000 0600 "$(openssl rand -hex 32)"
-write_secret mattermost_s3_access_key 2000 2000 0600 "$(openssl rand -hex 10)"
-write_secret mattermost_s3_secret_key 2000 2000 0600 "$(openssl rand -hex 32)"
+write_secret minio_root_user 1000 0 0640 "$(openssl rand -hex 10)"
+write_secret minio_root_password 1000 0 0640 "$(openssl rand -hex 32)"
+write_secret mattermost_s3_access_key 2000 0 0640 "$(openssl rand -hex 10)"
+write_secret mattermost_s3_secret_key 2000 0 0640 "$(openssl rand -hex 32)"
 write_secret admin_initial_password root root 0600 "Mm1-$(openssl rand -hex 24)"
 
 log "installing the isolated DOCKER-USER firewall policy"
