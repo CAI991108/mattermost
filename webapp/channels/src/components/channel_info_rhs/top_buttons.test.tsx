@@ -24,53 +24,15 @@ describe('channel_info_rhs/top_buttons', () => {
     const topButtonDefaultProps: Props = {
         channelType: Constants.OPEN_CHANNEL,
         channelURL: 'https://test.com',
-        isFavorite: false,
         isMuted: false,
         isInvitingPeople: false,
         isInManagedCategory: false,
         canAddPeople: true,
         actions: {
             addPeople: jest.fn(),
-            toggleFavorite: jest.fn(),
             toggleMute: jest.fn(),
         },
     };
-
-    test('should display and toggle Favorite', async () => {
-        const toggleFavorite = jest.fn();
-
-        // Favorite to Favorited
-        const testProps: Props = {
-            ...topButtonDefaultProps,
-            actions: {
-                ...topButtonDefaultProps.actions,
-                toggleFavorite,
-            },
-        };
-
-        renderWithContext(
-            <TopButtons
-                {...testProps}
-            />,
-        );
-
-        expect(screen.getByText('Favorite')).toBeInTheDocument();
-        await userEvent.click(screen.getByText('Favorite'));
-        expect(toggleFavorite).toHaveBeenCalled();
-
-        // Favorited to Favorite
-        toggleFavorite.mockReset();
-        testProps.isFavorite = true;
-        renderWithContext(
-            <TopButtons
-                {...testProps}
-            />,
-        );
-
-        expect(screen.getByText('Favorited')).toBeInTheDocument();
-        await userEvent.click(screen.getByText('Favorited'));
-        expect(toggleFavorite).toHaveBeenCalled();
-    });
 
     test('should display and toggle Mute', async () => {
         const toggleMute = jest.fn();
@@ -169,27 +131,6 @@ describe('channel_info_rhs/top_buttons', () => {
         expect(screen.getByText('Copy Link')).toBeInTheDocument();
         await userEvent.click(screen.getByText('Copy Link'));
         expect(mockOnCopyTextClick).toHaveBeenCalled();
-    });
-
-    test('should disable favorite button when channel is in a managed category', () => {
-        const toggleFavorite = jest.fn();
-        const testProps: Props = {
-            ...topButtonDefaultProps,
-            isInManagedCategory: true,
-            actions: {
-                ...topButtonDefaultProps.actions,
-                toggleFavorite,
-            },
-        };
-
-        renderWithContext(
-            <TopButtons
-                {...testProps}
-            />,
-        );
-
-        const favoriteButton = screen.getByRole('button', {name: 'Favorite'});
-        expect(favoriteButton).toBeDisabled();
     });
 
     test('cannot copy link in DM or GM', () => {

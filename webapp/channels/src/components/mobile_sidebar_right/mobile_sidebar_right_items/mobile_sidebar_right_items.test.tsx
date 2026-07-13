@@ -29,14 +29,11 @@ describe('MobileSidebarRightItems', () => {
         reportAProblemLink: '',
         moreTeamsToJoin: false,
         pluginMenuItems: [],
-        isMentionSearch: false,
         usageDeltaTeams: 0,
         siteName: 'site-name',
         isLicensedForLDAPGroups: false,
         guestAccessEnabled: true,
         actions: {
-            showMentions: jest.fn(),
-            showFlaggedPosts: jest.fn(),
             closeRightHandSide: jest.fn(),
             closeRhsMenu: jest.fn(),
             openModal: jest.fn(),
@@ -103,8 +100,6 @@ describe('MobileSidebarRightItems', () => {
 
     test('should render basic menu items', () => {
         renderWithContext(<MobileSidebarRightItems {...defaultProps}/>, defaultState);
-        expect(screen.getByText('Recent Mentions')).toBeInTheDocument();
-        expect(screen.getByText('Saved messages')).toBeInTheDocument();
         expect(screen.getByText('Profile')).toBeInTheDocument();
         expect(screen.getByText('Settings')).toBeInTheDocument();
     });

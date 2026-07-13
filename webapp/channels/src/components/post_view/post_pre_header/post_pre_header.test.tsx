@@ -11,177 +11,47 @@ describe('components/PostPreHeader', () => {
     const baseProps = {
         channelId: 'channel_id',
         actions: {
-            showFlaggedPosts: jest.fn(),
             showPinnedPosts: jest.fn(),
         },
     };
 
-    test('should not render anything if the post is neither flagged nor pinned', () => {
-        const props = {
-            ...baseProps,
-            isFlagged: false,
-            isPinned: false,
-        };
-
-        const {container} = renderWithContext(
-            <PostPreHeader {...props}/>,
-        );
-
-        expect(container.querySelector('div.post-pre-header')).toBeNull();
-        expect(container).toMatchSnapshot();
+    beforeEach(() => {
+        baseProps.actions.showPinnedPosts.mockClear();
     });
 
-    test('should not render anything if both skipFlagged and skipPinned are true', () => {
-        const props = {
-            ...baseProps,
-            isFlagged: true,
-            isPinned: true,
-            skipFlagged: true,
-            skipPinned: true,
-        };
-
+    test('should not render when the post is not pinned', () => {
         const {container} = renderWithContext(
-            <PostPreHeader {...props}/>,
-        );
-
-        expect(container.querySelector('div.post-pre-header')).toBeNull();
-        expect(container).toMatchSnapshot();
-    });
-
-    test('should properly handle flagged posts (and not pinned)', () => {
-        const props = {
-            ...baseProps,
-            isFlagged: true,
-            isPinned: false,
-        };
-
-        const {container, rerender} = renderWithContext(
-            <PostPreHeader {...props}/>,
-        );
-
-        expect(container.querySelector('span.icon-pin')).toBeNull();
-        expect(container.querySelector('.icon--post-pre-header svg')).not.toBeNull();
-        expect(screen.getByText('Saved')).toBeInTheDocument();
-        expect(container).toMatchSnapshot();
-
-        // case of skipFlagged is true
-        rerender(
             <PostPreHeader
-                {...props}
-                skipFlagged={true}
+                {...baseProps}
+                isPinned={false}
             />,
         );
 
-        expect(container.querySelector('.icon--post-pre-header svg')).toBeNull();
-        expect(screen.queryByText('Saved')).not.toBeInTheDocument();
-        expect(container).toMatchSnapshot();
+        expect(container).toBeEmptyDOMElement();
     });
 
-    test('should properly handle pinned posts (and not flagged)', () => {
-        const props = {
-            ...baseProps,
-            isFlagged: false,
-            isPinned: true,
-        };
-
-        const {container, rerender} = renderWithContext(
-            <PostPreHeader {...props}/>,
-        );
-
-        expect(container.querySelector('.icon--post-pre-header svg')).toBeNull();
-        expect(container.querySelector('span.icon-pin')).not.toBeNull();
-        expect(screen.getByText('Pinned')).toBeInTheDocument();
-        expect(container).toMatchSnapshot();
-
-        // case of skipPinned is true
-        rerender(
+    test('should not render when pinned posts are skipped', () => {
+        const {container} = renderWithContext(
             <PostPreHeader
-                {...props}
+                {...baseProps}
+                isPinned={true}
                 skipPinned={true}
             />,
         );
 
-        expect(container.querySelector('span.icon-pin')).toBeNull();
-        expect(screen.queryByText('Pinned')).not.toBeInTheDocument();
-        expect(container).toMatchSnapshot();
+        expect(container).toBeEmptyDOMElement();
     });
 
-    describe('should properly handle posts that are flagged and pinned', () => {
-        test('both skipFlagged and skipPinned are not true', () => {
-            const props = {
-                ...baseProps,
-                isFlagged: true,
-                isPinned: true,
-            };
-
-            const {container} = renderWithContext(
-                <PostPreHeader {...props}/>,
-            );
-
-            expect(container.querySelector('.icon--post-pre-header svg')).not.toBeNull();
-            expect(container.querySelector('span.icon-pin')).not.toBeNull();
-            expect(screen.getByText('Pinned')).toBeInTheDocument();
-            expect(screen.getByText('Saved')).toBeInTheDocument();
-            expect(container).toMatchSnapshot();
-        });
-
-        test('skipFlagged is true', () => {
-            const props = {
-                ...baseProps,
-                isFlagged: true,
-                isPinned: true,
-                skipFlagged: true,
-            };
-
-            const {container} = renderWithContext(
-                <PostPreHeader {...props}/>,
-            );
-
-            expect(container.querySelector('.icon--post-pre-header svg')).toBeNull();
-            expect(container.querySelector('span.icon-pin')).not.toBeNull();
-            expect(screen.getByText('Pinned')).toBeInTheDocument();
-            expect(container).toMatchSnapshot();
-        });
-
-        test('skipPinned is true', () => {
-            const props = {
-                ...baseProps,
-                isFlagged: true,
-                isPinned: true,
-                skipPinned: true,
-            };
-
-            const {container} = renderWithContext(
-                <PostPreHeader {...props}/>,
-            );
-
-            expect(container.querySelector('span.icon-pin')).toBeNull();
-            expect(container.querySelector('.icon--post-pre-header svg')).not.toBeNull();
-            expect(screen.getByText('Saved')).toBeInTheDocument();
-            expect(container).toMatchSnapshot();
-        });
-    });
-
-    test('should properly handle link clicks', async () => {
-        const props = {
-            ...baseProps,
-            isFlagged: true,
-            isPinned: true,
-        };
-
-        const {container} = renderWithContext(
-            <PostPreHeader {...props}/>,
+    test('should render a pinned post and open pinned posts when clicked', async () => {
+        renderWithContext(
+            <PostPreHeader
+                {...baseProps}
+                isPinned={true}
+            />,
         );
 
-        expect(container.querySelector('.icon--post-pre-header svg')).not.toBeNull();
-        expect(container.querySelector('span.icon-pin')).not.toBeNull();
-        expect(container).toMatchSnapshot();
+        await userEvent.click(screen.getByText('Pinned'));
 
-        const links = container.querySelectorAll('a');
-        await userEvent.click(links[0]);
-        expect(baseProps.actions.showPinnedPosts).toHaveBeenNthCalledWith(1, baseProps.channelId);
-
-        await userEvent.click(links[1]);
-        expect(baseProps.actions.showFlaggedPosts).toHaveBeenNthCalledWith(1);
+        expect(baseProps.actions.showPinnedPosts).toHaveBeenCalledWith(baseProps.channelId);
     });
 });

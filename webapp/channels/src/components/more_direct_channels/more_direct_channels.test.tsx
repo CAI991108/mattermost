@@ -8,7 +8,7 @@ import type {UserProfile} from '@mattermost/types/users';
 
 import MoreDirectChannels from 'components/more_direct_channels/more_direct_channels';
 
-import {act, renderWithContext, waitFor} from 'tests/react_testing_utils';
+import {act, renderWithContext, screen, waitFor} from 'tests/react_testing_utils';
 import {TestHelper} from 'utils/test_helper';
 
 const mockedUser = TestHelper.getUserMock();
@@ -27,10 +27,7 @@ describe('components/MoreDirectChannels', () => {
     const baseProps: ComponentProps<typeof MoreDirectChannels> = {
         focusOriginElement: 'anyId',
         currentUserId: 'current_user_id',
-        currentTeamId: 'team_id',
-        currentTeamName: 'team_name',
         searchTerm: '',
-        totalCount: 3,
         users: [
             {
                 ...mockedUser,
@@ -63,30 +60,19 @@ describe('components/MoreDirectChannels', () => {
         onModalDismissed: jest.fn(),
         onExited: jest.fn(),
         actions: {
-            getProfiles: jest.fn(() => {
-                return new Promise((resolve) => {
-                    process.nextTick(() => resolve({data: true}));
-                });
-            }),
-            getProfilesInTeam: jest.fn().mockResolvedValue({data: true}),
             loadProfilesMissingStatus: jest.fn().mockResolvedValue({data: true}),
             searchProfiles: jest.fn().mockResolvedValue({data: true}),
             setModalSearchTerm: jest.fn().mockResolvedValue({data: true}),
             loadStatusesForProfilesList: jest.fn().mockResolvedValue({data: true}),
             openDirectChannelToUserId: jest.fn().mockResolvedValue({data: {name: 'dm'}}),
-            getTotalUsersStats: jest.fn().mockImplementation(() => {
-                return ((resolve: () => any) => {
-                    process.nextTick(() => resolve());
-                });
-            }),
             canUserDirectMessage: jest.fn().mockResolvedValue({data: {can_dm: true}}),
         },
     };
 
-    test('should match snapshot', () => {
+    test('should render the modal title', () => {
         const props = {...baseProps, actions: {...baseProps.actions, loadProfilesMissingStatus: jest.fn()}};
-        const {baseElement} = renderWithContext(<MoreDirectChannels {...props}/>);
-        expect(baseElement).toMatchSnapshot();
+        renderWithContext(<MoreDirectChannels {...props}/>);
+        expect(screen.getByText('Direct Messages')).toBeInTheDocument();
     });
 
     test('should call for modal data on callback of modal onEntered', () => {
@@ -101,9 +87,6 @@ describe('components/MoreDirectChannels', () => {
 
         ref.current!.loadModalData();
 
-        expect(props.actions.getProfiles).toHaveBeenCalledTimes(1);
-        expect(props.actions.getTotalUsersStats).toHaveBeenCalledTimes(1);
-        expect(props.actions.getProfiles).toHaveBeenCalledWith(0, 100);
         expect(props.actions.loadProfilesMissingStatus).toHaveBeenCalledTimes(1);
         expect(props.actions.loadProfilesMissingStatus).toHaveBeenCalledWith(baseProps.users);
     });
@@ -280,7 +263,7 @@ describe('components/MoreDirectChannels', () => {
         rafSpy.mockRestore();
     });
 
-    test('should exclude deleted users if there is not direct channel between users', () => {
+    test('should exclude deleted users', () => {
         const users: UserProfile[] = [
             {
                 ...mockedUser,
@@ -308,14 +291,9 @@ describe('components/MoreDirectChannels', () => {
                 delete_at: 1,
             },
         ];
-        const myDirectChannels = [
-            {name: 'deleted_user_1__current_user_id'},
-            {name: 'not_existent_user_1__current_user_id'},
-            {name: 'current_user_id__deleted_user_2'},
-        ];
         const currentChannelMembers: UserProfile[] = [];
-        const props = {...baseProps, users, myDirectChannels, currentChannelMembers};
-        const {baseElement} = renderWithContext(<MoreDirectChannels {...props}/>);
-        expect(baseElement).toMatchSnapshot();
+        const props = {...baseProps, users, currentChannelMembers};
+        renderWithContext(<MoreDirectChannels {...props}/>);
+        expect(screen.getByText('2 results found for your search.')).toBeInTheDocument();
     });
 });

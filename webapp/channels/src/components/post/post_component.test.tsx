@@ -32,7 +32,6 @@ describe('PostComponent', () => {
         hasReplies: false,
         isBot: false,
         isCollapsedThreadsEnabled: true,
-        isFlagged: false,
         isMobileView: false,
         isPostAcknowledgementsEnabled: false,
         isPostPriorityEnabled: false,
@@ -107,7 +106,7 @@ describe('PostComponent', () => {
             expect(screen.getByLabelText('reactions')).toBeInTheDocument();
         });
 
-        test('should show only show reactions in search results with pinned/saved posts visible', () => {
+        test('should only show reactions in search results with pinned posts visible', () => {
             let props = {
                 ...baseProps,
                 location: Locations.SEARCH,
@@ -120,15 +119,6 @@ describe('PostComponent', () => {
                 ...baseProps,
                 location: Locations.SEARCH,
                 isPinnedPosts: true,
-            };
-            rerender(<PostComponent {...props}/>);
-
-            expect(screen.getByLabelText('reactions')).toBeInTheDocument();
-
-            props = {
-                ...baseProps,
-                location: Locations.SEARCH,
-                isFlaggedPosts: true,
             };
             rerender(<PostComponent {...props}/>);
 
