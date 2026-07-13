@@ -39,11 +39,11 @@ body {
 /* Apply dark mode based on OS preference automatically */
 @media (prefers-color-scheme: dark) {
     .LoadingScreen {
-        --background-color: #191B1F;
-        --background-gradient: linear-gradient(152deg, rgba(221, 223, 228, 0.00) 0%, rgba(221, 223, 228, 0.04) 80, #191B1F);
-        --background-texture: rgba(221, 223, 228, 0.04);
-        --gradient-center-color: #1B1D22;
-        --gradient-edge-color: rgba(27, 29, 34, 0);
+        --background-color: #ffffff;
+        --background-gradient: none;
+        --background-texture: transparent;
+        --gradient-center-color: #ffffff;
+        --gradient-edge-color: rgba(255, 255, 255, 0);
     }
 }
 
@@ -358,5 +358,149 @@ body {
     }
     95%, 100% {
         stroke-dashoffset: 0;
+    }
+}
+
+/* SAI-Net showcase loading override */
+.LoadingScreen {
+    --background-color: #ffffff;
+    --background-gradient: none;
+    --background-texture: transparent;
+    --gradient-center-color: #ffffff;
+    position: absolute;
+    z-index: 1000;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    color: #172033;
+    opacity: 1;
+    transition: opacity 400ms 0ms ease-in, visibility 400ms 0ms step-start;
+    visibility: visible;
+}
+
+@media (prefers-color-scheme: dark) {
+    .LoadingScreen {
+        --background-color: #ffffff;
+        --background-gradient: none;
+        --background-texture: transparent;
+        --gradient-center-color: #ffffff;
+    }
+}
+
+.LoadingScreen__background {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.LoadingScreen__background::before {
+    position: absolute;
+    width: min(760px, 74vw);
+    height: min(420px, 44vh);
+    border: 1px solid rgba(30, 50, 92, 0.08);
+    content: "";
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -42%) perspective(980px) rotateX(66deg) translateY(90px);
+}
+
+.LoadingScreen--loaded {
+    opacity: 0;
+    transition: opacity 400ms 0ms ease-in, visibility 400ms 0ms step-end;
+    visibility: hidden;
+}
+
+.LoadingAnimation {
+    display: grid;
+    width: 100vw;
+    height: 100vh;
+    place-items: center;
+    opacity: 1;
+    transform: scale3d(1, 1, 1);
+}
+
+.LoadingAnimation__logo-shell {
+    position: relative;
+    display: grid;
+    width: 100vw;
+    height: 100vh;
+    align-items: center;
+    justify-items: center;
+    overflow: hidden;
+}
+
+.LoadingAnimation__logo-canvas {
+    position: relative;
+    display: block;
+    width: min(92vw, 1180px);
+    height: min(72vh, 680px);
+}
+
+.LoadingAnimation__caption {
+    position: absolute;
+    bottom: clamp(28px, 6vh, 58px);
+    overflow: hidden;
+    background:
+        linear-gradient(90deg, rgba(30, 50, 92, 0.72), rgba(30, 50, 92, 0.94), rgba(30, 50, 92, 0.72)),
+        linear-gradient(90deg, #3020ff, #ff5a1f, #3020ff);
+    background-clip: text;
+    background-size: 100% 100%, 240% 100%;
+    color: transparent;
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-shadow: 0 0 14px rgba(48, 32, 255, 0.12);
+    text-transform: uppercase;
+    -webkit-background-clip: text;
+    animation: LoadingAnimation__caption-color-flow 4.6s linear infinite;
+}
+
+.LoadingAnimation__caption::after {
+    position: absolute;
+    inset: -20% -40%;
+    animation: LoadingAnimation__caption-shimmer 1.85s ease-in-out infinite;
+    background: linear-gradient(110deg, transparent 34%, rgba(48, 32, 255, 0.18) 46%, rgba(255, 90, 31, 0.15) 52%, transparent 64%);
+    content: "";
+    mix-blend-mode: screen;
+    transform: translateX(-72%);
+}
+
+.LoadingAnimation--loaded .LoadingAnimation__logo-shell {
+    animation: LoadingAnimation__fade-out 400ms 0ms ease-in forwards, LoadingAnimation__shrink 400ms 0ms ease-in forwards;
+}
+
+@keyframes LoadingAnimation__caption-shimmer {
+    0% {
+        transform: translateX(-72%);
+    }
+
+    46%,
+    100% {
+        transform: translateX(72%);
+    }
+}
+
+@keyframes LoadingAnimation__caption-color-flow {
+    0% {
+        background-position: 0 0, 0% 0;
+    }
+
+    100% {
+        background-position: 0 0, 240% 0;
+    }
+}
+
+@media only screen and (max-width: 720px) {
+    .LoadingAnimation__logo-canvas {
+        width: 96vw;
+        height: 62vh;
     }
 }

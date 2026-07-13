@@ -40,10 +40,14 @@
                 border: 2px solid var(--sidebar-text-active-border);
                 margin-left: -10px;
             }
-
-            svg {
+            svg,
+            img {
                 width: 170px;
                 fill: var(--center-channel-color);
+            }
+
+            img {
+                height: auto;
             }
 
             .freeBadge {
@@ -96,7 +100,8 @@
         padding: 0 24px;
 
         .header-main {
-            .header-logo-link svg {
+            .header-logo-link svg,
+            .header-logo-link img {
                 width: 145px;
             }
         }

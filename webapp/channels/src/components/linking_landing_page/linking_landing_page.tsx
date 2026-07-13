@@ -13,7 +13,7 @@ import ExternalLink from 'components/external_link';
 
 import desktopImg from 'images/deep-linking/deeplinking-desktop-img.png';
 import mobileImg from 'images/deep-linking/deeplinking-mobile-img.png';
-import MattermostLogoSvg from 'images/logo.svg';
+import CUHKSAILogoPng from 'images/cuhk-sai-logo01.png';
 import {LandingPreferenceTypes} from 'utils/constants';
 
 type Props = {
@@ -177,7 +177,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
             return (
                 <FormattedMessage
                     id='get_app.systemDialogMessageMobile'
-                    defaultMessage='View in App'
+                    defaultMessage='在应用中打开'
                 />
             );
         }
@@ -185,7 +185,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
         return (
             <FormattedMessage
                 id='get_app.systemDialogMessage'
-                defaultMessage='View in Desktop App'
+                defaultMessage='在桌面应用中打开'
             />
         );
     };
@@ -298,7 +298,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                     <a href={downloadLink}>
                         <FormattedMessage
                             id='get_app.downloadTheAppNow'
-                            defaultMessage='Download the app now.'
+                            defaultMessage='立即下载应用。'
                         />
                     </a>
                 </div>
@@ -315,16 +315,16 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
         let openingLink = (
             <FormattedMessage
                 id='get_app.openingLink'
-                defaultMessage='Opening link in Mattermost...'
+                defaultMessage='正在 SAI-Net 中打开链接...'
             />
         );
         if (this.props.enableCustomBrand) {
             openingLink = (
                 <FormattedMessage
                     id='get_app.openingLinkWhiteLabel'
-                    defaultMessage='Opening link in {appName}...'
+                    defaultMessage='正在 {appName} 中打开链接...'
                     values={{
-                        appName: this.props.siteName || 'Mattermost',
+                        appName: this.props.siteName || 'SAI-Net',
                     }}
                 />
             );
@@ -337,7 +337,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                     <div className={`get-app__alternative${this.state.redirectPage ? ' redirect-page' : ''}`}>
                         <FormattedMessage
                             id='get_app.redirectedInMoments'
-                            defaultMessage='You will be redirected in a few moments.'
+                            defaultMessage='即将跳转。'
                         />
                         <br/>
                         {this.renderDownloadLinkText()}
@@ -346,7 +346,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                         <a href={downloadLink}>
                             <FormattedMessage
                                 id='get_app.downloadTheAppNow'
-                                defaultMessage='Download the app now.'
+                                defaultMessage='立即下载应用。'
                             />
                         </a>
                     </div>
@@ -357,9 +357,10 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
         let viewApp = (
             <FormattedMessage
                 id='get_app.ifNothingPrompts'
-                defaultMessage='You can view {siteName} in the desktop app or continue in your web browser.'
+                tagName='em'
+                defaultMessage='你可以在桌面应用中打开 {siteName}，也可以继续在浏览器中查看。'
                 values={{
-                    siteName: this.props.enableCustomBrand ? '' : ' Mattermost',
+                    siteName: this.props.enableCustomBrand ? '' : 'SAI-Net',
                 }}
             />
         );
@@ -367,9 +368,10 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
             viewApp = (
                 <FormattedMessage
                     id='get_app.ifNothingPromptsMobile'
-                    defaultMessage='You can view {siteName} in the mobile app or continue in your web browser.'
+                    tagName='em'
+                    defaultMessage='你可以在移动应用中打开 {siteName}，也可以继续在浏览器中查看。'
                     values={{
-                        siteName: this.props.enableCustomBrand ? '' : ' Mattermost',
+                        siteName: this.props.enableCustomBrand ? '' : 'SAI-Net',
                     }}
                 />
             );
@@ -380,7 +382,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                 <FormattedMessage
                     id='get_app.launching'
                     tagName='h1'
-                    defaultMessage='Where would you like to view this?'
+                    defaultMessage='欢迎来到人工智能学院'
                 />
                 <div className='get-app__alternative'>
                     {viewApp}
@@ -417,7 +419,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                     >
                         <FormattedMessage
                             id='get_app.continueToBrowser'
-                            defaultMessage='View in Browser'
+                            defaultMessage='在浏览器中打开'
                         />
                     </a>
                 </div>
@@ -430,7 +432,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                     />
                     <FormattedMessage
                         id='get_app.rememberMyPreference'
-                        defaultMessage='Remember my preference'
+                        defaultMessage='记住我的选择'
                     />
                 </label>
                 {this.renderDownloadLinkSection()}
@@ -442,7 +444,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
         let header = (
             <div className='get-app__header'>
                 <img
-                    src={MattermostLogoSvg}
+                    src={CUHKSAILogoPng}
                     className='get-app__logo'
                 />
             </div>
