@@ -1,0 +1,31 @@
+[Unit]
+Description=IUIN temporary local backup
+Requires=docker.service
+After=docker.service
+ConditionPathExists=/srv/iuin/mattermost/config/config.json
+ConditionPathIsDirectory=/srv/iuin/backups
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=/etc/iuin/backup.env
+ExecStart=/usr/bin/env bash ${IUIN_BACKUP_SCRIPT}
+UMask=0077
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+CPUSchedulingPolicy=batch
+TimeoutStartSec=12h
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+

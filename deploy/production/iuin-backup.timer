@@ -1,0 +1,13 @@
+[Unit]
+Description=Run the IUIN temporary local backup every day
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 Asia/Shanghai
+AccuracySec=1min
+RandomizedDelaySec=10min
+Persistent=true
+Unit=iuin-backup.service
+
+[Install]
+WantedBy=timers.target
+

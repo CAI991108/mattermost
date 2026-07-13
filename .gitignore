@@ -179,3 +179,9 @@ docker-compose.override.yaml
 server/prev-report.xml
 server/prev-gotestsum.json
 server/shard-*.txt
+
+# Local production deployment state and secrets
+/deploy/production/.env
+/deploy/production/*.local
+/deploy/production/secrets/
+/deploy/production/backups/

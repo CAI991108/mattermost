@@ -1,0 +1,16 @@
+[Unit]
+Description=IUIN Docker published-port firewall
+Requires=docker.service
+After=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/iuin/firewall.env
+ExecStart=/usr/local/sbin/iuin-docker-firewall apply
+ExecStop=/usr/local/sbin/iuin-docker-firewall remove
+RemainAfterExit=yes
+
+[Install]
+WantedBy=docker.service
+WantedBy=multi-user.target
