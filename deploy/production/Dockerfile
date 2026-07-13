@@ -22,10 +22,27 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
-COPY webapp/ ./webapp/
+# Keep the expensive npm dependency layer keyed only by lockfiles and workspace
+# manifests. Source-only IUIN fixes can then reuse node_modules during rebuilds.
+COPY webapp/package.json webapp/package-lock.json ./webapp/
+COPY webapp/channels/package.json ./webapp/channels/
+COPY webapp/platform/client/package.json ./webapp/platform/client/
+COPY webapp/platform/components/package.json ./webapp/platform/components/
+COPY webapp/platform/eslint-plugin/package.json ./webapp/platform/eslint-plugin/
+COPY webapp/platform/mattermost-redux/package.json ./webapp/platform/mattermost-redux/
+COPY webapp/platform/shared/package.json ./webapp/platform/shared/
+COPY webapp/platform/types/package.json ./webapp/platform/types/
 
 RUN --mount=type=cache,target=/root/.npm \
-    CI=true make -C webapp dist
+    cd webapp \
+    && npm ci --include=dev --ignore-scripts \
+    && touch node_modules
+
+COPY webapp/ ./webapp/
+
+RUN cd webapp \
+    && npm run postinstall \
+    && npm run build
 
 COPY server/ ./server/
 COPY NOTICE.txt README.md LICENSE.txt ./
