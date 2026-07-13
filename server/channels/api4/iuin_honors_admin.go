@@ -43,22 +43,6 @@ const (
 	iuinHonorAdminDraftStatusSubmitted = "submitted"
 )
 
-var iuinHonorAdminUsers = map[string]bool{
-	"litangchao": true,
-	"fengyizhan": true,
-	"liuxinyu":   true,
-	"caizijin":   true,
-	"leizexin":   true,
-}
-
-var iuinHonorAuditUsers = map[string]bool{
-	"litangchao": true,
-	"fengyizhan": true,
-	"liuxinyu":   true,
-	"caizijin":   true,
-	"leizexin":   true,
-}
-
 type iuinHonorAdminSessionResponse struct {
 	Username string `json:"username"`
 	CanAudit bool   `json:"canAudit"`
@@ -189,7 +173,7 @@ func getIuinHonorAdminSession(c *Context, w http.ResponseWriter, r *http.Request
 
 	writeIuinHonorsJSON(c, w, iuinHonorAdminSessionResponse{
 		Username: user.Username,
-		CanAudit: iuinHonorAuditUsers[user.Username],
+		CanAudit: true,
 	})
 }
 
@@ -648,9 +632,13 @@ func listIuinHonorAdminAudits(c *Context, w http.ResponseWriter, r *http.Request
 	writeIuinHonorsJSON(c, w, iuinHonorAdminAuditListResponse{Audits: audits})
 }
 
-func requireIuinHonorAdmin(c *Context, auditOnly bool) (*model.User, bool) {
+func requireIuinHonorAdmin(c *Context, _ bool) (*model.User, bool) {
 	session := c.AppContext.Session()
 	if session == nil || session.UserId == "" {
+		c.SetPermissionError(model.PermissionManageSystem)
+		return nil, false
+	}
+	if !c.App.SessionHasPermissionTo(*session, model.PermissionManageSystem) {
 		c.SetPermissionError(model.PermissionManageSystem)
 		return nil, false
 	}
@@ -658,11 +646,6 @@ func requireIuinHonorAdmin(c *Context, auditOnly bool) (*model.User, bool) {
 	user, appErr := c.App.GetUser(session.UserId)
 	if appErr != nil {
 		c.Err = appErr
-		return nil, false
-	}
-
-	if !iuinHonorAdminUsers[user.Username] || (auditOnly && !iuinHonorAuditUsers[user.Username]) {
-		c.SetPermissionError(model.PermissionManageSystem)
 		return nil, false
 	}
 

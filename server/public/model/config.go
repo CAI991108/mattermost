@@ -1225,6 +1225,10 @@ type ExperimentalSettings struct {
 	UsersStatusAndProfileFetchingPollIntervalMilliseconds *int64 `access:"experimental_features"`
 	YoutubeReferrerPolicy                                 *bool  `access:"experimental_features"`
 	EnableWatermark                                       *bool  `access:"experimental_features"`
+	// EnableIuinHonorDemoGrants seeds demo honors when a user first opens the
+	// honors UI. It must remain disabled in production unless an administrator
+	// explicitly opts in.
+	EnableIuinHonorDemoGrants *bool `access:"experimental_features"`
 }
 
 func (s *ExperimentalSettings) SetDefaults() {
@@ -1274,6 +1278,10 @@ func (s *ExperimentalSettings) SetDefaults() {
 
 	if s.EnableWatermark == nil {
 		s.EnableWatermark = new(false)
+	}
+
+	if s.EnableIuinHonorDemoGrants == nil {
+		s.EnableIuinHonorDemoGrants = new(false)
 	}
 }
 

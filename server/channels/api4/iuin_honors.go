@@ -440,6 +440,10 @@ func writeIuinHonorsJSON(c *Context, w http.ResponseWriter, value any) {
 }
 
 func ensureIuinHonorDemoUserState(c *Context, ctx context.Context, userID string) *model.AppError {
+	if enabled := c.App.Config().ExperimentalSettings.EnableIuinHonorDemoGrants; enabled == nil || !*enabled {
+		return nil
+	}
+
 	db := c.App.Srv().Store().GetInternalMasterDB()
 	if appErr := removeIuinHiddenDemoGrants(ctx, db, userID); appErr != nil {
 		return appErr

@@ -3199,6 +3199,24 @@ func TestExperimentalSettingsEnableWatermarkDefault(t *testing.T) {
 	})
 }
 
+func TestExperimentalSettingsEnableIuinHonorDemoGrantsDefault(t *testing.T) {
+	t.Run("defaults to false", func(t *testing.T) {
+		cfg := Config{}
+		cfg.SetDefaults()
+
+		require.NotNil(t, cfg.ExperimentalSettings.EnableIuinHonorDemoGrants)
+		require.False(t, *cfg.ExperimentalSettings.EnableIuinHonorDemoGrants)
+	})
+
+	t.Run("preserves an explicit opt-in", func(t *testing.T) {
+		cfg := Config{}
+		cfg.ExperimentalSettings.EnableIuinHonorDemoGrants = new(true)
+		cfg.SetDefaults()
+
+		require.True(t, *cfg.ExperimentalSettings.EnableIuinHonorDemoGrants)
+	})
+}
+
 func TestElasticsearchSettingsSetDefaults(t *testing.T) {
 	t.Run("EnableSearchPublicChannelsWithoutMembership defaults to true when nil", func(t *testing.T) {
 		s := ElasticsearchSettings{}
