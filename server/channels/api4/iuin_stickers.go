@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,12 +31,14 @@ import (
 )
 
 const (
-	iuinEmojiAssetMaxBytes      = 50 * 1024 * 1024
-	iuinEmojiUploadMaxBytes     = 256 * 1024 * 1024
+	iuinEmojiAssetMaxBytes      = 2 * 1024 * 1024
+	iuinEmojiUploadMaxBytes     = 5 * 1024 * 1024
 	iuinImageUploadReadLimit    = iuinEmojiUploadMaxBytes + (1 * 1024 * 1024)
 	iuinImageMultipartMemory    = 8 * 1024 * 1024
 	iuinRecentEmojiLimit        = 100
 	iuinImageMaxStaticDimension = 1024
+	iuinImageMaxSourceDimension = 4096
+	iuinImageMaxSourcePixels    = 16 * 1024 * 1024
 	iuinImageMaxGIFDimension    = 512
 	iuinImageMaxGIFFrames       = 70
 )
@@ -215,8 +218,15 @@ func processIuinImageAsset(data []byte, maxBytes int) (iuinImageAssetData, error
 	if cfg.Width <= 0 || cfg.Height <= 0 {
 		return iuinImageAssetData{}, errors.New("invalid image size")
 	}
+	if cfg.Width > iuinImageMaxSourceDimension || cfg.Height > iuinImageMaxSourceDimension ||
+		int64(cfg.Width)*int64(cfg.Height) > iuinImageMaxSourcePixels {
+		return iuinImageAssetData{}, fmt.Errorf("image dimensions exceed the %dx%d / %d pixel safety limit", iuinImageMaxSourceDimension, iuinImageMaxSourceDimension, iuinImageMaxSourcePixels)
+	}
 
 	if format == "gif" {
+		if cfg.Width > iuinImageMaxGIFDimension || cfg.Height > iuinImageMaxGIFDimension {
+			return iuinImageAssetData{}, fmt.Errorf("GIF dimensions exceed %dx%d", iuinImageMaxGIFDimension, iuinImageMaxGIFDimension)
+		}
 		content, width, height, err := processIuinImageAssetGIF(data, cfg.Width, cfg.Height, maxBytes)
 		if err != nil {
 			return iuinImageAssetData{}, err
@@ -283,7 +293,7 @@ func processIuinImageAssetStatic(data []byte, format string, width int, height i
 
 	// A valid static image must never fail solely because the first quality
 	// ladder did not reach the storage limit. Keep reducing to a tiny JPEG as a
-	// deterministic final fallback. Even a pathological 256 MiB source then
+	// deterministic final fallback. A source admitted by the bounds above then
 	// produces a bounded asset instead of an avoidable upload error.
 	for targetMax := 64; targetMax >= 1; targetMax /= 2 {
 		candidate := imaging.Fit(img, targetMax, targetMax)
@@ -308,13 +318,24 @@ func processIuinImageAssetStatic(data []byte, format string, width int, height i
 }
 
 func processIuinImageAssetGIF(data []byte, width int, height int, maxBytes int) ([]byte, int, int, error) {
-	if len(data) <= maxBytes && maxInt(width, height) <= iuinImageMaxGIFDimension {
-		return data, width, height, nil
+	if err := validateIuinGIFStructure(data, iuinImageMaxGIFFrames); err != nil {
+		return nil, 0, 0, err
 	}
 
 	src, err := gif.DecodeAll(bytes.NewReader(data))
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("decode gif: %w", err)
+	}
+	if len(src.Image) == 0 || len(src.Image) > iuinImageMaxGIFFrames {
+		return nil, 0, 0, fmt.Errorf("GIF frame count must be between 1 and %d", iuinImageMaxGIFFrames)
+	}
+	for _, frame := range src.Image {
+		if !frame.Bounds().In(image.Rect(0, 0, width, height)) {
+			return nil, 0, 0, errors.New("GIF frame exceeds logical screen bounds")
+		}
+	}
+	if len(data) <= maxBytes {
+		return data, width, height, nil
 	}
 
 	baseMax := minInt(maxInt(width, height), iuinImageMaxGIFDimension)
@@ -357,6 +378,108 @@ func processIuinImageAssetGIF(data []byte, width int, height int, maxBytes int) 
 	}
 
 	return nil, 0, 0, fmt.Errorf("internal gif encoder invariant failed: minimum output is %d bytes for a %d-byte limit", len(content), maxBytes)
+}
+
+func validateIuinGIFStructure(data []byte, maxFrames int) error {
+	if len(data) < 13 || (string(data[:6]) != "GIF87a" && string(data[:6]) != "GIF89a") {
+		return errors.New("invalid GIF header")
+	}
+	if maxFrames <= 0 {
+		return errors.New("invalid GIF frame limit")
+	}
+
+	screenWidth := int(binary.LittleEndian.Uint16(data[6:8]))
+	screenHeight := int(binary.LittleEndian.Uint16(data[8:10]))
+	if screenWidth <= 0 || screenHeight <= 0 {
+		return errors.New("invalid GIF logical screen")
+	}
+
+	offset := 13
+	if data[10]&0x80 != 0 {
+		offset += iuinGIFColorTableSize(data[10])
+	}
+	if offset > len(data) {
+		return errors.New("truncated GIF global color table")
+	}
+
+	frames := 0
+	for offset < len(data) {
+		blockType := data[offset]
+		offset++
+
+		switch blockType {
+		case 0x3b:
+			if frames == 0 {
+				return errors.New("GIF contains no frames")
+			}
+			return nil
+		case 0x21:
+			if offset >= len(data) {
+				return errors.New("truncated GIF extension")
+			}
+			offset++ // Extension label.
+			var err error
+			offset, err = skipIuinGIFSubBlocks(data, offset)
+			if err != nil {
+				return err
+			}
+		case 0x2c:
+			frames++
+			if frames > maxFrames {
+				return fmt.Errorf("GIF exceeds the %d frame limit", maxFrames)
+			}
+			if offset+9 > len(data) {
+				return errors.New("truncated GIF image descriptor")
+			}
+
+			left := int(binary.LittleEndian.Uint16(data[offset : offset+2]))
+			top := int(binary.LittleEndian.Uint16(data[offset+2 : offset+4]))
+			frameWidth := int(binary.LittleEndian.Uint16(data[offset+4 : offset+6]))
+			frameHeight := int(binary.LittleEndian.Uint16(data[offset+6 : offset+8]))
+			packed := data[offset+8]
+			offset += 9
+			if frameWidth <= 0 || frameHeight <= 0 || left+frameWidth > screenWidth || top+frameHeight > screenHeight {
+				return errors.New("GIF frame exceeds logical screen bounds")
+			}
+			if packed&0x80 != 0 {
+				offset += iuinGIFColorTableSize(packed)
+			}
+			if offset >= len(data) {
+				return errors.New("truncated GIF image data")
+			}
+			offset++ // LZW minimum code size.
+			var err error
+			offset, err = skipIuinGIFSubBlocks(data, offset)
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("invalid GIF block type 0x%02x", blockType)
+		}
+	}
+
+	return errors.New("GIF is missing a trailer")
+}
+
+func iuinGIFColorTableSize(packed byte) int {
+	return 3 * (1 << ((packed & 0x07) + 1))
+}
+
+func skipIuinGIFSubBlocks(data []byte, offset int) (int, error) {
+	for {
+		if offset >= len(data) {
+			return 0, errors.New("truncated GIF data block")
+		}
+		size := int(data[offset])
+		offset++
+		if size == 0 {
+			return offset, nil
+		}
+		if offset+size > len(data) {
+			return 0, errors.New("truncated GIF data block")
+		}
+		offset += size
+	}
 }
 
 func encodeIuinImageAssetGIF(src *gif.GIF, targetMax int, frameStep int) ([]byte, int, int, error) {

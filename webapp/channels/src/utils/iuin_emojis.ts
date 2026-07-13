@@ -1,6 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+export const MAX_IUIN_EMOJI_UPLOAD_SIZE = 5 * 1024 * 1024;
+
 export type IuinEmoji = {
     id: string;
     name: string;
@@ -43,6 +45,10 @@ export function listIuinEmojis(): Promise<IuinEmoji[]> {
 }
 
 export function uploadIuinEmoji(file: File): Promise<IuinEmoji> {
+    if (file.size > MAX_IUIN_EMOJI_UPLOAD_SIZE) {
+        return Promise.reject(new Error('Emoji and GIF uploads must be 5 MB or smaller.'));
+    }
+
     const formData = new FormData();
     formData.append('image', file);
     return iuinFetch<IuinEmoji>('/api/v4/iuin/emojis', {method: 'POST', body: formData});

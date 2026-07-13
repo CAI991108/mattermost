@@ -31,7 +31,7 @@ func TestProcessIuinImageAssetCompressesToEmojiStorageLimit(t *testing.T) {
 	}
 
 	// PNG decoders permit trailing bytes after IEND. Padding creates a valid
-	// image just over the 50 MiB storage limit without making this test spend
+	// image just over the storage limit without making this test spend
 	// time encoding a huge random bitmap.
 	oversized := make([]byte, iuinEmojiAssetMaxBytes+1)
 	copy(oversized, encoded.Bytes())
@@ -51,7 +51,7 @@ func TestProcessIuinImageAssetCompressesToEmojiStorageLimit(t *testing.T) {
 func TestProcessIuinImageAssetGIFKeepsReducingFramesUntilTarget(t *testing.T) {
 	palette := color.Palette{color.Black, color.White}
 	animation := &gif.GIF{LoopCount: 0}
-	for frameIndex := 0; frameIndex < 140; frameIndex++ {
+	for frameIndex := 0; frameIndex < iuinImageMaxGIFFrames; frameIndex++ {
 		frame := image.NewPaletted(image.Rect(0, 0, 64, 64), palette)
 		for y := 0; y < 64; y++ {
 			for x := 0; x < 64; x++ {
@@ -80,11 +80,41 @@ func TestProcessIuinImageAssetGIFKeepsReducingFramesUntilTarget(t *testing.T) {
 	}
 }
 
+func TestProcessIuinImageAssetGIFRejectsTooManyFramesBeforeDecode(t *testing.T) {
+	palette := color.Palette{color.Black, color.White}
+	animation := &gif.GIF{}
+	for frameIndex := 0; frameIndex <= iuinImageMaxGIFFrames; frameIndex++ {
+		animation.Image = append(animation.Image, image.NewPaletted(image.Rect(0, 0, 1, 1), palette))
+		animation.Delay = append(animation.Delay, 1)
+	}
+
+	var encoded bytes.Buffer
+	if err := gif.EncodeAll(&encoded, animation); err != nil {
+		t.Fatalf("failed to encode source GIF: %v", err)
+	}
+
+	if _, err := processIuinImageAsset(encoded.Bytes(), iuinEmojiAssetMaxBytes); err == nil {
+		t.Fatal("expected GIF over the frame limit to be rejected")
+	}
+}
+
+func TestProcessIuinImageAssetRejectsUnsafeSourceDimensions(t *testing.T) {
+	source := image.NewNRGBA(image.Rect(0, 0, iuinImageMaxSourceDimension+1, 1))
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, source); err != nil {
+		t.Fatalf("failed to encode source PNG: %v", err)
+	}
+
+	if _, err := processIuinImageAsset(encoded.Bytes(), iuinEmojiAssetMaxBytes); err == nil {
+		t.Fatal("expected image over the source dimension limit to be rejected")
+	}
+}
+
 func TestIuinEmojiUploadAndStorageLimitsAreIndependent(t *testing.T) {
-	if iuinEmojiUploadMaxBytes != 256*1024*1024 {
+	if iuinEmojiUploadMaxBytes != 5*1024*1024 {
 		t.Fatalf("unexpected original upload limit: %d", iuinEmojiUploadMaxBytes)
 	}
-	if iuinEmojiAssetMaxBytes != 50*1024*1024 {
+	if iuinEmojiAssetMaxBytes != 2*1024*1024 {
 		t.Fatalf("unexpected stored asset limit: %d", iuinEmojiAssetMaxBytes)
 	}
 	if iuinImageUploadReadLimit <= iuinEmojiUploadMaxBytes {
