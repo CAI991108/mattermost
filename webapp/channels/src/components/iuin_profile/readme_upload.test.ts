@@ -44,9 +44,9 @@ describe('IUIN README uploads', () => {
         expect(document.content).toContain(';base64,');
     });
 
-    test('rejects only files above the README workspace limit', async () => {
+    test('rejects files above the per-file limit', async () => {
         const oversized = new File([new Uint8Array(MAX_IUIN_README_UPLOAD_SIZE + 1)], 'large.png', {type: 'image/png'});
 
-        await expect(createIuinReadmeFileFromUpload(oversized, 'assets/large.png')).rejects.toThrow('25 MB');
+        await expect(createIuinReadmeFileFromUpload(oversized, 'assets/large.png')).rejects.toThrow('5 MB');
     });
 });

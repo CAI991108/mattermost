@@ -49,6 +49,8 @@ func (api *API) InitUser() {
 	api.BaseRoutes.User.Handle("/iuin_profile/settings", api.APISessionRequired(getIuinProfileSettings)).Methods(http.MethodGet)
 	api.BaseRoutes.User.Handle("/iuin_profile/workspace", api.APISessionRequired(getIuinProfileWorkspace)).Methods(http.MethodGet)
 	api.BaseRoutes.User.Handle("/iuin_profile/workspace", api.APISessionRequired(putIuinProfileWorkspace)).Methods(http.MethodPut)
+	api.BaseRoutes.User.Handle("/iuin_profile/workspace/files", api.APISessionRequired(uploadIuinProfileWorkspaceFile, handlerParamFileAPI)).Methods(http.MethodPost)
+	api.BaseRoutes.User.Handle("/iuin_profile/workspace/files/{entry_id:[A-Za-z0-9]+}", api.APISessionRequired(getIuinProfileWorkspaceFile)).Methods(http.MethodGet)
 	api.BaseRoutes.User.Handle("/iuin_honors/summary", api.APISessionRequired(getIuinHonorSummary)).Methods(http.MethodGet)
 	api.BaseRoutes.User.Handle("/iuin_achievements", api.APISessionRequired(getIuinAchievements)).Methods(http.MethodGet)
 	api.BaseRoutes.User.Handle("/iuin_achievements/featured", api.APISessionRequired(putIuinFeaturedAchievements)).Methods(http.MethodPut)

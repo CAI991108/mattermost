@@ -34,11 +34,14 @@ export type IuinProfileData = {
 };
 
 export type IuinReadmeFile = {
+    id?: string;
     path: string;
     content: string;
     type: 'markdown' | 'text' | 'asset' | 'folder';
     mimeType?: string;
     sizeBytes?: number;
+    sha256?: string;
+    storageKey?: string;
     sortOrder?: number;
     updatedAt: number;
 };
@@ -248,7 +251,7 @@ export function getReadmeRelativePath(fromDirectory: string, targetPath: string)
     ].join('/');
 }
 
-export function setReadmeFileContent(workspace: IuinReadmeWorkspace, path: string, content: string, type?: IuinReadmeFile['type'], metadata?: Pick<IuinReadmeFile, 'mimeType' | 'sizeBytes' | 'sortOrder'>): IuinReadmeWorkspace {
+export function setReadmeFileContent(workspace: IuinReadmeWorkspace, path: string, content: string, type?: IuinReadmeFile['type'], metadata?: Pick<IuinReadmeFile, 'id' | 'mimeType' | 'sizeBytes' | 'sha256' | 'storageKey' | 'sortOrder'>): IuinReadmeWorkspace {
     const nextPath = sanitizeReadmePath(path) || IUIN_README_MAIN_FILE;
     const existing = workspace.files.find((file) => file.path === nextPath);
 
@@ -256,11 +259,14 @@ export function setReadmeFileContent(workspace: IuinReadmeWorkspace, path: strin
         ...workspace,
         githubRenderedHtml: nextPath === workspace.activePath ? '' : workspace.githubRenderedHtml,
         files: upsertReadmeFile(workspace.files, {
+            id: metadata?.id ?? existing?.id,
             path: nextPath,
             content,
             type: type || existing?.type || getReadmeFileType(nextPath, content),
             mimeType: metadata?.mimeType ?? existing?.mimeType,
             sizeBytes: metadata?.sizeBytes ?? existing?.sizeBytes,
+            sha256: metadata?.sha256 ?? existing?.sha256,
+            storageKey: metadata?.storageKey ?? existing?.storageKey,
             sortOrder: metadata?.sortOrder ?? existing?.sortOrder ?? getNextReadmeSiblingSortOrder(workspace.files, nextPath),
             updatedAt: Date.now(),
         }),
@@ -628,11 +634,14 @@ function normalizeReadmeFile(file: Partial<IuinReadmeFile> | null | undefined): 
     }
 
     return {
+        id: typeof file.id === 'string' ? file.id : undefined,
         path,
         content: normalizedContent,
         type,
         mimeType: typeof file.mimeType === 'string' ? file.mimeType : undefined,
         sizeBytes: typeof file.sizeBytes === 'number' ? file.sizeBytes : undefined,
+        sha256: typeof file.sha256 === 'string' ? file.sha256 : undefined,
+        storageKey: typeof file.storageKey === 'string' ? file.storageKey : undefined,
         sortOrder: typeof file.sortOrder === 'number' ? file.sortOrder : undefined,
         updatedAt: typeof file.updatedAt === 'number' ? file.updatedAt : Date.now(),
     };

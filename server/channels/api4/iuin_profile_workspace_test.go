@@ -5,6 +5,8 @@ package api4
 
 import (
 	"encoding/base64"
+	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -95,4 +97,82 @@ func TestNormalizeIuinProfileWorkspacePayloadRejectsNonDocumentActivePath(t *tes
 			require.Equal(t, iuinProfileWorkspaceMainFile, activePath)
 		})
 	}
+}
+
+func TestNormalizeIuinProfileWorkspacePayloadRejectsFileOverFiveMiB(t *testing.T) {
+	payload := &iuinProfileWorkspacePayload{
+		RootName:   "member-profile",
+		ActivePath: iuinProfileWorkspaceMainFile,
+		Files: []iuinProfileFilePayload{
+			{Path: iuinProfileWorkspaceMainFile, Content: strings.Repeat("a", int(iuinProfileFileMaxBytes+1)), Type: "markdown"},
+		},
+	}
+
+	_, _, _, _, appErr := normalizeIuinProfileWorkspacePayload("user-id", "workspace-id", 10, payload, map[string]iuinProfileEntryRow{})
+	require.NotNil(t, appErr)
+	require.Equal(t, "api.iuin_profile_workspace.file_too_large", appErr.Id)
+	require.Equal(t, http.StatusRequestEntityTooLarge, appErr.StatusCode)
+}
+
+func TestValidateIuinProfileEntryQuotaRejectsWorkspaceOverFiftyMiB(t *testing.T) {
+	entries := make([]iuinProfileEntryRow, 11)
+	for i := range entries {
+		entries[i] = iuinProfileEntryRow{Type: "asset", SizeBytes: iuinProfileFileMaxBytes}
+	}
+
+	appErr := validateIuinProfileEntryQuota(entries)
+	require.NotNil(t, appErr)
+	require.Equal(t, "api.iuin_profile_workspace.workspace_too_large", appErr.Id)
+	require.Equal(t, http.StatusRequestEntityTooLarge, appErr.StatusCode)
+
+	require.Nil(t, validateIuinProfileEntryQuota(entries[:10]))
+}
+
+func TestNormalizeIuinProfileWorkspacePayloadReusesStoredAssetReference(t *testing.T) {
+	old := iuinProfileEntryRow{
+		ID:          "asset-entry-id",
+		WorkspaceID: "workspace-id",
+		Path:        "assets/figure.png",
+		Name:        "figure.png",
+		Type:        "asset",
+		MimeType:    "image/png",
+		SizeBytes:   4,
+		SHA256:      "asset-sha256",
+		StorageKey:  "iuin_profile/users/user-id/workspaces/workspace-id/entries/asset-entry-id/original",
+		CreateAt:    1,
+		UpdateAt:    2,
+	}
+	payload := &iuinProfileWorkspacePayload{
+		RootName:   "member-profile",
+		ActivePath: iuinProfileWorkspaceMainFile,
+		Files: []iuinProfileFilePayload{
+			{Path: iuinProfileWorkspaceMainFile, Content: "# README", Type: "markdown"},
+			{
+				ID:         old.ID,
+				Path:       "images/renamed.png",
+				Content:    "/api/v4/users/user-id/iuin_profile/workspace/files/asset-entry-id",
+				Type:       "asset",
+				MimeType:   old.MimeType,
+				SizeBytes:  old.SizeBytes,
+				SHA256:     old.SHA256,
+				StorageKey: old.StorageKey,
+			},
+		},
+	}
+
+	pending, _, _, _, appErr := normalizeIuinProfileWorkspacePayload("user-id", "workspace-id", 10, payload, map[string]iuinProfileEntryRow{old.Path: old})
+	require.Nil(t, appErr)
+
+	var asset pendingIuinProfileEntry
+	for _, entry := range pending {
+		if entry.Path == "images/renamed.png" {
+			asset = entry
+			break
+		}
+	}
+	require.Equal(t, old.ID, asset.ID)
+	require.Equal(t, old.StorageKey, asset.StorageKey)
+	require.Equal(t, old.SHA256, asset.SHA256)
+	require.True(t, asset.ReuseStorage)
+	require.Nil(t, asset.Content)
 }

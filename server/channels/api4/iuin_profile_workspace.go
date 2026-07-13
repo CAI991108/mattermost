@@ -10,14 +10,18 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
 	pathpkg "path"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
+	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
@@ -26,6 +30,14 @@ const (
 	iuinProfileWorkspaceMainFile = "README.md"
 	iuinProfileStorageRoot       = "iuin_profile"
 	iuinProfileEntryBlobName     = "original"
+
+	iuinProfileFileMaxBytes             = int64(5 * 1024 * 1024)
+	iuinProfileWorkspaceMaxBytes        = int64(50 * 1024 * 1024)
+	iuinProfileUploadReadLimit          = iuinProfileFileMaxBytes + (1024 * 1024)
+	iuinProfileMultipartMemory          = int64(512 * 1024)
+	iuinProfileWorkspaceJSONReadLimit   = int64(72 * 1024 * 1024)
+	iuinProfileExternalReferenceMaxSize = int64(4096)
+	iuinProfileWorkspacePathMaxBytes    = 1024
 )
 
 type iuinProfileWorkspacePayload struct {
@@ -79,7 +91,8 @@ type iuinProfileEntryRow struct {
 
 type pendingIuinProfileEntry struct {
 	iuinProfileEntryRow
-	Content []byte
+	Content      []byte
+	ReuseStorage bool
 }
 
 func getIuinProfileWorkspace(c *Context, w http.ResponseWriter, r *http.Request) {
@@ -129,8 +142,14 @@ func putIuinProfileWorkspace(c *Context, w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, iuinProfileWorkspaceJSONReadLimit)
 	var payload iuinProfileWorkspacePayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			c.Err = model.NewAppError("putIuinProfileWorkspace", "api.iuin_profile_workspace.workspace_too_large", nil, "", http.StatusRequestEntityTooLarge)
+			return
+		}
 		c.SetInvalidParamWithErr("workspace", err)
 		return
 	}
@@ -143,6 +162,173 @@ func putIuinProfileWorkspace(c *Context, w http.ResponseWriter, r *http.Request)
 
 	if err := json.NewEncoder(w).Encode(workspace); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
+}
+
+func uploadIuinProfileWorkspaceFile(c *Context, w http.ResponseWriter, r *http.Request) {
+	c.RequireUserId()
+	if c.Err != nil {
+		return
+	}
+
+	if !c.App.SessionHasPermissionToUser(*c.AppContext.Session(), c.Params.UserId) {
+		c.SetPermissionError(model.PermissionEditOtherUsers)
+		return
+	}
+
+	user, appErr := c.App.GetUser(c.Params.UserId)
+	if appErr != nil {
+		c.Err = appErr
+		return
+	}
+
+	defer func() {
+		if _, err := io.Copy(io.Discard, r.Body); err != nil {
+			c.Logger.Warn("Error while discarding IUIN profile upload body", mlog.Err(err))
+		}
+	}()
+
+	r.Body = http.MaxBytesReader(w, r.Body, iuinProfileUploadReadLimit)
+	if err := r.ParseMultipartForm(iuinProfileMultipartMemory); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		statusCode := http.StatusBadRequest
+		if errors.As(err, &maxBytesErr) {
+			statusCode = http.StatusRequestEntityTooLarge
+		}
+		c.Err = model.NewAppError("uploadIuinProfileWorkspaceFile", "api.iuin_profile_workspace.invalid_upload", nil, "", statusCode).Wrap(err)
+		return
+	}
+	defer r.MultipartForm.RemoveAll()
+
+	fileHeaders := r.MultipartForm.File["file"]
+	if len(fileHeaders) == 0 {
+		c.SetInvalidParam("file")
+		return
+	}
+	fileHeader := fileHeaders[0]
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.Err = model.NewAppError("uploadIuinProfileWorkspaceFile", "api.iuin_profile_workspace.invalid_upload", nil, "", http.StatusBadRequest).Wrap(err)
+		return
+	}
+	defer file.Close()
+
+	content, err := io.ReadAll(io.LimitReader(file, iuinProfileFileMaxBytes+1))
+	if err != nil {
+		c.Err = model.NewAppError("uploadIuinProfileWorkspaceFile", "api.iuin_profile_workspace.invalid_upload", nil, "", http.StatusBadRequest).Wrap(err)
+		return
+	}
+	if int64(len(content)) > iuinProfileFileMaxBytes {
+		c.Err = newIuinProfileFileTooLargeAppError("uploadIuinProfileWorkspaceFile")
+		return
+	}
+
+	entryPath := sanitizeIuinProfileWorkspacePath(firstIuinProfileMultipartValue(r, "path"))
+	if entryPath == "" || len(entryPath) > iuinProfileWorkspacePathMaxBytes || !utf8.ValidString(entryPath) {
+		c.SetInvalidParam("path")
+		return
+	}
+
+	entryType, appErr := normalizeIuinProfileEntryType(firstIuinProfileMultipartValue(r, "type"), entryPath, "")
+	if appErr != nil || entryType == "folder" {
+		c.SetInvalidParam("type")
+		return
+	}
+	if entryType != "asset" && !utf8.Valid(content) {
+		c.Err = model.NewAppError("uploadIuinProfileWorkspaceFile", "api.iuin_profile_workspace.invalid_text", nil, "", http.StatusBadRequest)
+		return
+	}
+
+	mimeType := normalizeIuinProfileUploadMimeType(fileHeader.Header.Get("Content-Type"), content)
+	entry, appErr := persistIuinProfileWorkspaceUpload(c, r.Context(), user.Id, entryPath, entryType, mimeType, content)
+	if appErr != nil {
+		c.Err = appErr
+		return
+	}
+
+	payload := iuinProfileFilePayload{
+		ID:         entry.ID,
+		Path:       entry.Path,
+		Type:       entry.Type,
+		MimeType:   entry.MimeType,
+		SizeBytes:  entry.SizeBytes,
+		SHA256:     entry.SHA256,
+		StorageKey: entry.StorageKey,
+		SortOrder:  entry.SortOrder,
+		UpdatedAt:  entry.UpdateAt,
+	}
+	if entry.Type != "asset" {
+		payload.Content = string(content)
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
+}
+
+func getIuinProfileWorkspaceFile(c *Context, w http.ResponseWriter, r *http.Request) {
+	c.RequireUserId()
+	if c.Err != nil {
+		return
+	}
+
+	user, appErr := c.App.GetUser(c.Params.UserId)
+	if appErr != nil {
+		c.Err = appErr
+		return
+	}
+
+	entryID := strings.TrimSpace(mux.Vars(r)["entry_id"])
+	if !model.IsValidId(entryID) {
+		c.SetInvalidURLParam("entry_id")
+		return
+	}
+
+	db := c.App.Srv().Store().GetInternalReplicaDB()
+	workspace, appErr := selectIuinProfileWorkspace(r.Context(), db, user.Id)
+	if appErr != nil {
+		c.Err = appErr
+		return
+	}
+	if workspace == nil {
+		c.Err = newIuinProfileFileNotFoundAppError("getIuinProfileWorkspaceFile")
+		return
+	}
+
+	entry, appErr := selectIuinProfileEntry(r.Context(), db, workspace.ID, entryID)
+	if appErr != nil {
+		c.Err = appErr
+		return
+	}
+	if entry == nil || entry.Type == "folder" || entry.StorageKey == "" {
+		c.Err = newIuinProfileFileNotFoundAppError("getIuinProfileWorkspaceFile")
+		return
+	}
+
+	fileReader, appErr := c.App.FileReader(entry.StorageKey)
+	if appErr != nil {
+		c.Err = newIuinProfileFileNotFoundAppError("getIuinProfileWorkspaceFile")
+		return
+	}
+	defer fileReader.Close()
+
+	mimeType := entry.MimeType
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+	disposition := "attachment"
+	if isIuinProfileInlineMimeType(mimeType) {
+		disposition = "inline"
+	}
+
+	w.Header().Set("Cache-Control", "private, max-age=300")
+	w.Header().Set("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": entry.Name}))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", entry.SizeBytes))
+	w.Header().Set("Content-Type", mimeType)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if _, err := io.CopyN(w, fileReader, entry.SizeBytes); err != nil {
+		c.Logger.Warn("Error while writing IUIN profile workspace file", mlog.Err(err))
 	}
 }
 
@@ -175,12 +361,20 @@ func readIuinProfileWorkspace(c *Context, ctx context.Context, userID string) (*
 			UpdatedAt:  row.UpdateAt,
 		}
 
-		if row.Type != "folder" && row.StorageKey != "" {
+		if row.Type != "folder" && row.StorageKey != "" && row.Type != "asset" {
 			data, appErr := c.App.ReadFile(row.StorageKey)
 			if appErr != nil {
 				return nil, appErr
 			}
 			file.Content = encodeIuinProfileEntryContent(row.Type, row.MimeType, data)
+		} else if row.Type == "asset" && row.StorageKey != "" && row.SizeBytes <= iuinProfileExternalReferenceMaxSize {
+			data, appErr := c.App.ReadFile(row.StorageKey)
+			if appErr != nil {
+				return nil, appErr
+			}
+			if isIuinProfileExternalAssetReference(string(data)) {
+				file.Content = string(data)
+			}
 		}
 
 		files = append(files, file)
@@ -226,7 +420,7 @@ func saveIuinProfileWorkspace(c *Context, ctx context.Context, userID string, pa
 	}
 
 	for _, entry := range pending {
-		if entry.Type == "folder" {
+		if entry.Type == "folder" || entry.ReuseStorage {
 			continue
 		}
 		if _, appErr := c.App.WriteFile(bytes.NewReader(entry.Content), entry.StorageKey); appErr != nil {
@@ -264,6 +458,125 @@ func saveIuinProfileWorkspace(c *Context, ctx context.Context, userID string, pa
 	removeUnusedIuinProfileStorage(c, oldEntries, pending)
 
 	return readIuinProfileWorkspace(c, ctx, userID)
+}
+
+func persistIuinProfileWorkspaceUpload(c *Context, ctx context.Context, userID string, entryPath string, entryType string, mimeType string, content []byte) (*iuinProfileEntryRow, *model.AppError) {
+	db := c.App.Srv().Store().GetInternalMasterDB()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, newIuinProfileWorkspaceAppError("persistIuinProfileWorkspaceUpload", http.StatusInternalServerError, err)
+	}
+	defer tx.Rollback()
+
+	now := model.GetMillis()
+	workspace, appErr := getOrCreateIuinProfileWorkspaceTx(ctx, tx, userID, now)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	entries, appErr := selectIuinProfileEntriesTx(ctx, tx, workspace.ID)
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	parentID := ""
+	parentPath := pathpkg.Dir(entryPath)
+	if parentPath != "." && parentPath != "/" {
+		for _, entry := range entries {
+			if entry.Path == parentPath && entry.Type == "folder" {
+				parentID = entry.ID
+				break
+			}
+		}
+	}
+
+	oldEntry := iuinProfileEntryRow{}
+	sortOrder := int64(0)
+	hasSibling := false
+	for _, entry := range entries {
+		if entry.Path == entryPath {
+			oldEntry = entry
+			continue
+		}
+		if entry.ParentID == parentID && (!hasSibling || entry.SortOrder >= sortOrder) {
+			sortOrder = entry.SortOrder + 1
+			hasSibling = true
+		}
+	}
+	if oldEntry.ID != "" {
+		if oldEntry.Type == "folder" {
+			return nil, model.NewAppError("persistIuinProfileWorkspaceUpload", "api.iuin_profile_workspace.path_conflict", nil, "", http.StatusBadRequest)
+		}
+		sortOrder = oldEntry.SortOrder
+	}
+
+	sum := sha256.Sum256(content)
+	entryID := model.NewId()
+	entry := &iuinProfileEntryRow{
+		ID:          entryID,
+		WorkspaceID: workspace.ID,
+		ParentID:    parentID,
+		Path:        entryPath,
+		Name:        pathpkg.Base(entryPath),
+		Type:        entryType,
+		MimeType:    mimeType,
+		SizeBytes:   int64(len(content)),
+		SHA256:      fmt.Sprintf("%x", sum),
+		StorageKey:  iuinProfileEntryStorageKey(userID, workspace.ID, entryID),
+		SortOrder:   sortOrder,
+		CreateAt:    now,
+		UpdateAt:    now,
+	}
+
+	quotaEntries := make([]iuinProfileEntryRow, 0, len(entries)+1)
+	for _, existing := range entries {
+		if existing.Path != entryPath {
+			quotaEntries = append(quotaEntries, existing)
+		}
+	}
+	quotaEntries = append(quotaEntries, *entry)
+	if appErr := validateIuinProfileEntryQuota(quotaEntries); appErr != nil {
+		return nil, appErr
+	}
+
+	if _, appErr := c.App.WriteFile(bytes.NewReader(content), entry.StorageKey); appErr != nil {
+		return nil, appErr
+	}
+	removeWrittenFile := true
+	defer func() {
+		if removeWrittenFile {
+			_ = c.App.RemoveFile(entry.StorageKey)
+		}
+	}()
+
+	if oldEntry.ID != "" {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM IuinProfileEntries WHERE WorkspaceId = $1 AND Id = $2`, workspace.ID, oldEntry.ID); err != nil {
+			return nil, newIuinProfileWorkspaceAppError("persistIuinProfileWorkspaceUpload.deleteEntry", http.StatusInternalServerError, err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO IuinProfileEntries
+			(Id, WorkspaceId, ParentId, Path, Name, Type, MimeType, SizeBytes, Sha256, StorageKey, SortOrder, CreateAt, UpdateAt)
+		VALUES
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+	`, entry.ID, entry.WorkspaceID, entry.ParentID, entry.Path, entry.Name, entry.Type, entry.MimeType, entry.SizeBytes, entry.SHA256, entry.StorageKey, entry.SortOrder, entry.CreateAt, entry.UpdateAt); err != nil {
+		return nil, newIuinProfileWorkspaceAppError("persistIuinProfileWorkspaceUpload.insertEntry", http.StatusInternalServerError, err)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE IuinProfileWorkspaces SET UpdateAt = $1 WHERE Id = $2`, now, workspace.ID); err != nil {
+		return nil, newIuinProfileWorkspaceAppError("persistIuinProfileWorkspaceUpload.updateWorkspace", http.StatusInternalServerError, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, newIuinProfileWorkspaceAppError("persistIuinProfileWorkspaceUpload.commit", http.StatusInternalServerError, err)
+	}
+	removeWrittenFile = false
+
+	if oldEntry.StorageKey != "" && oldEntry.StorageKey != entry.StorageKey {
+		if appErr := c.App.RemoveFile(oldEntry.StorageKey); appErr != nil {
+			c.Logger.Warn("Unable to remove replaced IUIN profile workspace file", mlog.String("storage_key", oldEntry.StorageKey), mlog.Err(appErr))
+		}
+	}
+
+	return entry, nil
 }
 
 func selectIuinProfileWorkspace(ctx context.Context, db interface {
@@ -350,6 +663,26 @@ func selectIuinProfileEntries(ctx context.Context, db interface {
 	return entries, nil
 }
 
+func selectIuinProfileEntry(ctx context.Context, db interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}, workspaceID string, entryID string) (*iuinProfileEntryRow, *model.AppError) {
+	row := db.QueryRowContext(ctx, `
+		SELECT Id, WorkspaceId, ParentId, Path, Name, Type, MimeType, SizeBytes, Sha256, StorageKey, SortOrder, CreateAt, UpdateAt
+		FROM IuinProfileEntries
+		WHERE WorkspaceId = $1 AND Id = $2
+	`, workspaceID, entryID)
+
+	entry := &iuinProfileEntryRow{}
+	if err := row.Scan(&entry.ID, &entry.WorkspaceID, &entry.ParentID, &entry.Path, &entry.Name, &entry.Type, &entry.MimeType, &entry.SizeBytes, &entry.SHA256, &entry.StorageKey, &entry.SortOrder, &entry.CreateAt, &entry.UpdateAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, newIuinProfileWorkspaceAppError("selectIuinProfileEntry", http.StatusInternalServerError, err)
+	}
+
+	return entry, nil
+}
+
 func selectIuinProfileEntriesTx(ctx context.Context, tx *sql.Tx, workspaceID string) ([]iuinProfileEntryRow, *model.AppError) {
 	return selectIuinProfileEntries(ctx, tx, workspaceID)
 }
@@ -358,6 +691,10 @@ func normalizeIuinProfileWorkspacePayload(userID string, workspaceID string, now
 	rootName := sanitizeIuinProfileRootName(payload.RootName)
 	githubRenderedHTML := payload.GitHubRenderedHTML
 	pendingByPath := map[string]*pendingIuinProfileEntry{}
+	oldByID := make(map[string]iuinProfileEntryRow, len(oldByPath))
+	for _, entry := range oldByPath {
+		oldByID[entry.ID] = entry
+	}
 	hasExplicitSortOrder := false
 	for _, file := range payload.Files {
 		if file.SortOrder != 0 {
@@ -439,6 +776,35 @@ func normalizeIuinProfileWorkspacePayload(userID string, workspaceID string, now
 			continue
 		}
 
+		if old, ok := reusableIuinProfileAssetEntry(file, entryType, oldByID); ok {
+			updateAt := file.UpdatedAt
+			if updateAt == 0 {
+				updateAt = now
+			}
+			pendingByPath[entryPath] = &pendingIuinProfileEntry{
+				iuinProfileEntryRow: iuinProfileEntryRow{
+					ID:          old.ID,
+					WorkspaceID: workspaceID,
+					ParentID:    parentID,
+					Path:        entryPath,
+					Name:        pathpkg.Base(entryPath),
+					Type:        old.Type,
+					MimeType:    old.MimeType,
+					SizeBytes:   old.SizeBytes,
+					SHA256:      old.SHA256,
+					StorageKey:  old.StorageKey,
+					SortOrder:   file.SortOrder,
+					CreateAt:    old.CreateAt,
+					UpdateAt:    updateAt,
+				},
+				ReuseStorage: true,
+			}
+			if !hasExplicitSortOrder {
+				pendingByPath[entryPath].SortOrder = int64(fileIndex)
+			}
+			continue
+		}
+
 		old := oldByPath[entryPath]
 		entryID := old.ID
 		createAt := old.CreateAt
@@ -491,6 +857,14 @@ func normalizeIuinProfileWorkspacePayload(userID string, workspaceID string, now
 		} else {
 			activePath = firstIuinProfileMainDocumentPath(pendingByPath)
 		}
+	}
+
+	quotaEntries := make([]iuinProfileEntryRow, 0, len(pendingByPath))
+	for _, entry := range pendingByPath {
+		quotaEntries = append(quotaEntries, entry.iuinProfileEntryRow)
+	}
+	if appErr := validateIuinProfileEntryQuota(quotaEntries); appErr != nil {
+		return nil, "", "", "", appErr
 	}
 
 	pending := make([]pendingIuinProfileEntry, 0, len(pendingByPath))
@@ -728,6 +1102,101 @@ func isIuinProfileAssetPath(entryPath string) bool {
 		}
 	}
 	return false
+}
+
+func reusableIuinProfileAssetEntry(file iuinProfileFilePayload, entryType string, oldByID map[string]iuinProfileEntryRow) (iuinProfileEntryRow, bool) {
+	if entryType != "asset" || file.ID == "" || file.StorageKey == "" || file.SHA256 == "" {
+		return iuinProfileEntryRow{}, false
+	}
+
+	old, ok := oldByID[file.ID]
+	if !ok || old.Type != "asset" || old.StorageKey == "" {
+		return iuinProfileEntryRow{}, false
+	}
+	if file.StorageKey != old.StorageKey || file.SHA256 != old.SHA256 || file.SizeBytes != old.SizeBytes {
+		return iuinProfileEntryRow{}, false
+	}
+
+	return old, true
+}
+
+func validateIuinProfileEntryQuota(entries []iuinProfileEntryRow) *model.AppError {
+	totalSize := int64(0)
+	for _, entry := range entries {
+		if entry.Type == "folder" {
+			continue
+		}
+		if entry.SizeBytes < 0 {
+			return model.NewAppError("validateIuinProfileEntryQuota", "api.iuin_profile_workspace.invalid_size", nil, "", http.StatusBadRequest)
+		}
+		if entry.SizeBytes > iuinProfileFileMaxBytes {
+			return newIuinProfileFileTooLargeAppError("validateIuinProfileEntryQuota")
+		}
+		if totalSize > iuinProfileWorkspaceMaxBytes-entry.SizeBytes {
+			return newIuinProfileWorkspaceTooLargeAppError("validateIuinProfileEntryQuota")
+		}
+		totalSize += entry.SizeBytes
+	}
+
+	return nil
+}
+
+func normalizeIuinProfileUploadMimeType(value string, content []byte) string {
+	mediaType, _, err := mime.ParseMediaType(strings.TrimSpace(value))
+	if err != nil || mediaType == "" || len(mediaType) > 128 {
+		mediaType = ""
+	}
+	if mediaType == "" || strings.EqualFold(mediaType, "application/octet-stream") {
+		mediaType = http.DetectContentType(content)
+	}
+	if len(mediaType) > 128 {
+		return "application/octet-stream"
+	}
+	return strings.ToLower(mediaType)
+}
+
+func firstIuinProfileMultipartValue(r *http.Request, key string) string {
+	if r.MultipartForm == nil {
+		return ""
+	}
+	values := r.MultipartForm.Value[key]
+	if len(values) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(values[0])
+}
+
+func isIuinProfileExternalAssetReference(value string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	if err != nil || parsed.Host == "" {
+		return false
+	}
+	return parsed.Scheme == "http" || parsed.Scheme == "https"
+}
+
+func isIuinProfileInlineMimeType(value string) bool {
+	mediaType, _, err := mime.ParseMediaType(value)
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(mediaType) {
+	case "image/avif", "image/bmp", "image/gif", "image/jpeg", "image/png", "image/webp", "image/x-icon":
+		return true
+	default:
+		return false
+	}
+}
+
+func newIuinProfileFileTooLargeAppError(where string) *model.AppError {
+	return model.NewAppError(where, "api.iuin_profile_workspace.file_too_large", nil, "", http.StatusRequestEntityTooLarge)
+}
+
+func newIuinProfileWorkspaceTooLargeAppError(where string) *model.AppError {
+	return model.NewAppError(where, "api.iuin_profile_workspace.workspace_too_large", nil, "", http.StatusRequestEntityTooLarge)
+}
+
+func newIuinProfileFileNotFoundAppError(where string) *model.AppError {
+	return model.NewAppError(where, "api.iuin_profile_workspace.file_not_found", nil, "", http.StatusNotFound)
 }
 
 func firstNonEmpty(values ...string) string {

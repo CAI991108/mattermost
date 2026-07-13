@@ -157,6 +157,28 @@ describe('IUIN README workspace file operations', () => {
         expect(parsed.files).toEqual(original.files);
     });
 
+    test('round-trips server object references for uploaded assets', () => {
+        const asset: IuinReadmeFile = {
+            id: 'asset-entry-id',
+            path: 'assets/figure.png',
+            content: '/api/v4/users/user-id/iuin_profile/workspace/files/asset-entry-id',
+            type: 'asset',
+            mimeType: 'image/png',
+            sizeBytes: 4,
+            sha256: 'asset-sha256',
+            storageKey: 'iuin_profile/users/user-id/workspaces/workspace-id/entries/asset-entry-id/original',
+            updatedAt: 1,
+        };
+        const original = workspace([
+            markdownFile(IUIN_README_MAIN_FILE, '# Main'),
+            asset,
+        ]);
+
+        const parsed = parseIuinReadmeWorkspace(serializeIuinReadmeWorkspace(original));
+
+        expect(parsed.files.find((file) => file.path === asset.path)).toEqual(asset);
+    });
+
     test('reorders files before and after siblings', () => {
         const original = workspace([
             {...markdownFile('first.md'), sortOrder: 0},

@@ -70,7 +70,7 @@ import {
     setReadmeMainDocument,
     splitProfileList,
 } from './profile_data';
-import {createIuinReadmeFileFromUpload, isIuinReadmeImageFile} from './readme_upload';
+import {getIuinReadmeUploadType, isIuinReadmeImageFile, MAX_IUIN_README_UPLOAD_SIZE, MAX_IUIN_README_WORKSPACE_SIZE} from './readme_upload';
 import {useIuinJoinedTeamLabels} from './use_joined_channels';
 
 import './iuin_profile.scss';
@@ -451,6 +451,67 @@ async function saveIuinReadmeWorkspaceToBackend(userId: string, workspace: IuinR
     return response.json();
 }
 
+function getIuinReadmeWorkspaceFileRoute(userId: string, entryId: string): string {
+    return `${Client4.getUserRoute(userId)}/iuin_profile/workspace/files/${entryId}`;
+}
+
+function materializeIuinReadmeWorkspaceFile(userId: string, file: IuinReadmeFile): IuinReadmeFile {
+    if (file.type !== 'asset' || file.content || !file.id) {
+        return file;
+    }
+
+    return {
+        ...file,
+        content: getIuinReadmeWorkspaceFileRoute(userId, file.id),
+    };
+}
+
+async function uploadIuinReadmeWorkspaceFile(userId: string, file: File, path: string): Promise<IuinReadmeFile> {
+    if (file.size > MAX_IUIN_README_UPLOAD_SIZE) {
+        throw new Error('Files must be 5 MB or smaller.');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('path', path);
+    formData.append('type', getIuinReadmeUploadType(file, path));
+
+    const response = await fetch(`${Client4.getUserRoute(userId)}/iuin_profile/workspace/files`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: formData,
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        let message = text || response.statusText;
+        try {
+            message = JSON.parse(text).message || message;
+        } catch {
+            // Keep the response text when the server does not return JSON.
+        }
+        throw new Error(message);
+    }
+
+    const uploaded = await response.json() as IuinReadmeFile;
+    return materializeIuinReadmeWorkspaceFile(userId, uploaded);
+}
+
+function getIuinReadmeWorkspaceSize(workspace: IuinReadmeWorkspace): number {
+    return workspace.files.reduce((total, file) => {
+        if (file.type === 'folder') {
+            return total;
+        }
+        if (file.type === 'asset' && typeof file.sizeBytes === 'number') {
+            return total + file.sizeBytes;
+        }
+        return total + new Blob([file.content]).size;
+    }, 0);
+}
+
 async function loadIuinReadmeWorkspaceFromBackend(userId: string): Promise<IuinReadmeWorkspace> {
     const response = await fetch(`${Client4.getUserRoute(userId)}/iuin_profile/workspace`, Client4.getOptions({
         method: 'GET',
@@ -470,7 +531,11 @@ async function loadIuinReadmeWorkspaceFromBackend(userId: string): Promise<IuinR
 
     const body = await response.json();
 
-    return parseIuinReadmeWorkspace(JSON.stringify(body), '', body.rootName);
+    const workspace = parseIuinReadmeWorkspace(JSON.stringify(body), '', body.rootName);
+    return {
+        ...workspace,
+        files: workspace.files.map((file) => materializeIuinReadmeWorkspaceFile(userId, file)),
+    };
 }
 
 function IuinProfileToastStack({toasts}: {toasts: ProfileToast[]}) {
@@ -2943,7 +3008,7 @@ function resolveReadmeWorkspaceAssetReferences(content: string, workspace: IuinR
     const mainDocumentDirectory = getReadmeDirectory(workspace.activePath);
 
     return workspace.files.reduce((nextContent, file) => {
-        const isResolvedAsset = file.content.startsWith('data:') || file.content.startsWith('http://') || file.content.startsWith('https://');
+        const isResolvedAsset = file.content.startsWith('/') || file.content.startsWith('data:') || file.content.startsWith('http://') || file.content.startsWith('https://');
         if (file.type === 'folder' || file.type !== 'asset' || !isResolvedAsset) {
             return nextContent;
         }
@@ -3014,6 +3079,17 @@ function escapeRegExp(value: string): string {
 
 function downloadReadmeFile(file: IuinReadmeFile) {
     if (typeof document === 'undefined') {
+        return;
+    }
+
+    if (file.type === 'asset' && !file.content.startsWith('data:')) {
+        const link = document.createElement('a');
+        link.href = file.content;
+        link.download = getReadmeBasename(file.path);
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
         return;
     }
 
@@ -3773,10 +3849,18 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         }
 
         try {
+            const uploadSize = files.reduce((total, file) => total + file.size, 0);
+            if (files.some((file) => file.size > MAX_IUIN_README_UPLOAD_SIZE)) {
+                throw new Error('Files must be 5 MB or smaller.');
+            }
+            if (getIuinReadmeWorkspaceSize(workspace) + uploadSize > MAX_IUIN_README_WORKSPACE_SIZE) {
+                throw new Error('README workspace storage is limited to 50 MB.');
+            }
+
             const reservedFiles = [...workspace.files];
             const uploadedFiles = await Promise.all(files.map(async (file): Promise<IuinReadmeFile> => {
                 const path = getUniqueReadmePath(reservedFiles, getUploadedReadmePath(file, targetDirectory));
-                const uploadedFile = await createIuinReadmeFileFromUpload(file, path);
+                const uploadedFile = await uploadIuinReadmeWorkspaceFile(currentUser.id, file, path);
                 reservedFiles.push(uploadedFile);
 
                 return uploadedFile;
@@ -3789,8 +3873,11 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                     file.content,
                     file.type,
                     {
+                        id: file.id,
                         mimeType: file.mimeType,
                         sizeBytes: file.sizeBytes,
+                        sha256: file.sha256,
+                        storageKey: file.storageKey,
                         sortOrder: file.sortOrder,
                     },
                 ), previous),
@@ -3819,7 +3906,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 defaultMessage: 'Could not upload file.',
             }));
         }
-    }, [intl, selectedPath, updateWorkspace, workspace.files]);
+    }, [currentUser.id, intl, selectedPath, updateWorkspace, workspace]);
 
     const insertSelectedFileIntoReadme = useCallback(() => {
         if (!selectedFile || selectedFile.path === workspace.activePath || selectedFile.type === 'folder') {

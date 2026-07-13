@@ -3,7 +3,8 @@
 
 import type {IuinReadmeFile} from './profile_data';
 
-export const MAX_IUIN_README_UPLOAD_SIZE = 25 * 1024 * 1024;
+export const MAX_IUIN_README_UPLOAD_SIZE = 5 * 1024 * 1024;
+export const MAX_IUIN_README_WORKSPACE_SIZE = 50 * 1024 * 1024;
 
 const TEXT_FILE_PATTERN = /\.(c|cc|conf|cpp|css|csv|go|h|hpp|html?|ini|java|js|jsx|json|log|md|markdown|properties|py|rb|rs|rst|sh|sql|toml|ts|tsx|txt|xml|ya?ml)$/i;
 const MARKDOWN_FILE_PATTERN = /\.(md|markdown)$/i;
@@ -15,15 +16,8 @@ export async function createIuinReadmeFileFromUpload(file: File, path: string): 
         throw new Error(`Files must be smaller than ${MAX_IUIN_README_UPLOAD_SIZE / (1024 * 1024)} MB.`);
     }
 
-    const markdown = MARKDOWN_FILE_PATTERN.test(path);
-    const text = !isIuinReadmeImageFile({path, mimeType: file.type}) && (TEXT_MIME_PATTERN.test(file.type) || TEXT_FILE_PATTERN.test(path));
-    const content = text ? await readFileAsText(file) : await readFileAsDataUrl(file);
-    let type: IuinReadmeFile['type'] = 'asset';
-    if (markdown) {
-        type = 'markdown';
-    } else if (text) {
-        type = 'text';
-    }
+    const type = getIuinReadmeUploadType(file, path);
+    const content = type === 'asset' ? await readFileAsDataUrl(file) : await readFileAsText(file);
 
     return {
         path,
@@ -33,6 +27,19 @@ export async function createIuinReadmeFileFromUpload(file: File, path: string): 
         sizeBytes: file.size,
         updatedAt: Date.now(),
     };
+}
+
+export function getIuinReadmeUploadType(file: File, path: string): IuinReadmeFile['type'] {
+    if (MARKDOWN_FILE_PATTERN.test(path)) {
+        return 'markdown';
+    }
+
+    const text = !isIuinReadmeImageFile({path, mimeType: file.type}) && (TEXT_MIME_PATTERN.test(file.type) || TEXT_FILE_PATTERN.test(path));
+    if (text) {
+        return 'text';
+    }
+
+    return 'asset';
 }
 
 export function isIuinReadmeImageFile(file: Pick<IuinReadmeFile, 'path' | 'mimeType'>): boolean {
