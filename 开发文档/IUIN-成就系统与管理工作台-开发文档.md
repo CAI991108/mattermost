@@ -83,17 +83,17 @@ IuinAvatarFrames                IuinUserAvatarFrames
 
 核心迁移：
 
-- `000185_create_iuin_honors`
-- `000186_update_iuin_achievement_icon_storage_keys`
-- `000187_update_iuin_title_icon_storage_keys`
-- `000188_update_iuin_title_game_icon_storage_keys`
-- `000190_create_iuin_honor_admin_audits`
-- `000191_add_iuin_honor_admin_drafts_and_contributors`
-- `000192_update_iuin_avatar_frame_image_assets`
-- `000193_drop_iuin_avatar_frame_style_payload`
-- `000194_drop_iuin_honor_css_icon_fields`
-- `000195_add_iuin_title_frame_categories`
-- `000196_add_iuin_honor_admin_draft_status`
+- `000186_create_iuin_honors`
+- `000187_update_iuin_achievement_icon_storage_keys`
+- `000188_update_iuin_title_icon_storage_keys`
+- `000189_update_iuin_title_game_icon_storage_keys`
+- `000191_create_iuin_honor_admin_audits`
+- `000192_add_iuin_honor_admin_drafts_and_contributors`
+- `000193_update_iuin_avatar_frame_image_assets`
+- `000194_drop_iuin_avatar_frame_style_payload`
+- `000195_drop_iuin_honor_css_icon_fields`
+- `000196_add_iuin_title_frame_categories`
+- `000197_add_iuin_honor_admin_draft_status`
 
 ### 5.1 定义表
 

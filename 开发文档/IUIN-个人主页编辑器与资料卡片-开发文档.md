@@ -144,7 +144,7 @@ ProfilePopover / Account Menu
 
 ### 7.2 README Workspace 数据库
 
-迁移：`server/channels/db/migrations/postgres/000184_create_iuin_profile_workspaces.up.sql`。
+迁移：`server/channels/db/migrations/postgres/000185_create_iuin_profile_workspaces.up.sql`。
 
 #### IuinProfileWorkspaces
 

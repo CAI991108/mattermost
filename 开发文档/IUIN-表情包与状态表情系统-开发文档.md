@@ -126,10 +126,10 @@ CustomStatus {
 
 核心迁移：
 
-- `000189_create_iuin_stickers`：早期 Sticker 与最近表情表。
-- `000197_create_iuin_status_images`：建立独立状态图片域。
-- `000198_unify_iuin_emoji_assets`：把旧 Sticker 迁入统一 Emoji 身份和资源池。
-- `000199_drop_legacy_iuin_stickers`：删除旧 Sticker 数据表。
+- `000190_create_iuin_stickers`：早期 Sticker 与最近表情表。
+- `000198_create_iuin_status_images`：建立独立状态图片域。
+- `000199_unify_iuin_emoji_assets`：把旧 Sticker 迁入统一 Emoji 身份和资源池。
+- `000200_drop_legacy_iuin_stickers`：删除旧 Sticker 数据表。
 
 ### 5.1 Emoji
 
@@ -685,9 +685,9 @@ scripts/iuin-platform.sh restart-public
 - `server/channels/app/emoji.go`
 - `server/channels/app/status.go`
 - `server/public/model/custom_status.go`
-- `server/channels/db/migrations/postgres/000197_create_iuin_status_images.up.sql`
-- `server/channels/db/migrations/postgres/000198_unify_iuin_emoji_assets.up.sql`
-- `server/channels/db/migrations/postgres/000199_drop_legacy_iuin_stickers.up.sql`
+- `server/channels/db/migrations/postgres/000198_create_iuin_status_images.up.sql`
+- `server/channels/db/migrations/postgres/000199_unify_iuin_emoji_assets.up.sql`
+- `server/channels/db/migrations/postgres/000200_drop_legacy_iuin_stickers.up.sql`
 
 ### 前端
 
