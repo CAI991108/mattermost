@@ -226,7 +226,6 @@ type Props<O> = {
 }
 
 function ForwardPostChannelSelect({onSelect, value, currentBodyHeight, validChannelTypes = ['O', 'P', 'D', 'G']}: Props<ChannelOption>) {
-    const {formatMessage} = useIntl();
     const {current: provider} = useRef<SwitchChannelProvider>(new SwitchChannelProvider());
 
     useEffect(() => {
@@ -237,26 +236,9 @@ function ForwardPostChannelSelect({onSelect, value, currentBodyHeight, validChan
 
     const isValidChannelType = (channel: Channel) => validChannelTypes.includes(channel.type) && !channel.delete_at;
 
-    const getDefaultResults = () => {
-        let options: OptionsOrGroups<ChannelOption, GroupBase<ChannelOption>> = [];
-
-        const handleDefaultResults = (res: ProviderResults<any>) => {
-            options = [
-                {
-                    label: formatMessage({id: 'suggestion.mention.recent.channels', defaultMessage: 'Recent'}),
-                    options: flattenItems(res).filter((item) => item?.channel && isValidChannelType(item.channel) && !item.deactivated).map((item) => {
-                        const {channel} = item;
-                        return makeSelectedChannelOption(channel);
-                    }),
-                },
-            ];
-        };
-
-        provider.fetchAndFormatRecentlyViewedChannels(handleDefaultResults);
-        return options;
-    };
-
-    const defaultOptions = useRef<OptionsOrGroups<ChannelOption, GroupBase<ChannelOption>>>(getDefaultResults());
+    // IUIN's channel switcher intentionally omits recent DMs and only searches
+    // public/private channels after the user enters a query.
+    const defaultOptions = useRef<OptionsOrGroups<ChannelOption, GroupBase<ChannelOption>>>([]);
 
     const handleInputChange = (inputValue: string) => {
         return new Promise<ChannelOption[]>((resolve) => {

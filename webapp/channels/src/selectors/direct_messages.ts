@@ -50,9 +50,12 @@ export const getDmUnreadByUserId = createSelector(
             }
 
             const messageCount = getChannelMessageCount(state, dmChannel.id);
-            let unread = messageCount
-                ? calculateUnreadCount(messageCount, membership, crtEnabled).messages
-                : Math.max(0, (dmChannel.total_msg_count || 0) - (membership.msg_count || 0));
+            let unread = 0;
+            if (messageCount) {
+                unread = calculateUnreadCount(messageCount, membership, crtEnabled).messages;
+            } else if ((dmChannel.last_post_at || 0) > (membership.last_viewed_at || 0)) {
+                unread = 1;
+            }
 
             // calculateUnreadCount always returns messages=0 for muted channels because the
             // reducer keeps msg_count in sync with total_msg_count for muted channels.
@@ -120,17 +123,17 @@ export const getDmDefaultTargetUserId = createSelector(
         const entries = Object.entries(dmUnreadByUserId);
 
         // 1. Most recent unread DM
-        const unreadEntries = entries
-            .filter(([, info]) => info.unread > 0)
-            .sort(([, a], [, b]) => b.lastPostAt - a.lastPostAt);
+        const unreadEntries = entries.
+            filter(([, info]) => info.unread > 0).
+            sort(([, a], [, b]) => b.lastPostAt - a.lastPostAt);
         if (unreadEntries.length > 0) {
             return unreadEntries[0][0];
         }
 
         // 2. Most recent DM with history
-        const historyEntries = entries
-            .filter(([, info]) => info.hasHistory)
-            .sort(([, a], [, b]) => b.lastPostAt - a.lastPostAt);
+        const historyEntries = entries.
+            filter(([, info]) => info.hasHistory).
+            sort(([, a], [, b]) => b.lastPostAt - a.lastPostAt);
         if (historyEntries.length > 0) {
             return historyEntries[0][0];
         }

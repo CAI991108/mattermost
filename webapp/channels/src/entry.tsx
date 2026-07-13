@@ -147,7 +147,7 @@ function recoverFromStaleBundleLoad() {
 // This is for anything that needs to be done for ALL react components.
 // This runs before we start to render anything.
 function preRenderSetup(onPreRenderSetupReady: () => void) {
-    window.addEventListener('error', (event) => {
+    window.addEventListener('error', (event: Event) => {
         if (event instanceof ErrorEvent || !isRecoverableStaticAssetError(event)) {
             return;
         }

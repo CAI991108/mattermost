@@ -39,13 +39,18 @@ export default function DmSidebarButton({unreadCount}: Props) {
     }, [history]);
 
     const hasUnread = unreadCount > 0;
-    const teamClass = isActive ? 'active' : (hasUnread ? 'unread' : '');
+    let teamClass = '';
+    if (isActive) {
+        teamClass = 'active';
+    } else if (hasUnread) {
+        teamClass = 'unread';
+    }
 
     return (
         <div className='dm-sidebar-button-wrapper'>
             <WithTooltip
                 title={directMessagesLabel}
-                placement='right'
+                forcedPlacement='right'
             >
                 <a
                     href='/direct_messages'

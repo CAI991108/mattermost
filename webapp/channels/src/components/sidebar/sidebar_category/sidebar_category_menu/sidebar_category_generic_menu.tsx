@@ -13,7 +13,7 @@ import * as Menu from 'components/menu';
 
 type Props = {
     id: string;
-    children: React.ReactNode[];
+    children: React.ReactNode;
     name: string;
 };
 
