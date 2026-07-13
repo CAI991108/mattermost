@@ -215,7 +215,7 @@ iuin_emoji_assets/{EmojiId}/original.{ext}
 mattermost/server/data/iuin_emoji_assets/{EmojiId}/original.{ext}
 ```
 
-`000198` 迁入的旧 Sticker 不复制物理文件，其 `IuinEmojiAssets.FilePath` 可能继续指向原 Sticker 路径；新上传资源使用上述 `iuin_emoji_assets` 路径。排障时应以数据库中的 `FilePath` 为准。
+`000199` 迁入的旧 Sticker 不复制物理文件，其 `IuinEmojiAssets.FilePath` 可能继续指向原 Sticker 路径；新上传资源使用上述 `iuin_emoji_assets` 路径。排障时应以数据库中的 `FilePath` 为准。
 
 上传处理参数：
 
@@ -495,14 +495,14 @@ SELECT EXISTS (
 
 ### 13.1 旧 Sticker 合并
 
-`000198` 执行：
+`000199` 执行：
 
 1. 为每个活动 `IuinStickers` 记录创建同 ID 的 `Emoji` 身份。
 2. 把文件元数据迁入 `IuinEmojiAssets`，不复制物理文件。
 3. 把 `IuinUserStickers` 迁入 `IuinUserEmojis`。
 4. 保留旧 Sticker ID，使历史 Post Props 和兼容 URL 仍能解析。
 
-随后 `000199` 删除：
+随后 `000200` 删除：
 
 - `IuinUserStickers`
 - `IuinStickers`
@@ -523,8 +523,8 @@ DELETE FROM Emoji
 
 ### 13.3 回滚注意事项
 
-- `000199.down` 只能重建旧表结构，不会自动恢复已经删除的历史 Sticker 表数据副本。
-- `000198.down` 会删除统一资产与用户库表。
+- `000200.down` 只能重建旧表结构，不会自动恢复已经删除的历史 Sticker 表数据副本。
+- `000199.down` 会删除统一资产与用户库表。
 - 生产环境回滚前必须备份数据库及 `iuin_emoji_assets`、`iuin_status_images` FileStore 目录。
 
 ## 14. 关键业务流程

@@ -113,7 +113,7 @@ IuinAvatarFrames                IuinUserAvatarFrames
 
 #### IuinTitles
 
-结构与成就类似，使用 `IconStorageKey` 指向称号图片。`000195` 后称号也具有 `Category`。
+结构与成就类似，使用 `IconStorageKey` 指向称号图片。`000196` 后称号也具有 `Category`。
 
 #### IuinAvatarFrames
 
@@ -121,7 +121,7 @@ IuinAvatarFrames                IuinUserAvatarFrames
 - `PreviewStorageKey`：预览图，可与 Frame Key 相同。
 - `Category/Rarity/UnlockHint/SortOrder`：分类、稀有度、提示和顺序。
 
-历史上荣誉使用过 `StylePayload`、`IconName` 和 CSS 生成视觉。`000193`、`000194` 已删除这些旧字段；当前视觉以图片 Storage Key 为准，后续不得重新依赖旧 CSS Payload。
+历史上荣誉使用过 `StylePayload`、`IconName` 和 CSS 生成视觉。`000194`、`000195` 已删除这些旧字段；当前视觉以图片 Storage Key 为准，后续不得重新依赖旧 CSS Payload。
 
 ### 5.2 用户拥有表
 
