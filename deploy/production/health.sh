@@ -191,11 +191,16 @@ else
     failed=1
 fi
 
-resident_count=$(compose ps --status running --services | wc -l)
-if [[ "$resident_count" -eq 4 ]]; then
+mapfile -t resident_services < <(docker ps \
+    --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
+    --format '{{index .Labels "com.docker.compose.service"}}' \
+    | LC_ALL=C sort)
+resident_count=${#resident_services[@]}
+if [[ "$resident_count" -eq 4 \
+    && "${resident_services[*]}" == 'iuin-server mailpit minio postgres' ]]; then
     printf '%-14s %s\n' containers "4 resident"
 else
-    printf '%-14s %s\n' containers "expected 4, found $resident_count"
+    printf '%-14s %s\n' containers "expected exact four, found $resident_count"
     failed=1
 fi
 

@@ -310,19 +310,25 @@ compose_service_image() {
             '.services[$service].image | select(type == "string" and length > 0)'
 }
 
+local_image_has_repo_digest() {
+    local image_ref=$1 digest=$2 repo_digests
+    repo_digests=$(docker image inspect "$image_ref" \
+        --format '{{json .RepoDigests}}' 2>/dev/null) || return 1
+    jq -e --arg digest "$digest" \
+        'any((. // [])[]; endswith("@" + $digest))' <<< "$repo_digests" >/dev/null
+}
+
 pull_digest_pinned_image() {
-    local label=$1 image_ref=$2 digest image_id
+    local label=$1 image_ref=$2 digest
     [[ "$image_ref" != *[[:space:]]* && "$image_ref" =~ @sha256:[a-f0-9]{64}$ ]] \
         || die "$label image is not pinned by an exact sha256 digest"
     digest=${image_ref##*@}
     if ! docker pull --platform linux/amd64 "$image_ref"; then
-        image_id=$(docker image inspect "$image_ref" --format '{{.Id}}' 2>/dev/null || true)
-        [[ "$image_id" == "$digest" ]] \
+        local_image_has_repo_digest "$image_ref" "$digest" \
             || die "$label pull failed and the exact digest is not available locally"
         log "$label registry pull failed; using the already-verified local digest"
     fi
-    image_id=$(docker image inspect "$image_ref" --format '{{.Id}}' 2>/dev/null || true)
-    [[ "$image_id" == "$digest" ]] \
+    local_image_has_repo_digest "$image_ref" "$digest" \
         || die "$label local image identity does not match its pinned digest"
 }
 
