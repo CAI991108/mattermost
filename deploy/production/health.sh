@@ -126,7 +126,8 @@ fi
 mail_network="${COMPOSE_PROJECT_NAME}_mail"
 mail_ui_network="${COMPOSE_PROJECT_NAME}_mail_ui"
 mailpit_networks=$(docker inspect --format \
-    '{{range $name, $config := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$mailpit_id" | sort)
+    '{{range $name, $config := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$mailpit_id" \
+    | awk 'NF' | LC_ALL=C sort)
 smtp_bind_environment_ok=false
 docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$mailpit_id" \
     | grep --quiet --fixed-strings --line-regexp "MP_SMTP_BIND_ADDR=$SMTP_PRIVATE_ADDRESS:$SMTP_PORT" \
@@ -193,7 +194,7 @@ fi
 
 mapfile -t resident_services < <(docker ps \
     --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
-    --format '{{index .Labels "com.docker.compose.service"}}' \
+    --format '{{.Label "com.docker.compose.service"}}' \
     | LC_ALL=C sort)
 resident_count=${#resident_services[@]}
 if [[ "$resident_count" -eq 4 \
