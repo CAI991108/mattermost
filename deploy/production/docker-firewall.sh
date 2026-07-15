@@ -164,12 +164,8 @@ chain_has_exact_fence_targets() {
     [[ "$targets" == $'DROP\nDROP\nDROP\nDROP\nRETURN' ]]
 }
 
-maintenance_fence_complete() {
+maintenance_fence_payload_complete() {
     local spec protocol port
-    iptables -w -C DOCKER-USER -j "$maintenance_forward_chain" >/dev/null 2>&1 || return 1
-    iptables -w -C OUTPUT -j "$maintenance_output_chain" >/dev/null 2>&1 || return 1
-    first_rule_is_jump DOCKER-USER "$maintenance_forward_chain" || return 1
-    first_rule_is_jump OUTPUT "$maintenance_output_chain" || return 1
     chain_has_exact_fence_targets "$maintenance_forward_chain" || return 1
     chain_has_exact_fence_targets "$maintenance_output_chain" || return 1
     for spec in tcp:8025 tcp:8065 tcp:8443 udp:8443; do
@@ -184,9 +180,35 @@ maintenance_fence_complete() {
     done
 }
 
+maintenance_fence_complete() {
+    iptables -w -C DOCKER-USER -j "$maintenance_forward_chain" >/dev/null 2>&1 || return 1
+    iptables -w -C OUTPUT -j "$maintenance_output_chain" >/dev/null 2>&1 || return 1
+    first_rule_is_jump DOCKER-USER "$maintenance_forward_chain" || return 1
+    first_rule_is_jump OUTPUT "$maintenance_output_chain" || return 1
+    maintenance_fence_payload_complete
+}
+
 install_maintenance_fence() {
     local spec protocol port chain_name
     maintenance_fence_complete && return 0
+    # A normal policy refresh inserts IUIN-FILTER and the transient update guard
+    # ahead of existing jumps. If (and only if) both maintenance chains still
+    # have the exact fail-closed payload, safely move their existing jumps back
+    # to position one instead of treating ordering drift as content corruption.
+    if maintenance_fence_payload_complete \
+        && iptables -w -C DOCKER-USER -j "$maintenance_forward_chain" >/dev/null 2>&1 \
+        && iptables -w -C OUTPUT -j "$maintenance_output_chain" >/dev/null 2>&1; then
+        while iptables -w -C DOCKER-USER -j "$maintenance_forward_chain" >/dev/null 2>&1; do
+            iptables -w -D DOCKER-USER -j "$maintenance_forward_chain" || return 1
+        done
+        while iptables -w -C OUTPUT -j "$maintenance_output_chain" >/dev/null 2>&1; do
+            iptables -w -D OUTPUT -j "$maintenance_output_chain" || return 1
+        done
+        iptables -w -I OUTPUT 1 -j "$maintenance_output_chain" || return 1
+        iptables -w -I DOCKER-USER 1 -j "$maintenance_forward_chain" || return 1
+        maintenance_fence_complete && return 0
+        return 1
+    fi
     if iptables -w -C DOCKER-USER -j "$maintenance_forward_chain" >/dev/null 2>&1 \
         || iptables -w -C OUTPUT -j "$maintenance_output_chain" >/dev/null 2>&1; then
         echo "an incomplete active maintenance fence exists" >&2
