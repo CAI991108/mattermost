@@ -1,0 +1,28 @@
+[Unit]
+Description=Recover IUIN containers after interrupted maintenance
+Wants=docker.service iuin-docker-firewall.service
+After=docker.service iuin-docker-firewall.service
+Before=iuin-backup.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=/etc/iuin/recovery.env
+ExecStart=/usr/local/sbin/iuin-recover-containers
+UMask=0077
+TimeoutStartSec=2h
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

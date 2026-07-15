@@ -21,7 +21,7 @@ app_secret_key=$(read_secret /run/secrets/mattermost_s3_secret_key)
 mc alias set local http://minio:9000 "$root_user" "$root_password" >/dev/null
 
 case "$mode" in
-    init)
+    init|reconcile)
         mc mb --ignore-existing "local/$bucket"
         policy=/tmp/mattermost-policy.json
         printf '%s\n' \
@@ -40,19 +40,16 @@ case "$mode" in
           '    }' \
           '  ]' \
           '}' > "$policy"
-        if mc admin user info local "$app_access_key" >/dev/null 2>&1; then
-            # Reconcile after a raw restore or intentional credential rotation.
-            # The Mattermost server is stopped while this operation runs.
-            mc admin user remove local "$app_access_key"
-        fi
         mc admin user add local "$app_access_key" "$app_secret_key"
         mc admin policy create local mattermost-app "$policy"
         mc admin policy attach local mattermost-app --user "$app_access_key"
         mc anonymous set none "local/$bucket" >/dev/null
         mc alias set app http://minio:9000 "$app_access_key" "$app_secret_key" >/dev/null
         mc stat "app/$bucket" >/dev/null
-        test -d /seed/profile/honors
-        mc mirror --overwrite /seed/profile/honors "app/$bucket/profile/honors"
+        if [ "$mode" = init ]; then
+            test -d /seed/profile/honors
+            mc mirror --overwrite /seed/profile/honors "app/$bucket/profile/honors"
+        fi
         mc stat "app/$bucket/profile/honors/achievements/achv_profile_anchor/icon.png" >/dev/null
         ;;
     check)
@@ -79,7 +76,7 @@ case "$mode" in
         mc mirror --overwrite --remove "$source_path" "local/$bucket"
         ;;
     *)
-        echo "usage: minio-ops.sh {init|check|backup PATH|restore PATH}" >&2
+        echo "usage: minio-ops.sh {init|reconcile|check|backup PATH|restore PATH}" >&2
         exit 2
         ;;
 esac

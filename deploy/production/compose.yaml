@@ -11,7 +11,7 @@ services:
     image: postgres:17.10-alpine3.24@sha256:af194ccf3e2d7fe367012c7b88ce8b816c5c889b18a5b316799a1f0d7eac746a
     platform: linux/amd64
     container_name: iuin-postgres
-    restart: unless-stopped
+    restart: ${IUIN_RESTART_POLICY:-unless-stopped}
     init: true
     read_only: true
     security_opt:
@@ -69,7 +69,7 @@ services:
       dockerfile: deploy/production/Dockerfile.minio
     platform: linux/amd64
     container_name: iuin-minio
-    restart: unless-stopped
+    restart: ${IUIN_RESTART_POLICY:-unless-stopped}
     init: true
     user: "1000:1000"
     read_only: true
@@ -136,7 +136,7 @@ services:
         target: /opt/iuin/minio-ops.sh
         read_only: true
       - type: bind
-        source: ${DATA_ROOT:-/srv/iuin}/seed/profile/honors
+        source: ${IUIN_SEED_ROOT:-${DATA_ROOT:-/srv/iuin}/seed}/profile/honors
         target: /seed/profile/honors
         read_only: true
       - type: bind
@@ -152,6 +152,61 @@ services:
     networks:
       - backend
 
+  mailpit:
+    image: axllent/mailpit:v1.30.4@sha256:5a49a77c5bdbe7c5474450b4f46348d09949df3695257729c93a30369382d4f6
+    platform: linux/amd64
+    container_name: iuin-mailpit
+    restart: ${IUIN_RESTART_POLICY:-unless-stopped}
+    init: true
+    user: "3000:3000"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    cpus: ${MAILPIT_CPUS:-2.0}
+    mem_limit: ${MAILPIT_MEMORY:-1g}
+    stop_grace_period: 30s
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_UI_BIND_ADDR: 0.0.0.0:8025
+      MP_SMTP_BIND_ADDR: ${SMTP_PRIVATE_ADDRESS:-172.30.0.2}:1025
+      MP_UI_AUTH_FILE: /run/secrets/mailpit_ui_auth
+      MP_DISABLE_VERSION_CHECK: "true"
+      MP_LABEL: IUIN-SMTP-Capture
+      MP_MAX_MESSAGES: ${MAILPIT_MAX_MESSAGES:-1000}
+      MP_MAX_AGE: ${MAILPIT_MAX_AGE:-14d}
+      MP_MAX_MESSAGE_SIZE: ${MAILPIT_MAX_MESSAGE_SIZE:-25}
+      MP_SMTP_MAX_RECIPIENTS: ${MAILPIT_SMTP_MAX_RECIPIENTS:-50}
+      MP_SMTP_DISABLE_RDNS: "true"
+      MP_BLOCK_REMOTE_CSS_AND_FONTS: "true"
+      MP_ALLOW_INTERNAL_HTTP_REQUESTS: "false"
+      TZ: ${TZ:-Asia/Shanghai}
+    secrets:
+      - mailpit_ui_auth
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT:-/srv/iuin}/mailpit
+        target: /data
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+    expose:
+      - "1025"
+    ports:
+      - ${BIND_ADDRESS:-10.22.111.16}:8025:8025/tcp
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    logging: *default-logging
+    networks:
+      mail:
+        ipv4_address: ${SMTP_PRIVATE_ADDRESS:-172.30.0.2}
+      mail_ui: {}
+
   iuin-server:
     image: ${SERVER_IMAGE:-iuin-server:11.8.3}
     build:
@@ -161,7 +216,7 @@ services:
         BUILD_HASH: ${BUILD_HASH:-unknown}
     platform: linux/amd64
     container_name: iuin-server
-    restart: unless-stopped
+    restart: ${IUIN_RESTART_POLICY:-unless-stopped}
     init: true
     user: "2000:2000"
     read_only: true
@@ -187,7 +242,18 @@ services:
       MM_SERVICESETTINGS_ENABLETESTING: "false"
       MM_TEAMSETTINGS_ENABLEOPENSERVER: "false"
       MM_TEAMSETTINGS_ENABLEUSERCREATION: "true"
-      MM_EMAILSETTINGS_SENDEMAILNOTIFICATIONS: "false"
+      MM_EMAILSETTINGS_SENDEMAILNOTIFICATIONS: "true"
+      MM_EMAILSETTINGS_ENABLEPREVIEWMODEBANNER: "false"
+      MM_EMAILSETTINGS_SMTPSERVER: ${SMTP_HOST:-mailpit}
+      MM_EMAILSETTINGS_SMTPPORT: ${SMTP_PORT:-1025}
+      MM_EMAILSETTINGS_ENABLESMTPAUTH: "false"
+      MM_EMAILSETTINGS_CONNECTIONSECURITY: ""
+      MM_EMAILSETTINGS_SKIPSERVERCERTIFICATEVERIFICATION: "false"
+      MM_EMAILSETTINGS_SMTPSERVERTIMEOUT: "10"
+      MM_EMAILSETTINGS_FEEDBACKNAME: ${SMTP_FROM_NAME:-IUIN}
+      MM_EMAILSETTINGS_FEEDBACKEMAIL: ${SMTP_FROM_ADDRESS:-mattermost@iuin.test}
+      MM_EMAILSETTINGS_REPLYTOADDRESS: ${SMTP_REPLY_TO_ADDRESS:-no-reply@iuin.test}
+      MM_SUPPORTSETTINGS_SUPPORTEMAIL: ${SMTP_SUPPORT_ADDRESS:-support@iuin.test}
       MM_LOGSETTINGS_ENABLECONSOLE: "true"
       MM_LOGSETTINGS_CONSOLELEVEL: INFO
       MM_LOGSETTINGS_ENABLEFILE: "false"
@@ -257,6 +323,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      mailpit:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "/usr/bin/curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8065/api/v4/system/ping"]
       interval: 15s
@@ -267,6 +335,7 @@ services:
     networks:
       - backend
       - egress
+      - mail
 
 secrets:
   postgres_password:
@@ -281,8 +350,23 @@ secrets:
     file: ${DATA_ROOT:-/srv/iuin}/secrets/mattermost_s3_access_key
   mattermost_s3_secret_key:
     file: ${DATA_ROOT:-/srv/iuin}/secrets/mattermost_s3_secret_key
+  mailpit_ui_auth:
+    file: ${DATA_ROOT:-/srv/iuin}/secrets/mailpit_ui_auth
 
 networks:
   backend:
     internal: true
   egress: {}
+  mail:
+    internal: true
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-iuin-mail
+    ipam:
+      config:
+        - subnet: ${SMTP_PRIVATE_SUBNET:-172.30.0.0/24}
+  mail_ui:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-iuin-mailui
+      com.docker.network.bridge.enable_ip_masquerade: "false"

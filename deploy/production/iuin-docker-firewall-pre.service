@@ -1,0 +1,15 @@
+[Unit]
+Description=IUIN fail-closed firewall before Docker container startup
+Wants=local-fs.target network-pre.target
+After=local-fs.target network-pre.target
+Before=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/iuin/firewall.env
+ExecStart=/usr/local/sbin/iuin-docker-firewall preapply
+RemainAfterExit=yes
+
+[Install]
+RequiredBy=docker.service
