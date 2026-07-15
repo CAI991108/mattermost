@@ -3,6 +3,17 @@ set -Eeuo pipefail
 
 : "${COMPOSE_PROJECT_NAME:=iuin}"
 early_fail_close_handled=false
+legacy_commit=1101c2a4a3470c5155c2e149c5267ceac573a6f2
+legacy_activation=6a7a6e1244ab44a17e06adcfc127ccec
+legacy_health_sha=42f0a86ddc45a22737ca1b6813cdda52ab460e068a2dc02e73454b5b897e5011
+legacy_environment_sha=7aa4cf6e52168c132cecd4ddf6c3a6000088f887450efc2edb01654cd1b7b0bb
+legacy_lib_sha=2f2b984743e2aaea550196d3e7c39a4a3dcdd0c302c9c78b9f98ca9c27b493f6
+legacy_compose_sha=7bd149c5220be8405e39ba9fa295a2d352bf6468e38d136cae85e1f9dd0caafd
+legacy_minio_ops_sha=93c9b04d64d3f2547692333c8f9f2091ed15cb542bdc1486fadcd5686d31f057
+legacy_runtime_recovery_sha=a0aed92257a153c4771ae5d7534f35453551d544c259690a397d30d98a08cb3f
+legacy_compat_health_sha=98348a4a708752fe95c58d545bdd845ced9253b23399d7a6c0344cfb6ed0ba8d
+legacy_compat_root=/opt/iuin/deploy/compat
+legacy_compat_dir="$legacy_compat_root/$legacy_commit-$legacy_activation"
 
 early_marker_present() {
     local root=${DATA_ROOT:-/srv/iuin} early_marker
@@ -491,11 +502,89 @@ validate_active_container() {
     validate_container_identity "$service" "$id" "$expected_image" "$expected_config"
 }
 
+legacy_runtime_uses_compat() {
+    local runtime=$1 manifest receipt_type activation source_activation
+    manifest="$runtime/deployment.manifest"
+    [[ $(deployment_value "$manifest" git_commit) == "$legacy_commit" \
+        && $(deployment_value "$manifest" health_sha256) == "$legacy_health_sha" \
+        && $(deployment_value "$manifest" lib_sha256) == "$legacy_lib_sha" \
+        && $(deployment_value "$manifest" compose_sha256) == "$legacy_compose_sha" \
+        && $(deployment_value "$manifest" minio_ops_sha256) == "$legacy_minio_ops_sha" \
+        && $(deployment_value "$manifest" recovery_sha256) == "$legacy_runtime_recovery_sha" ]] \
+        || return 1
+    receipt_type=$(deployment_value "$manifest" receipt_type)
+    activation=$(deployment_value "$manifest" activation_id)
+    source_activation=$(deployment_value "$manifest" source_activation_id)
+    case "$receipt_type" in
+        '') [[ "$activation" == "$legacy_activation" && -z "$source_activation" \
+                && $(deployment_value "$manifest" environment_sha256) == "$legacy_environment_sha" ]] ;;
+        recovery) [[ "$source_activation" =~ ^[a-f0-9]{32}$ ]] ;;
+        *) return 1 ;;
+    esac
+}
+
+legacy_compat_bundle_valid() {
+    local runtime=$1 manifest directory files spec name mode expected_sha target
+    local service id
+    manifest="$runtime/deployment.manifest"
+    for directory in /opt /opt/iuin /opt/iuin/deploy; do
+        [[ -d "$directory" && ! -L "$directory" \
+            && $(stat --format '%u:%g:%a' "$directory") == 0:0:755 ]] || return 1
+    done
+    for directory in "$legacy_compat_root" "$legacy_compat_dir"; do
+        [[ -d "$directory" && ! -L "$directory" \
+            && $(stat --format '%u:%g:%a' "$directory") == 0:0:700 ]] || return 1
+    done
+    files=$(find "$legacy_compat_dir" -mindepth 1 -maxdepth 1 -printf '%f\n' \
+        | LC_ALL=C sort) || return 1
+    [[ "$files" == $'compose.yaml\nhealth.sh\nlib.sh' ]] || return 1
+    for spec in \
+        "health.sh:755:$legacy_compat_health_sha" \
+        "lib.sh:755:$legacy_lib_sha" \
+        "compose.yaml:644:$legacy_compose_sha"; do
+        IFS=: read -r name mode expected_sha <<< "$spec"
+        target="$legacy_compat_dir/$name"
+        [[ -f "$target" && ! -L "$target" \
+            && $(stat --format '%u:%g:%a:%h' "$target") == "0:0:$mode:1" \
+            && $(sha256sum "$target" | awk '{print $1}') == "$expected_sha" ]] || return 1
+    done
+    [[ $(sha256sum "$legacy_compat_dir/lib.sh" | awk '{print $1}') \
+            == "$(deployment_value "$manifest" lib_sha256)" \
+        && $(sha256sum "$legacy_compat_dir/compose.yaml" | awk '{print $1}') \
+            == "$(deployment_value "$manifest" compose_sha256)" ]] || return 1
+    for service in postgres minio mailpit iuin-server; do
+        id=$(current_service_id "$service") || return 1
+        [[ -n "$id" ]] || return 1
+        validate_active_container "$runtime" "$service" "$id" || return 1
+    done
+}
+
 run_active_health() {
-    local runtime
+    local runtime checker use_compat=false rc
     runtime=$(active_runtime_path) || { log "active immutable runtime validation failed"; return 1; }
-    ENV_FILE="$runtime/production.env" IUIN_PROJECT_DIRECTORY="$runtime" \
-        /usr/bin/bash "$runtime/health.sh" "$@"
+    checker="$runtime/health.sh"
+    if legacy_runtime_uses_compat "$runtime"; then
+        legacy_compat_bundle_valid "$runtime" \
+            || { log "fingerprint-pinned legacy health compatibility bundle is invalid"; return 1; }
+        checker="$legacy_compat_dir/health.sh"
+        use_compat=true
+        log "using fingerprint-pinned health compatibility for the legacy activation"
+    fi
+    if ENV_FILE="$runtime/production.env" IUIN_PROJECT_DIRECTORY="$runtime" \
+        /usr/bin/bash "$checker" "$@"; then
+        rc=0
+    else
+        rc=$?
+    fi
+    if [[ "$use_compat" == true ]]; then
+        [[ $(readlink -f -- /opt/iuin/deploy/current) == "$runtime" ]] \
+            || { log "active runtime changed during compatibility health"; return 1; }
+        validate_immutable_release "$runtime" \
+            || { log "active runtime validation changed during compatibility health"; return 1; }
+        legacy_compat_bundle_valid "$runtime" \
+            || { log "legacy health compatibility bundle changed during execution"; return 1; }
+    fi
+    return "$rc"
 }
 
 publish_recovery_receipt() {

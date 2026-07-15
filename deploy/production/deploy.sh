@@ -13,6 +13,73 @@ load_env
 require_compose
 require_repo
 
+legacy_compat_name=1101c2a4a3470c5155c2e149c5267ceac573a6f2-6a7a6e1244ab44a17e06adcfc127ccec
+legacy_runtime_commit=1101c2a4a3470c5155c2e149c5267ceac573a6f2
+legacy_runtime_activation=6a7a6e1244ab44a17e06adcfc127ccec
+legacy_runtime_health_sha=42f0a86ddc45a22737ca1b6813cdda52ab460e068a2dc02e73454b5b897e5011
+legacy_runtime_environment_sha=7aa4cf6e52168c132cecd4ddf6c3a6000088f887450efc2edb01654cd1b7b0bb
+legacy_runtime_minio_ops_sha=93c9b04d64d3f2547692333c8f9f2091ed15cb542bdc1486fadcd5686d31f057
+legacy_runtime_recovery_sha=a0aed92257a153c4771ae5d7534f35453551d544c259690a397d30d98a08cb3f
+legacy_compat_health_sha=98348a4a708752fe95c58d545bdd845ced9253b23399d7a6c0344cfb6ed0ba8d
+legacy_compat_lib_sha=2f2b984743e2aaea550196d3e7c39a4a3dcdd0c302c9c78b9f98ca9c27b493f6
+legacy_compat_compose_sha=7bd149c5220be8405e39ba9fa295a2d352bf6468e38d136cae85e1f9dd0caafd
+legacy_compat_root=/opt/iuin/deploy/compat
+legacy_compat_dir="$legacy_compat_root/$legacy_compat_name"
+
+installed_legacy_compat_valid() {
+    local directory files spec target_name mode expected_sha target
+    for directory in /opt /opt/iuin /opt/iuin/deploy; do
+        [[ -d "$directory" && ! -L "$directory" \
+            && $(stat --format '%u:%g:%a' "$directory") == 0:0:755 ]] || return 1
+    done
+    for directory in "$legacy_compat_root" "$legacy_compat_dir"; do
+        [[ -d "$directory" && ! -L "$directory" \
+            && $(stat --format '%u:%g:%a' "$directory") == 0:0:700 ]] || return 1
+    done
+    files=$(find "$legacy_compat_dir" -mindepth 1 -maxdepth 1 -printf '%f\n' \
+        | LC_ALL=C sort) || return 1
+    [[ "$files" == $'compose.yaml\nhealth.sh\nlib.sh' ]] || return 1
+    for spec in \
+        "health.sh:755:$legacy_compat_health_sha" \
+        "lib.sh:755:$legacy_compat_lib_sha" \
+        "compose.yaml:644:$legacy_compat_compose_sha"; do
+        IFS=: read -r target_name mode expected_sha <<< "$spec"
+        target="$legacy_compat_dir/$target_name"
+        [[ -f "$target" && ! -L "$target" \
+            && $(stat --format '%u:%g:%a:%h' "$target") == "0:0:$mode:1" \
+            && $(sha256sum "$target" | awk '{print $1}') == "$expected_sha" ]] || return 1
+    done
+}
+
+manifest_value() {
+    awk -F= -v key="$2" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' "$1"
+}
+
+current_runtime_requires_legacy_compat() {
+    local runtime manifest receipt_type source_activation
+    [[ -L /opt/iuin/deploy/current ]] || return 1
+    runtime=$(readlink -f -- /opt/iuin/deploy/current) || return 1
+    manifest="$runtime/deployment.manifest"
+    [[ -f "$manifest" && ! -L "$manifest" \
+        && $(manifest_value "$manifest" git_commit) == "$legacy_runtime_commit" \
+        && $(manifest_value "$manifest" health_sha256) == "$legacy_runtime_health_sha" \
+        && $(manifest_value "$manifest" lib_sha256) == "$legacy_compat_lib_sha" \
+        && $(manifest_value "$manifest" compose_sha256) == "$legacy_compat_compose_sha" \
+        && $(manifest_value "$manifest" minio_ops_sha256) == "$legacy_runtime_minio_ops_sha" \
+        && $(manifest_value "$manifest" recovery_sha256) == "$legacy_runtime_recovery_sha" ]] \
+        || return 1
+    receipt_type=$(manifest_value "$manifest" receipt_type)
+    case "$receipt_type" in
+        '') [[ $(manifest_value "$manifest" activation_id) == "$legacy_runtime_activation" \
+                && $(manifest_value "$manifest" environment_sha256) == "$legacy_runtime_environment_sha" ]] ;;
+        recovery)
+            source_activation=$(manifest_value "$manifest" source_activation_id)
+            [[ "$source_activation" =~ ^[a-f0-9]{32}$ ]]
+            ;;
+        *) return 1 ;;
+    esac
+}
+
 for secret in postgres_password mattermost_db_password minio_root_user minio_root_password mattermost_s3_access_key mattermost_s3_secret_key admin_initial_password mailpit_ui_password mailpit_ui_auth; do
     require_secret "$secret"
 done
@@ -34,6 +101,12 @@ for runtime_pair in \
     cmp -s "$source_path" "$installed_path" \
         || die "installed maintenance runtime differs from this commit; run bootstrap.sh before deploy.sh"
 done
+[[ -f /usr/local/sbin/iuin-recover-containers \
+    && ! -L /usr/local/sbin/iuin-recover-containers \
+    && $(stat --format '%u:%g:%a:%h' /usr/local/sbin/iuin-recover-containers) == 0:0:755:1 \
+    && $(sha256sum /usr/local/sbin/iuin-recover-containers | awk '{print $1}') \
+        == "$(sha256sum "$SCRIPT_DIR/recover-containers.sh" | awk '{print $1}')" ]] \
+    || die "installed recovery helper is not a protected copy of this commit; run bootstrap.sh"
 installed_recovery_value() {
     awk -F= -v key="$1" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' /etc/iuin/recovery.env
 }
@@ -54,6 +127,12 @@ systemctl is-enabled --quiet iuin-docker-firewall-pre.service \
     || die "pre-Docker firewall unit is not enabled; run bootstrap.sh"
 exec 8>"$DATA_ROOT/backups/.backup.lock"
 flock -w 1800 8 || die "timed out waiting for backup or restore lock"
+if [[ -e "$legacy_compat_dir" || -L "$legacy_compat_dir" ]]; then
+    installed_legacy_compat_valid \
+        || die "installed legacy health compatibility bundle is invalid; run bootstrap.sh"
+elif current_runtime_requires_legacy_compat; then
+    die "legacy runtime requires its fingerprint-pinned compatibility bundle; run bootstrap.sh"
+fi
 if [[ -e "$DATA_ROOT/backups/.backup-in-progress" \
     || -e "$DATA_ROOT/backups/.deploy-in-progress" \
     || -e "$DATA_ROOT/backups/.restore-in-progress" ]]; then

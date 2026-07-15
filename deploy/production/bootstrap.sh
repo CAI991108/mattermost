@@ -6,6 +6,17 @@ SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source "$SCRIPT_DIR/lib.sh"
 require_root
 
+legacy_compat_name=1101c2a4a3470c5155c2e149c5267ceac573a6f2-6a7a6e1244ab44a17e06adcfc127ccec
+legacy_runtime_commit=1101c2a4a3470c5155c2e149c5267ceac573a6f2
+legacy_runtime_activation=6a7a6e1244ab44a17e06adcfc127ccec
+legacy_runtime_health_sha=42f0a86ddc45a22737ca1b6813cdda52ab460e068a2dc02e73454b5b897e5011
+legacy_runtime_environment_sha=7aa4cf6e52168c132cecd4ddf6c3a6000088f887450efc2edb01654cd1b7b0bb
+legacy_runtime_minio_ops_sha=93c9b04d64d3f2547692333c8f9f2091ed15cb542bdc1486fadcd5686d31f057
+legacy_runtime_recovery_sha=a0aed92257a153c4771ae5d7534f35453551d544c259690a397d30d98a08cb3f
+legacy_compat_health_sha=98348a4a708752fe95c58d545bdd845ced9253b23399d7a6c0344cfb6ed0ba8d
+legacy_compat_lib_sha=2f2b984743e2aaea550196d3e7c39a4a3dcdd0c302c9c78b9f98ca9c27b493f6
+legacy_compat_compose_sha=7bd149c5220be8405e39ba9fa295a2d352bf6468e38d136cae85e1f9dd0caafd
+
 install_docker() {
     if command -v docker >/dev/null 2>&1 \
         && command -v dockerd >/dev/null 2>&1 \
@@ -186,7 +197,6 @@ printf 'BIND_ADDRESS=%s\nPUBLISH_INTERFACE=%s\nLAN_CIDR=%s\nCOMPOSE_PROJECT_NAME
     > /etc/iuin/firewall.env
 chmod 0644 /etc/iuin/firewall.env
 install -m 0755 -o root -g root "$SCRIPT_DIR/docker-firewall.sh" /usr/local/sbin/iuin-docker-firewall
-install -m 0755 -o root -g root "$SCRIPT_DIR/recover-containers.sh" /usr/local/sbin/iuin-recover-containers
 install -m 0755 -o root -g root "$SCRIPT_DIR/backup-launcher.sh" /usr/local/sbin/iuin-backup-launcher
 install -m 0644 -o root -g root "$SCRIPT_DIR/iuin-docker-firewall-pre.service" /etc/systemd/system/iuin-docker-firewall-pre.service
 install -m 0644 -o root -g root "$SCRIPT_DIR/iuin-docker-firewall.service" /etc/systemd/system/iuin-docker-firewall.service
@@ -195,11 +205,19 @@ backup_timer_was_active=false
 systemctl is-active --quiet iuin-backup.timer && backup_timer_was_active=true
 backup_environment_tmp=
 recovery_environment_tmp=
+compat_staging=
+recovery_helper_tmp=
 runtime_install_cleanup() {
     rc=$?
     trap - EXIT INT TERM
     [[ -z "$backup_environment_tmp" ]] || rm -f -- "$backup_environment_tmp"
     [[ -z "$recovery_environment_tmp" ]] || rm -f -- "$recovery_environment_tmp"
+    [[ -z "$recovery_helper_tmp" ]] || rm -f -- "$recovery_helper_tmp"
+    if [[ -n "$compat_staging" && -d "$compat_staging" && ! -L "$compat_staging" ]]; then
+        rm -f -- "$compat_staging/health.sh" "$compat_staging/lib.sh" \
+            "$compat_staging/compose.yaml" || true
+        rmdir -- "$compat_staging" || true
+    fi
     if (( rc != 0 )) && [[ "$backup_timer_was_active" == true ]]; then
         systemctl start iuin-backup.timer >/dev/null 2>&1 || true
     fi
@@ -212,6 +230,110 @@ systemctl stop iuin-backup.timer >/dev/null 2>&1 || true
 exec 7>"$DATA_ROOT/backups/.backup.lock"
 flock -w 1800 7 || die "timed out waiting for backup, restore, or deployment lock"
 install -d -m 0755 -o root -g root /opt/iuin "$backup_runtime_root" "$backup_runtime_root/releases"
+
+legacy_compat_root="$backup_runtime_root/compat"
+legacy_compat_dir="$legacy_compat_root/$legacy_compat_name"
+legacy_compat_bundle_valid() {
+    local bundle=$1 files spec target_name mode expected_sha target
+    [[ -d "$bundle" && ! -L "$bundle" \
+        && $(stat --format '%u:%g:%a' "$bundle") == 0:0:700 ]] || return 1
+    files=$(find "$bundle" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort) || return 1
+    [[ "$files" == $'compose.yaml\nhealth.sh\nlib.sh' ]] || return 1
+    for spec in \
+        "health.sh:755:$legacy_compat_health_sha" \
+        "lib.sh:755:$legacy_compat_lib_sha" \
+        "compose.yaml:644:$legacy_compat_compose_sha"; do
+        IFS=: read -r target_name mode expected_sha <<< "$spec"
+        target="$bundle/$target_name"
+        [[ -f "$target" && ! -L "$target" \
+            && $(stat --format '%u:%g:%a:%h' "$target") == "0:0:$mode:1" \
+            && $(sha256sum "$target" | awk '{print $1}') == "$expected_sha" ]] || return 1
+    done
+}
+
+manifest_value() {
+    awk -F= -v key="$2" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' "$1"
+}
+
+current_runtime_requires_legacy_compat() {
+    local runtime manifest receipt_type source_activation
+    [[ -L "$backup_runtime_root/current" ]] || return 1
+    runtime=$(readlink -f -- "$backup_runtime_root/current") || return 1
+    manifest="$runtime/deployment.manifest"
+    [[ -f "$manifest" && ! -L "$manifest" \
+        && $(manifest_value "$manifest" git_commit) == "$legacy_runtime_commit" \
+        && $(manifest_value "$manifest" health_sha256) == "$legacy_runtime_health_sha" \
+        && $(manifest_value "$manifest" lib_sha256) == "$legacy_compat_lib_sha" \
+        && $(manifest_value "$manifest" compose_sha256) == "$legacy_compat_compose_sha" \
+        && $(manifest_value "$manifest" minio_ops_sha256) == "$legacy_runtime_minio_ops_sha" \
+        && $(manifest_value "$manifest" recovery_sha256) == "$legacy_runtime_recovery_sha" ]] \
+        || return 1
+    receipt_type=$(manifest_value "$manifest" receipt_type)
+    case "$receipt_type" in
+        '') [[ $(manifest_value "$manifest" activation_id) == "$legacy_runtime_activation" \
+                && $(manifest_value "$manifest" environment_sha256) == "$legacy_runtime_environment_sha" ]] ;;
+        recovery)
+            source_activation=$(manifest_value "$manifest" source_activation_id)
+            [[ "$source_activation" =~ ^[a-f0-9]{32}$ ]]
+            ;;
+        *) return 1 ;;
+    esac
+}
+
+install -d -m 0700 -o root -g root "$legacy_compat_root"
+[[ $(stat --format '%u:%g:%a' /opt /opt/iuin "$backup_runtime_root" | tr '\n' ' ') \
+    == '0:0:755 0:0:755 0:0:755 ' \
+    && $(stat --format '%u:%g:%a' "$legacy_compat_root") == 0:0:700 \
+    && ! -L /opt && ! -L /opt/iuin && ! -L "$backup_runtime_root" \
+    && ! -L "$legacy_compat_root" ]] \
+    || die "legacy health compatibility path is not root-controlled"
+if [[ -e "$legacy_compat_dir" || -L "$legacy_compat_dir" ]]; then
+    legacy_compat_bundle_valid "$legacy_compat_dir" \
+        || die "existing legacy health compatibility bundle is invalid"
+elif current_runtime_requires_legacy_compat; then
+    [[ $(sha256sum "$SCRIPT_DIR/health.sh" | awk '{print $1}') == "$legacy_compat_health_sha" \
+        && $(sha256sum "$SCRIPT_DIR/lib.sh" | awk '{print $1}') == "$legacy_compat_lib_sha" \
+        && $(sha256sum "$SCRIPT_DIR/compose.yaml" | awk '{print $1}') == "$legacy_compat_compose_sha" ]] \
+        || die "repository cannot construct the fingerprint-pinned legacy compatibility bundle"
+    compat_staging=$(mktemp -d "$legacy_compat_root/.staging.XXXXXX")
+    chown root:root "$compat_staging"
+    chmod 0700 "$compat_staging"
+    install -m 0755 -o root -g root "$SCRIPT_DIR/health.sh" "$compat_staging/health.sh"
+    install -m 0755 -o root -g root "$SCRIPT_DIR/lib.sh" "$compat_staging/lib.sh"
+    install -m 0644 -o root -g root "$SCRIPT_DIR/compose.yaml" "$compat_staging/compose.yaml"
+    legacy_compat_bundle_valid "$compat_staging" \
+        || die "staged legacy health compatibility bundle failed validation"
+    sync -f "$compat_staging/health.sh" "$compat_staging/lib.sh" "$compat_staging/compose.yaml"
+    sync -f "$compat_staging"
+    mv -T -- "$compat_staging" "$legacy_compat_dir"
+    compat_staging=
+    sync -f "$legacy_compat_root"
+fi
+
+# Publish the helper only after its fingerprint-pinned compatibility dependency
+# is durable, so an interrupted bootstrap leaves the previously installed
+# recovery path intact.
+[[ -d /usr/local/sbin && ! -L /usr/local/sbin \
+    && $(stat --format '%u:%g:%a' /usr /usr/local /usr/local/sbin | tr '\n' ' ') \
+        == '0:0:755 0:0:755 0:0:755 ' ]] \
+    || die "recovery helper path is not root-controlled"
+recovery_helper_tmp=$(mktemp /usr/local/sbin/.iuin-recover-containers.XXXXXX)
+install -m 0755 -o root -g root "$SCRIPT_DIR/recover-containers.sh" "$recovery_helper_tmp"
+[[ -f "$recovery_helper_tmp" && ! -L "$recovery_helper_tmp" \
+    && $(stat --format '%u:%g:%a:%h' "$recovery_helper_tmp") == 0:0:755:1 \
+    && $(sha256sum "$recovery_helper_tmp" | awk '{print $1}') \
+        == "$(sha256sum "$SCRIPT_DIR/recover-containers.sh" | awk '{print $1}')" ]] \
+    || die "staged recovery helper failed validation"
+sync -f "$recovery_helper_tmp"
+mv -Tf -- "$recovery_helper_tmp" /usr/local/sbin/iuin-recover-containers
+recovery_helper_tmp=
+sync -f /usr/local/sbin
+[[ -f /usr/local/sbin/iuin-recover-containers \
+    && ! -L /usr/local/sbin/iuin-recover-containers \
+    && $(stat --format '%u:%g:%a:%h' /usr/local/sbin/iuin-recover-containers) == 0:0:755:1 \
+    && $(sha256sum /usr/local/sbin/iuin-recover-containers | awk '{print $1}') \
+        == "$(sha256sum "$SCRIPT_DIR/recover-containers.sh" | awk '{print $1}')" ]] \
+    || die "published recovery helper failed validation"
 backup_script="$backup_runtime_root/current/backup.sh"
 backup_environment="$backup_runtime_root/current/production.env"
 deployment_manifest="$backup_runtime_root/current/deployment.manifest"
