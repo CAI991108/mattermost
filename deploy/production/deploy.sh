@@ -6,12 +6,26 @@ SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source "$SCRIPT_DIR/lib.sh"
 require_root
 if [[ "${IUIN_MAINTENANCE_SUPERVISED:-0}" != 1 ]]; then
-    run_supervised_maintenance iuin-deploy "$SCRIPT_DIR/deploy.sh"
+    run_supervised_maintenance iuin-deploy "$SCRIPT_DIR/deploy.sh" "$@"
     exit $?
 fi
 load_env
 require_compose
 require_repo
+
+resume_superseded_deploy=false
+case $# in
+    0) ;;
+    1)
+        [[ "$1" == --resume-superseded-deploy ]] \
+            || die "unsupported deployment argument: $1"
+        resume_superseded_deploy=true
+        ;;
+    *)
+        die "usage: $0 [--resume-superseded-deploy]"
+        ;;
+esac
+superseded_marker_archive=
 
 legacy_compat_name=1101c2a4a3470c5155c2e149c5267ceac573a6f2-6a7a6e1244ab44a17e06adcfc127ccec
 legacy_runtime_commit=1101c2a4a3470c5155c2e149c5267ceac573a6f2
@@ -411,9 +425,62 @@ pull_digest_pinned_image() {
         || die "$label local image identity does not match its pinned digest"
 }
 
+validate_superseded_deployment_marker() {
+    local runtime=$1 manifest activation marker created recorded_previous
+    local service key field expected actual active_marker
+    manifest="$runtime/deployment.manifest"
+    activation=$(deployment_value "$manifest" activation_id)
+    [[ "$activation" =~ ^[a-f0-9]{32}$ ]] \
+        || die "active deployment has an invalid activation ID"
+    marker="$DATA_ROOT/backups/superseded-deploy-$activation.marker"
+    [[ -f "$marker" && ! -L "$marker" \
+        && $(stat --format '%u:%g:%a:%h' "$marker") == 0:0:600:1 ]] \
+        || die "explicit forward repair requires the protected superseded marker $marker"
+    awk -F= '
+        $1 !~ /^(format|phase|created_utc|git_commit|activation_id|previous_runtime|previous_release|postgres_(id|image_ref|image_id|config_hash)|minio_(id|image_ref|image_id|config_hash)|mailpit_(id|image_ref|image_id|config_hash)|server_(id|image_ref|image_id|config_hash)|gateway_(id|image_ref|image_id|config_hash))$/ { exit 1 }
+        { seen[$1] += 1 }
+        END {
+            if (NR != 27) exit 1
+            for (key in seen) if (seen[key] != 1) exit 1
+        }
+    ' "$marker" || die "superseded deployment marker has an invalid key inventory"
+    created=$(manifest_value "$marker" created_utc)
+    [[ "$created" =~ ^[0-9]{8}T[0-9]{6}Z$ \
+        && $(manifest_value "$marker" format) == 1 \
+        && $(manifest_value "$marker" phase) == committed \
+        && $(manifest_value "$marker" previous_runtime) == true \
+        && $(manifest_value "$marker" git_commit) == "$(deployment_value "$manifest" git_commit)" \
+        && $(manifest_value "$marker" activation_id) == "$activation" \
+        && $(deployment_value "$manifest" format) == 2 ]] \
+        || die "superseded marker does not describe the exact active committed format-2 deployment"
+    recorded_previous=$(manifest_value "$marker" previous_release)
+    [[ "$recorded_previous" == /opt/iuin/deploy/releases/* \
+        && -d "$recorded_previous" && ! -L "$recorded_previous" \
+        && $(stat --format '%u:%g:%a' "$recorded_previous") == 0:0:755 ]] \
+        || die "superseded marker has an invalid previous immutable release"
+    for service in postgres minio mailpit iuin-server gateway; do
+        key=${service//-/_}
+        [[ "$key" == iuin_server ]] && key=server
+        for field in id image_ref image_id config_hash; do
+            expected=$(deployment_container_field "$manifest" "$service" "$field")
+            actual=$(manifest_value "$marker" "${key}_${field}")
+            [[ -n "$expected" && "$actual" == "$expected" ]] \
+                || die "superseded marker differs from the active $service $field receipt"
+        done
+    done
+    for active_marker in \
+        "$DATA_ROOT/backups/.backup-in-progress" \
+        "$DATA_ROOT/backups/.deploy-in-progress" \
+        "$DATA_ROOT/backups/.restore-in-progress"; do
+        [[ ! -e "$active_marker" && ! -L "$active_marker" ]] \
+            || die "explicit forward repair refuses an active maintenance marker"
+    done
+    superseded_marker_archive=$marker
+}
+
 validate_previous_runtime() {
     local runtime=$1 manifest service ids count id expected_id expected_image expected_config
-    local project_label service_label image_id config_hash restart_policy timeout
+    local project_label service_label image_id config_hash restart_policy running timeout
     local file_and_key runtime_file hash_key expected_hash expected_seed_hash
     local file_and_mode mode unexpected_seed canonical_runtime
     local services_text
@@ -491,15 +558,22 @@ validate_previous_runtime() {
         image_id=$(docker inspect --format '{{.Image}}' "$id")
         config_hash=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.config-hash"}}' "$id")
         restart_policy=$(docker inspect --format '{{.HostConfig.RestartPolicy.Name}}' "$id")
+        running=$(docker inspect --format '{{.State.Running}}' "$id")
         [[ "$expected_id" =~ ^[a-f0-9]{64}$ && "$id" == "$expected_id" \
             && "$expected_image" =~ ^sha256:[a-f0-9]{64}$ && "$image_id" == "$expected_image" \
             && "$expected_config" =~ ^[a-f0-9]{64}$ && "$config_hash" == "$expected_config" \
-            && "$project_label" == "$COMPOSE_PROJECT_NAME" && "$service_label" == "$service" \
-            && "$restart_policy" == unless-stopped ]] \
-            || die "live $service container differs from the previous immutable deployment"
-        timeout=300
-        [[ "$service" == iuin-server ]] && timeout=600
-        wait_for_container_health "$id" "$timeout"
+            && "$project_label" == "$COMPOSE_PROJECT_NAME" && "$service_label" == "$service" ]] \
+            || die "$service container differs from the previous immutable deployment"
+        if [[ "$resume_superseded_deploy" == true ]]; then
+            [[ "$restart_policy" == no && "$running" == false ]] \
+                || die "explicit forward repair requires stopped restart=no $service"
+        else
+            [[ "$restart_policy" == unless-stopped && "$running" == true ]] \
+                || die "live $service container differs from the previous immutable deployment"
+            timeout=300
+            [[ "$service" == iuin-server ]] && timeout=600
+            wait_for_container_health "$id" "$timeout"
+        fi
     done
 }
 
@@ -725,7 +799,15 @@ elif [[ -e /opt/iuin/deploy/current ]]; then
     die "active deployment runtime must be a symlink"
 fi
 if [[ "$previous_runtime" == true ]]; then
+    if [[ "$resume_superseded_deploy" == true ]]; then
+        validate_superseded_deployment_marker "$previous_release"
+    fi
     validate_previous_runtime "$previous_release"
+elif [[ "$resume_superseded_deploy" == true ]]; then
+    die "explicit forward repair requires an active immutable deployment"
+fi
+if [[ "$resume_superseded_deploy" == true ]]; then
+    log "validated stopped superseded deployment: $superseded_marker_archive"
 fi
 
 log "validating Compose configuration"
