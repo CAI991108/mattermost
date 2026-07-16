@@ -200,7 +200,7 @@ write_deploy_marker() {
         printf 'activation_id=%s\n' "$activation_id"
         printf 'previous_runtime=%s\n' "$previous_runtime"
         printf 'previous_release=%s\n' "$previous_release"
-        for service in postgres minio mailpit iuin-server; do
+        for service in postgres minio mailpit iuin-server gateway; do
             id=$(unique_service_id "$service")
             full_id=
             image_ref=
@@ -416,6 +416,8 @@ validate_previous_runtime() {
     local project_label service_label image_id config_hash restart_policy timeout
     local file_and_key runtime_file hash_key expected_hash expected_seed_hash
     local file_and_mode mode unexpected_seed canonical_runtime
+    local services_text
+    local -a previous_services
     canonical_runtime=$(readlink -f -- "$runtime") \
         || die "previous immutable runtime path cannot be resolved"
     manifest="$runtime/deployment.manifest"
@@ -427,8 +429,10 @@ validate_previous_runtime() {
         && -s "$manifest" && ! -L "$manifest" \
         && $(stat --format '%u:%g:%a:%h' "$manifest") == 0:0:644:1 ]] \
         || die "previous immutable runtime is not a root-owned release directory"
-    [[ $(deployment_value "$manifest" format) == 1 \
-        && $(deployment_value "$manifest" git_commit) =~ ^[a-f0-9]{40,64}$ \
+    services_text=$(deployment_manifest_services "$manifest") \
+        || die "previous immutable deployment manifest has an invalid resident service set"
+    mapfile -t previous_services <<< "$services_text"
+    [[ $(deployment_value "$manifest" git_commit) =~ ^[a-f0-9]{40,64}$ \
         && $(deployment_value "$manifest" activation_id) =~ ^[a-f0-9]{32}$ ]] \
         || die "previous immutable deployment manifest is invalid"
     for file_and_key in \
@@ -472,7 +476,7 @@ validate_previous_runtime() {
         || die "previous immutable runtime seed hash differs"
     previous_runtime_environment_matches "$runtime/production.env" "$runtime/seed" \
         || die "previous runtime recovery-critical environment differs from the current deployment"
-    for service in postgres minio mailpit iuin-server; do
+    for service in "${previous_services[@]}"; do
         ids=$(docker ps --all --no-trunc --quiet \
             --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
             --filter "label=com.docker.compose.service=$service")
@@ -557,7 +561,7 @@ publish_backup_runtime() {
     chmod 0600 "$activation_staging/production.env"
 
     {
-        printf 'format=1\n'
+        printf 'format=2\n'
         printf 'deployed_utc=%s\n' "$deployed_at"
         printf 'git_commit=%s\n' "$BUILD_HASH"
         printf 'activation_id=%s\n' "$activation_id"
@@ -575,7 +579,7 @@ publish_backup_runtime() {
             hash_key=${file_and_key#*:}
             printf '%s=%s\n' "$hash_key" "$(sha256sum "$activation_staging/$runtime_file" | awk '{print $1}')"
         done
-        for service in postgres minio mailpit iuin-server; do
+        for service in postgres minio mailpit iuin-server gateway; do
             ids=$(docker ps --all --no-trunc --quiet \
                 --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
                 --filter "label=com.docker.compose.service=$service")
@@ -668,7 +672,7 @@ run_activation_script() {
 
 fail_close_activation() {
     local service id failed=false
-    for service in iuin-server minio mailpit; do
+    for service in gateway iuin-server minio mailpit; do
         id=$(deployment_container_field "$activation_release/deployment.manifest" "$service" id)
         [[ "$id" =~ ^[a-f0-9]{64}$ ]] || { failed=true; continue; }
         docker update --restart=no "$id" >/dev/null 2>&1 || failed=true
@@ -680,7 +684,7 @@ fail_close_activation() {
 
 finalize_backup_runtime() {
     local service id
-    for service in postgres minio mailpit iuin-server; do
+    for service in postgres minio mailpit iuin-server gateway; do
         id=$(deployment_container_field "$activation_release/deployment.manifest" "$service" id)
         [[ "$id" =~ ^[a-f0-9]{64}$ ]] || die "activation manifest is missing $service identity"
         docker update --restart=unless-stopped "$id" >/dev/null
@@ -743,8 +747,10 @@ build_context_archive_sha256=$(sha256sum "$build_context_archive" | awk '{print 
 verify_build_context_archive || die "failed to create a protected tracked build context archive"
 server_image=${SERVER_IMAGE:-iuin-server:11.8.3}
 minio_image=${MINIO_IMAGE:-iuin-minio:RELEASE.2025-10-15T17-29-55Z}
+gateway_image=${GATEWAY_IMAGE:-iuin-gateway:1.30.4}
 [[ -n "$server_image" && "$server_image" != *[[:space:]]* \
-    && -n "$minio_image" && "$minio_image" != *[[:space:]]* ]] \
+    && -n "$minio_image" && "$minio_image" != *[[:space:]]* \
+    && -n "$gateway_image" && "$gateway_image" != *[[:space:]]* ]] \
     || die "local build image names are invalid"
 log "building the Team server from the tracked commit archive"
 verify_build_context_archive || die "tracked build context archive changed before the server build"
@@ -757,6 +763,11 @@ verify_build_context_archive || die "tracked build context archive changed befor
 docker buildx build --pull --load \
     --tag "$minio_image" \
     --file deploy/production/Dockerfile.minio - < "$build_context_archive"
+log "building the digest-pinned Nginx gateway from the tracked commit archive"
+verify_build_context_archive || die "tracked build context archive changed before the gateway build"
+docker buildx build --pull --load \
+    --tag "$gateway_image" \
+    --file deploy/production/Dockerfile.gateway - < "$build_context_archive"
 
 repo_still_matches_build \
     || die "repository changed during image builds; refusing to enter maintenance"
@@ -764,7 +775,7 @@ verify_build_context_archive \
     || die "tracked build context archive changed before entering maintenance"
 write_deploy_marker preparing
 apply_maintenance_fence
-for service in postgres minio mailpit iuin-server; do
+for service in postgres minio mailpit iuin-server gateway; do
     existing_id=$(unique_service_id "$service")
     [[ -z "$existing_id" ]] || docker update --restart=no "$existing_id" >/dev/null
 done
@@ -783,7 +794,7 @@ if docker network inspect "$mail_network" >/dev/null 2>&1; then
         recreate_mail_network=true
     fi
 fi
-compose stop --timeout 120 iuin-server mailpit minio postgres
+compose stop --timeout 120 gateway iuin-server mailpit minio postgres
 write_deploy_marker modifying
 if [[ "$recreate_mail_network" == true ]]; then
     log "recreating the private SMTP network with its fixed, firewalled bridge identity"
@@ -791,14 +802,16 @@ if [[ "$recreate_mail_network" == true ]]; then
     docker network rm "$mail_network" >/dev/null
 fi
 
-log "creating all four resident containers without starting them"
-maintenance_compose up --no-start --pull never postgres minio mailpit iuin-server
+log "creating all five resident containers without starting them"
+maintenance_compose up --no-start --pull never postgres minio mailpit iuin-server gateway
 postgres_id=$(unique_service_id postgres)
 minio_id=$(unique_service_id minio)
 mailpit_id=$(unique_service_id mailpit)
 server_id=$(unique_service_id iuin-server)
+gateway_id=$(unique_service_id gateway)
 for service_and_id in \
-    "postgres:$postgres_id" "minio:$minio_id" "mailpit:$mailpit_id" "iuin-server:$server_id"; do
+    "postgres:$postgres_id" "minio:$minio_id" "mailpit:$mailpit_id" \
+    "iuin-server:$server_id" "gateway:$gateway_id"; do
     [[ "${service_and_id#*:}" =~ ^[a-f0-9]{12,64}$ ]] \
         || die "failed to create ${service_and_id%%:*} container"
     docker update --restart=no "${service_and_id#*:}" >/dev/null
@@ -819,6 +832,10 @@ activation_compose --profile ops run --rm --no-deps --pull never minio-init init
 log "starting IUIN server and integrated Calls"
 docker start "$server_id" >/dev/null
 wait_for_container_health "$server_id" 600
+
+log "starting the Nginx gateway"
+docker start "$gateway_id" >/dev/null
+wait_for_container_health "$gateway_id" 300
 
 run_activation_script create-admin.sh
 run_activation_script health.sh --internal

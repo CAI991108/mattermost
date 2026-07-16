@@ -58,6 +58,8 @@ validate_active_release_runtime() {
     local manifest="$SCRIPT_DIR/deployment.manifest"
     local current_release file_and_key runtime_file hash_key expected_hash
     local configured_seed_root expected_seed_hash file_and_mode mode unexpected_seed
+    local deployment_format service
+    local -a deployment_services
 
     [[ -L "$active_runtime" ]] \
         || { echo "active deployment runtime must be a symlink" >&2; exit 1; }
@@ -71,14 +73,24 @@ validate_active_release_runtime() {
         && -f "$manifest" && ! -L "$manifest" \
         && $(stat --format '%u:%g:%a:%h' "$manifest") == 0:0:644:1 ]] \
         || { echo "active immutable restore runtime is invalid" >&2; exit 1; }
-    [[ $(active_manifest_value "$manifest" format) == 1 \
-        && $(active_manifest_value "$manifest" git_commit) =~ ^[a-f0-9]{40,64}$ \
+    deployment_format=$(active_manifest_value "$manifest" format)
+    case "$deployment_format" in
+        1) deployment_services=(postgres minio mailpit iuin-server) ;;
+        2) deployment_services=(postgres minio mailpit iuin-server gateway) ;;
+        *) echo "active deployment manifest has an unsupported format" >&2; exit 1 ;;
+    esac
+    [[ $(active_manifest_value "$manifest" git_commit) =~ ^[a-f0-9]{40,64}$ \
         && $(active_manifest_value "$manifest" activation_id) =~ ^[a-f0-9]{32}$ ]] \
         || { echo "active deployment manifest metadata is invalid" >&2; exit 1; }
     awk -F= 'NF < 2 || ($1 != "container" && seen[$1]++) { exit 1 }' "$manifest" \
         || { echo "active deployment manifest has malformed or duplicate fields" >&2; exit 1; }
-    [[ $(grep -c '^container=' "$manifest") -eq 4 ]] \
-        || { echo "active deployment manifest must contain four container receipts" >&2; exit 1; }
+    [[ $(grep -c '^container=' "$manifest") -eq ${#deployment_services[@]} ]] \
+        || { echo "active deployment manifest has an invalid container receipt count for format $deployment_format" >&2; exit 1; }
+    for service in "${deployment_services[@]}"; do
+        [[ $(grep -Ec "^container=$service id=[a-f0-9]{64} image_ref=[^[:space:]]+ image_id=sha256:[a-f0-9]{64} config_hash=[a-f0-9]{64}$" \
+            "$manifest") -eq 1 ]] \
+            || { echo "active deployment manifest is missing a valid $service container receipt" >&2; exit 1; }
+    done
     for file_and_key in \
         "backup.sh:backup_sha256" "restore.sh:restore_sha256" "lib.sh:lib_sha256" \
         "compose.yaml:compose_sha256" "production.env:environment_sha256" \
@@ -277,6 +289,8 @@ validate_manifest() {
     local embedded_commit embedded_hash reconstructed service optional_hash optional_hash_key
     local receipt_type recovery_for source_activation
     local deployment_container_line live_container_line
+    local expected_deployment_format
+    local -a manifest_services
     manifest="$directory/manifest.txt"
     created=$(manifest_value "$manifest" created_utc)
     [[ "$created" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || die "manifest has an invalid created_utc"
@@ -297,25 +311,29 @@ validate_manifest() {
     fi
 
     format=$(manifest_value "$manifest" backup_format)
-    if [[ "$format" == 2 ]]; then
-        [[ "$include_mailpit" == true ]] || die "backup format 2 must include Mailpit"
+    case "$format" in
+        2) expected_deployment_format=1; manifest_services=(postgres minio mailpit iuin-server) ;;
+        3) expected_deployment_format=2; manifest_services=(postgres minio mailpit iuin-server gateway) ;;
+    esac
+    if [[ "$format" == 2 || "$format" == 3 ]]; then
+        [[ "$include_mailpit" == true ]] || die "backup format $format must include Mailpit"
         awk -F= '$1 !~ /^(backup_format|created_utc|git_commit|site_url|quiesced|deployment_manifest_sha256|deployment_format|deployment_deployed_utc|deployment_git_commit|deployment_activation_id|deployment_receipt_type|deployment_recovery_for_activation|deployment_source_activation_id|deployment_seed_sha256|deployment_backup_sha256|deployment_restore_sha256|deployment_lib_sha256|deployment_compose_sha256|deployment_environment_sha256|deployment_health_sha256|deployment_minio_ops_sha256|deployment_create_admin_sha256|deployment_recovery_sha256|deployment_firewall_sha256|deployment_recovery_unit_sha256|deployment_firewall_pre_unit_sha256|deployment_firewall_post_unit_sha256|deployment_container|live_container)$/ { exit 1 }' "$manifest" \
-            || die "backup format 2 manifest contains an unexpected field"
+            || die "backup format $format manifest contains an unexpected field"
         for service in backup_format created_utc git_commit site_url quiesced deployment_manifest_sha256 \
             deployment_format deployment_deployed_utc deployment_git_commit deployment_activation_id \
             deployment_backup_sha256 deployment_lib_sha256 deployment_compose_sha256 deployment_environment_sha256; do
             require_manifest_key_count "$manifest" "$service" 1
         done
-        require_manifest_key_count "$manifest" deployment_container 4
-        require_manifest_key_count "$manifest" live_container 4
+        require_manifest_key_count "$manifest" deployment_container "${#manifest_services[@]}"
+        require_manifest_key_count "$manifest" live_container "${#manifest_services[@]}"
         [[ $(manifest_value "$manifest" quiesced) == true ]] || die "backup was not marked quiesced"
         [[ $(manifest_value "$manifest" site_url) =~ ^https?://[^[:space:]]+$ ]] \
-            || die "backup format 2 manifest has an invalid site_url"
+            || die "backup format $format manifest has an invalid site_url"
         git_commit=$(manifest_value "$manifest" git_commit)
         embedded_commit=$(manifest_value "$manifest" deployment_git_commit)
         [[ "$git_commit" =~ ^[a-f0-9]{40,64}$ && "$embedded_commit" == "$git_commit" ]] \
-            || die "backup format 2 manifest has an invalid or inconsistent git_commit"
-        [[ $(manifest_value "$manifest" deployment_format) == 1 ]] \
+            || die "backup format $format manifest has an invalid or inconsistent git_commit"
+        [[ $(manifest_value "$manifest" deployment_format) == "$expected_deployment_format" ]] \
             || die "embedded deployment manifest has an unsupported format"
         [[ $(manifest_value "$manifest" deployment_deployed_utc) =~ ^[0-9]{8}T[0-9]{6}Z$ ]] \
             || die "embedded deployment manifest has an invalid timestamp"
@@ -365,7 +383,7 @@ validate_manifest() {
         rm -f -- "$reconstructed"
         [[ "$embedded_hash" == "$(manifest_value "$manifest" deployment_manifest_sha256)" ]] \
             || die "embedded deployment manifest hash does not match"
-        for service in postgres minio mailpit iuin-server; do
+        for service in "${manifest_services[@]}"; do
             grep -Eq "^deployment_container=$service id=[a-f0-9]{64} image_ref=[^[:space:]]+ image_id=sha256:[a-f0-9]{64} config_hash=[a-f0-9]{64}$" "$manifest" \
                 || die "embedded deployment manifest is missing a valid $service container"
             grep -Eq "^live_container=$service id=[a-f0-9]{64} image_ref=[^[:space:]]+ image_id=sha256:[a-f0-9]{64} config_hash=[a-f0-9]{64}$" "$manifest" \
@@ -379,7 +397,7 @@ validate_manifest() {
     fi
 
     [[ -z "$format" && "$include_mailpit" == false ]] \
-        || die "backup does not match the legacy or format 2 schema"
+        || die "backup does not match the legacy, format 2, or format 3 schema"
     awk -F= '$1 !~ /^(created_utc|git_commit|site_url|quiesced|image)$/ { exit 1 }' "$manifest" \
         || die "legacy manifest contains an unexpected field"
     [[ $(wc -l < "$manifest") -eq 7 ]] || die "legacy manifest has an invalid field count"
@@ -452,16 +470,23 @@ validate_backup() {
     printf '%s\n' "$include_mailpit"
 }
 
-running_service_id() {
-    local service=$1 ids count running
+unique_service_id() {
+    local service=$1 ids count
     ids=$(docker ps --all --no-trunc --quiet \
         --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
         --filter "label=com.docker.compose.service=$service")
     count=$(wc -w <<< "$ids")
     [[ "$count" -eq 1 ]] || die "expected exactly one $service container, found $count"
-    running=$(docker inspect --format '{{.State.Running}}' "$ids")
-    [[ "$running" == true ]] || die "$service container must be running"
+    [[ "$ids" =~ ^[a-f0-9]{64}$ ]] || die "$service container has an invalid full container ID"
     printf '%s\n' "$ids"
+}
+
+running_service_id() {
+    local service=$1 id running
+    id=$(unique_service_id "$service")
+    running=$(docker inspect --format '{{.State.Running}}' "$id")
+    [[ "$running" == true ]] || die "$service container must be running"
+    printf '%s\n' "$id"
 }
 
 deployment_container_field() {
@@ -480,10 +505,16 @@ validate_active_container_identities() {
     local manifest=/opt/iuin/deploy/current/deployment.manifest
     local service_and_id service id expected_id expected_image expected_config
     local project_label service_label image_id config_hash ids count
+    local -a active_identity_receipts
     [[ -s "$manifest" && ! -L "$manifest" && $(stat --format '%u' "$manifest") == 0 ]] \
         || die "active immutable deployment manifest is missing or invalid"
-    for service_and_id in \
-        "postgres:$postgres_id" "minio:$minio_id" "mailpit:$mailpit_id" "iuin-server:$server_id"; do
+    active_identity_receipts=(
+        "postgres:$postgres_id" "minio:$minio_id" "mailpit:$mailpit_id" "iuin-server:$server_id"
+    )
+    if [[ "$active_deployment_format" == 2 ]]; then
+        active_identity_receipts+=("gateway:$gateway_id")
+    fi
+    for service_and_id in "${active_identity_receipts[@]}"; do
         service=${service_and_id%%:*}
         id=${service_and_id#*:}
         ids=$(docker ps --all --no-trunc --quiet \
@@ -551,15 +582,32 @@ stop_application_containers() {
 
 set_application_restart_policy() {
     local policy=$1 id
-    for id in "$server_id" "$minio_id" "$mailpit_id"; do
+    local -a policy_ids=("$server_id" "$minio_id" "$mailpit_id")
+    if [[ "$active_deployment_format" == 2 ]]; then
+        policy_ids+=("$gateway_id")
+    fi
+    for id in "${policy_ids[@]}"; do
         docker update --restart="$policy" "$id" >/dev/null || return 1
     done
+}
+
+stop_gateway_for_fail_close() {
+    local running
+    [[ "$active_deployment_format" == 2 ]] || return 0
+    running=$(docker inspect --format '{{.State.Running}}' "$gateway_id" 2>/dev/null || true)
+    case "$running" in
+        true) docker stop --time 120 "$gateway_id" >/dev/null 2>&1 || true ;;
+        false) ;;
+        *) return 1 ;;
+    esac
+    [[ $(docker inspect --format '{{.State.Running}}' "$gateway_id" 2>/dev/null) == false ]]
 }
 
 enforce_application_fail_closed() {
     local failed=false live_restore
     set_application_restart_policy no || failed=true
     stop_application_containers || failed=true
+    stop_gateway_for_fail_close || failed=true
     [[ "$failed" == false ]] && return 0
     log "container-level fail-close was incomplete; stopping Docker and its activation socket"
     live_restore=$(timeout --signal=TERM 15 docker info \
@@ -570,13 +618,61 @@ enforce_application_fail_closed() {
         && ! systemctl is-active --quiet docker.socket
 }
 
+wait_for_recovering_container_health() {
+    local container=$1 timeout=${2:-300} started now state running status
+    started=$(date +%s)
+    while :; do
+        state=$(docker inspect --format \
+            '{{.State.Running}} {{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
+            "$container" 2>/dev/null || true)
+        running=${state%% *}
+        status=${state#* }
+        if [[ "$running" != true ]]; then
+            docker logs --tail 100 "$container" >&2 || true
+            log "container $container stopped while waiting for dependency recovery" >&2
+            return 1
+        fi
+        case "$status" in
+            healthy|running)
+                (wait_for_container_health "$container" 1) || return 1
+                return 0
+                ;;
+            starting|unhealthy) ;;
+            *)
+                docker logs --tail 100 "$container" >&2 || true
+                log "container $container entered unexpected health state $status" >&2
+                return 1
+                ;;
+        esac
+        now=$(date +%s)
+        if (( now - started >= timeout )); then
+            docker logs --tail 100 "$container" >&2 || true
+            log "timed out waiting for container $container to recover health" >&2
+            return 1
+        fi
+        sleep 3
+    done
+}
+
 start_original_containers() {
+    local gateway_running
     docker start "$minio_id" "$mailpit_id" >/dev/null || return 1
     (wait_for_container_health "$minio_id" 300) || return 1
     (wait_for_container_health "$mailpit_id" 300) || return 1
     compose --profile ops run --rm --no-deps --pull never minio-init reconcile || return 1
     docker start "$server_id" >/dev/null || return 1
     (wait_for_container_health "$server_id" 600) || return 1
+    if [[ "$active_deployment_format" == 2 ]]; then
+        gateway_running=$(docker inspect --format '{{.State.Running}}' "$gateway_id" 2>/dev/null || true)
+        case "$gateway_running" in
+            true) ;;
+            false) docker start "$gateway_id" >/dev/null || return 1 ;;
+            *) return 1 ;;
+        esac
+        [[ $(docker inspect --format '{{.State.Running}}' "$gateway_id" 2>/dev/null) == true ]] \
+            || return 1
+        wait_for_recovering_container_health "$gateway_id" 300 || return 1
+    fi
 }
 
 restore_fence_chain=IUIN-RESTORE
@@ -762,6 +858,21 @@ installed_environment_value() {
 
 restore_marker="$DATA_ROOT/backups/.restore-in-progress"
 interrupted_recovery=false
+active_deployment_manifest=/opt/iuin/deploy/current/deployment.manifest
+active_deployment_format=$(active_manifest_value "$active_deployment_manifest" format)
+case "$active_deployment_format" in
+    1) ;;
+    2) ;;
+    *) die "active deployment manifest has an unsupported format" ;;
+esac
+gateway_id=
+if [[ "$active_deployment_format" == 2 ]]; then
+    if [[ "$restore_mode" == --recover-interrupted ]]; then
+        gateway_id=$(unique_service_id gateway)
+    else
+        gateway_id=$(running_service_id gateway)
+    fi
+fi
 postgres_id=$(running_service_id postgres)
 [[ "$postgres_id" =~ ^[a-f0-9]{64}$ ]] || die "postgres must be running with a valid full container ID before restore"
 if [[ "$restore_mode" == --recover-interrupted ]]; then
@@ -817,7 +928,11 @@ systemctl is-enabled --quiet iuin-backup-recover.service \
 systemctl is-enabled --quiet iuin-docker-firewall-pre.service \
     || die "pre-Docker firewall unit must be enabled before a destructive restore"
 if [[ "$interrupted_recovery" == false ]]; then
-    for id in "$server_id" "$minio_id" "$mailpit_id"; do
+    restore_policy_ids=("$server_id" "$minio_id" "$mailpit_id")
+    if [[ "$active_deployment_format" == 2 ]]; then
+        restore_policy_ids+=("$gateway_id")
+    fi
+    for id in "${restore_policy_ids[@]}"; do
         [[ $(docker inspect --format '{{.HostConfig.RestartPolicy.Name}}' "$id") == unless-stopped ]] \
             || die "application containers must use restart policy unless-stopped before restore"
     done
@@ -827,6 +942,9 @@ if [[ "$interrupted_recovery" == false ]]; then
     wait_for_container_health "$minio_id" 300
     wait_for_container_health "$mailpit_id" 300
     wait_for_container_health "$server_id" 600
+    if [[ "$active_deployment_format" == 2 ]]; then
+        wait_for_container_health "$gateway_id" 300
+    fi
 fi
 restore_marker_tmp=
 cleanup() {

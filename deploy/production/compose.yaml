@@ -7,6 +7,51 @@ x-logging: &default-logging
     max-file: "5"
 
 services:
+  gateway:
+    image: ${GATEWAY_IMAGE:-iuin-gateway:1.30.4}
+    build:
+      context: ../..
+      dockerfile: deploy/production/Dockerfile.gateway
+    platform: linux/amd64
+    container_name: iuin-gateway
+    restart: ${IUIN_RESTART_POLICY:-unless-stopped}
+    init: true
+    user: "101:101"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    cpus: ${GATEWAY_CPUS:-2.0}
+    mem_limit: ${GATEWAY_MEMORY:-1g}
+    stop_signal: SIGQUIT
+    stop_grace_period: 30s
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=128m,uid=101,gid=101,mode=700
+    ports:
+      - ${BIND_ADDRESS:-10.22.111.16}:8065:8065/tcp
+    depends_on:
+      iuin-server:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          /usr/bin/wget -q -T 5 -O /dev/null http://127.0.0.1:8065/_gateway/health
+          && /usr/bin/wget -q -T 5 -O /dev/null http://iuin-server:8065/api/v4/system/ping
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+    logging: *default-logging
+    networks:
+      - web
+
   postgres:
     image: postgres:17.10-alpine3.24@sha256:af194ccf3e2d7fe367012c7b88ce8b816c5c889b18a5b316799a1f0d7eac746a
     platform: linux/amd64
@@ -237,6 +282,7 @@ services:
       MM_INSTALL_TYPE: docker
       MM_SERVICESETTINGS_SITEURL: ${SITE_URL:-http://10.22.111.16:8065}
       MM_SERVICESETTINGS_LISTENADDRESS: :8065
+      MM_SERVICESETTINGS_TRUSTEDPROXYIPHEADER: X-Forwarded-For
       MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
       MM_SERVICESETTINGS_ENABLEDEVELOPER: "false"
       MM_SERVICESETTINGS_ENABLETESTING: "false"
@@ -314,8 +360,9 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=1g,mode=1777
       - /var/tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+    expose:
+      - "8065"
     ports:
-      - ${BIND_ADDRESS:-10.22.111.16}:8065:8065/tcp
       - ${BIND_ADDRESS:-10.22.111.16}:8443:8443/tcp
       - ${BIND_ADDRESS:-10.22.111.16}:8443:8443/udp
     depends_on:
@@ -336,6 +383,7 @@ services:
       - backend
       - egress
       - mail
+      - web
 
 secrets:
   postgres_password:
@@ -354,6 +402,11 @@ secrets:
     file: ${DATA_ROOT:-/srv/iuin}/secrets/mailpit_ui_auth
 
 networks:
+  web:
+    internal: true
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-iuin-web
   backend:
     internal: true
   egress: {}

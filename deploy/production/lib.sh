@@ -52,6 +52,8 @@ load_env() {
     : "${MAILPIT_MAX_AGE:=14d}"
     : "${MAILPIT_MAX_MESSAGE_SIZE:=25}"
     : "${MAILPIT_SMTP_MAX_RECIPIENTS:=50}"
+    : "${GATEWAY_CPUS:=2.0}"
+    : "${GATEWAY_MEMORY:=1g}"
     : "${BACKUP_RETENTION_DAYS:=14}"
 
     [[ "$DATA_ROOT" == /* ]] || die "DATA_ROOT must be an absolute path"
@@ -82,6 +84,30 @@ load_env() {
     [[ "$MAILPIT_MAX_MESSAGE_SIZE" =~ ^[1-9][0-9]*$ ]] || die "invalid MAILPIT_MAX_MESSAGE_SIZE"
     [[ "$MAILPIT_SMTP_MAX_RECIPIENTS" =~ ^[1-9][0-9]*$ ]] || die "invalid MAILPIT_SMTP_MAX_RECIPIENTS"
     [[ "$BACKUP_RETENTION_DAYS" =~ ^[0-9]+$ ]] || die "invalid BACKUP_RETENTION_DAYS"
+}
+
+# Print the resident services encoded by a strict immutable deployment
+# manifest. Format 1 is the pre-gateway four-container layout; format 2 is the
+# five-container layout with the independently receipted Nginx gateway.
+deployment_manifest_services() {
+    local manifest=$1 format actual expected container_count
+    [[ -f "$manifest" && ! -L "$manifest" ]] || return 1
+    format=$(awk -F= '$1 == "format" { sub(/^[^=]*=/, ""); print; exit }' "$manifest")
+    container_count=$(grep -c '^container=' "$manifest") || return 1
+    actual=$(sed -n 's/^container=\([^[:space:]]\+\) .*/\1/p' "$manifest" | LC_ALL=C sort)
+    case "$format" in
+        1)
+            expected=$'iuin-server\nmailpit\nminio\npostgres'
+            [[ "$container_count" -eq 4 && "$actual" == "$expected" ]] || return 1
+            printf '%s\n' postgres minio mailpit iuin-server
+            ;;
+        2)
+            expected=$'gateway\niuin-server\nmailpit\nminio\npostgres'
+            [[ "$container_count" -eq 5 && "$actual" == "$expected" ]] || return 1
+            printf '%s\n' postgres minio mailpit iuin-server gateway
+            ;;
+        *) return 1 ;;
+    esac
 }
 
 require_repo() {

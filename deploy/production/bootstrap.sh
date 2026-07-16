@@ -54,8 +54,9 @@ DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
 
 # Persistent maintenance markers rely on stopping Docker as a final fail-closed
 # fallback if both iptables and individual container stops fail. Docker's
-# live-restore mode would defeat that fallback, so preserve every other daemon
-# setting while disabling it atomically.
+# live-restore mode would defeat that fallback, and direct container routing
+# could bypass the published-port ingress policy. Preserve every other daemon
+# setting while disabling both atomically.
 docker_config_changed=false
 docker_config=/etc/docker/daemon.json
 install -d -m 0755 -o root -g root /etc/docker
@@ -66,10 +67,12 @@ if [[ -e "$docker_config" ]]; then
 fi
 docker_config_tmp=$(mktemp /etc/docker/.daemon.json.XXXXXX)
 if [[ -e "$docker_config" ]]; then
-    jq -e 'if type == "object" then .["live-restore"] = false else error("daemon config must be an object") end' \
+    jq -e 'if type == "object" then
+        .["live-restore"] = false | .["allow-direct-routing"] = false
+        else error("daemon config must be an object") end' \
         "$docker_config" > "$docker_config_tmp"
 else
-    printf '{}\n' | jq -e '.["live-restore"] = false' > "$docker_config_tmp"
+    printf '{}\n' | jq -e '.["live-restore"] = false | .["allow-direct-routing"] = false' > "$docker_config_tmp"
 fi
 chown root:root "$docker_config_tmp"
 chmod 0644 "$docker_config_tmp"
@@ -366,7 +369,7 @@ if ! systemctl enable iuin-docker-firewall-pre.service \
 fi
 systemctl enable docker
 if [[ "$docker_config_changed" == true ]]; then
-    log "restarting Docker with live-restore disabled behind the pre-Docker firewall"
+    log "restarting Docker with live-restore and direct routing disabled behind the pre-Docker firewall"
     docker_start_action=(restart docker)
 else
     docker_start_action=(start docker)
@@ -382,6 +385,10 @@ fi
 if [[ $(docker info --format '{{.LiveRestoreEnabled}}' 2>/dev/null) != false ]]; then
     systemctl stop docker.service docker.socket >/dev/null 2>&1 || true
     die "Docker live-restore must be disabled for fail-closed recovery; Docker was stopped"
+fi
+if ! jq -e '.["live-restore"] == false and .["allow-direct-routing"] == false' "$docker_config" >/dev/null; then
+    systemctl stop docker.service docker.socket >/dev/null 2>&1 || true
+    die "Docker direct routing must be disabled for published-port isolation; Docker was stopped"
 fi
 require_compose
 if ! systemctl enable iuin-docker-firewall.service \

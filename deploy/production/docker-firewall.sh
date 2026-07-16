@@ -14,6 +14,7 @@ update_forward_chain=IUIN-UPD-FWD
 update_input_chain=IUIN-UPD-INPUT
 mail_bridge=br-iuin-mail
 mail_ui_bridge=br-iuin-mailui
+web_bridge=br-iuin-web
 mail_bridges=("$mail_bridge")
 
 (( EUID == 0 )) || { echo "must run as root" >&2; exit 1; }
@@ -72,7 +73,7 @@ remove_update_guards() {
 
 install_update_guards() {
     local spec protocol port bridge forward_active=false input_active=false
-    local -a guard_bridges=("${mail_bridges[@]}" "$mail_ui_bridge")
+    local -a guard_bridges=("${mail_bridges[@]}" "$mail_ui_bridge" "$web_bridge")
     iptables -w -C DOCKER-USER -j "$update_forward_chain" >/dev/null 2>&1 && forward_active=true
     iptables -w -C INPUT -j "$update_input_chain" >/dev/null 2>&1 && input_active=true
 
@@ -278,12 +279,11 @@ case "$action" in
         remove_jump
         iptables -w -I DOCKER-USER 1 -j "$chain"
 
-        # Neither of Mailpit's interfaces may initiate a connection to a host
-        # service. Keep established replies so the host can still probe the UI.
-        for bridge in "${mail_bridges[@]}"; do
+        # Private service bridges may not initiate connections to host services.
+        # Keep established replies so the host can still probe published ports.
+        for bridge in "${mail_bridges[@]}" "$mail_ui_bridge" "$web_bridge"; do
             iptables -w -A "$input_chain" -i "$bridge" -m conntrack --ctdir ORIGINAL -j DROP
         done
-        iptables -w -A "$input_chain" -i "$mail_ui_bridge" -m conntrack --ctdir ORIGINAL -j DROP
         iptables -w -A "$input_chain" -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
         iptables -w -A "$input_chain" -j RETURN
         remove_input_jump

@@ -303,7 +303,7 @@ stop_recorded_or_current() {
 
 fail_close_application_services() {
     local service ids id failed=false
-    for service in iuin-server minio mailpit; do
+    for service in gateway iuin-server minio mailpit; do
         ids=$(docker ps --all --no-trunc --quiet \
             --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
             --filter "label=com.docker.compose.service=$service") || { failed=true; continue; }
@@ -317,11 +317,15 @@ fail_close_application_services() {
 }
 
 finalize_restart_policies() {
-    local service id failed=false
-    for service in postgres minio mailpit iuin-server; do
+    local runtime=$1 services_text service id failed=false
+    local -a services
+    validate_immutable_release "$runtime" || return 1
+    services_text=$(deployment_manifest_services "$runtime/deployment.manifest") || return 1
+    mapfile -t services <<< "$services_text"
+    for service in "${services[@]}"; do
         id=$(current_service_id "$service") || { failed=true; continue; }
         [[ -n "$id" ]] || { failed=true; continue; }
-        validate_container_identity "$service" "$id" || { failed=true; continue; }
+        validate_active_container "$runtime" "$service" "$id" || { failed=true; continue; }
         docker update --restart=unless-stopped "$id" >/dev/null || failed=true
     done
     [[ "$failed" == false ]]
@@ -350,9 +354,10 @@ recover_backup_marker() {
         start_exact iuin-server "$server_id" 600 || failed=true
     fi
     [[ "$failed" == false ]] || return 1
+    start_active_gateway_if_present "$runtime" || return 1
     systemctl restart iuin-docker-firewall.service || return 1
     run_active_health --internal || return 1
-    finalize_restart_policies || return 1
+    finalize_restart_policies "$runtime" || return 1
     remove_restore_fence || return 1
     if ! run_active_health; then
         apply_restore_fence || fail_close_application_services || true
@@ -384,6 +389,30 @@ deployment_value() {
     marker_value "$1" "$2"
 }
 
+# Return the strict, dependency-ordered resident service set encoded by an
+# immutable deployment manifest. Format 1 is the pre-gateway layout; format 2
+# adds the independently receipted Nginx gateway, which is deliberately last.
+deployment_manifest_services() {
+    local manifest=$1 format actual expected container_count
+    [[ -f "$manifest" && ! -L "$manifest" ]] || return 1
+    format=$(deployment_value "$manifest" format)
+    container_count=$(grep -c '^container=' "$manifest") || return 1
+    actual=$(sed -n 's/^container=\([^[:space:]]\+\) .*/\1/p' "$manifest" | LC_ALL=C sort)
+    case "$format" in
+        1)
+            expected=$'iuin-server\nmailpit\nminio\npostgres'
+            [[ "$container_count" -eq 4 && "$actual" == "$expected" ]] || return 1
+            printf '%s\n' postgres minio mailpit iuin-server
+            ;;
+        2)
+            expected=$'gateway\niuin-server\nmailpit\nminio\npostgres'
+            [[ "$container_count" -eq 5 && "$actual" == "$expected" ]] || return 1
+            printf '%s\n' postgres minio mailpit iuin-server gateway
+            ;;
+        *) return 1 ;;
+    esac
+}
+
 immutable_seed_hash() {
     local root=$1 unexpected
     [[ -d "$root" && ! -L "$root" ]] || return 1
@@ -399,7 +428,8 @@ validate_immutable_release() {
     local runtime=$1 manifest file_and_key runtime_file hash_key expected_hash service
     local configured_data_root configured_project configured_bind configured_seed_root
     local receipt_type recovery_for source_activation expected_seed_hash unexpected_seed file_and_mode mode
-    local canonical_runtime
+    local canonical_runtime services_text
+    local -a services
     canonical_runtime=$(readlink -f -- "$runtime") || return 1
     manifest="$runtime/deployment.manifest"
     [[ "$canonical_runtime" == "$runtime" \
@@ -409,13 +439,13 @@ validate_immutable_release() {
             | tr '\n' ' ') == '0:0:755 0:0:755 0:0:755 0:0:755 0:0:755 ' \
         && -f "$manifest" && ! -L "$manifest" \
         && $(stat --format '%u:%g:%a:%h' "$manifest") == 0:0:644:1 ]] || return 1
-    [[ $(deployment_value "$manifest" format) == 1 \
-        && $(deployment_value "$manifest" deployed_utc) =~ ^[0-9]{8}T[0-9]{6}Z$ \
+    services_text=$(deployment_manifest_services "$manifest") || return 1
+    mapfile -t services <<< "$services_text"
+    [[ $(deployment_value "$manifest" deployed_utc) =~ ^[0-9]{8}T[0-9]{6}Z$ \
         && $(deployment_value "$manifest" git_commit) =~ ^[a-f0-9]{40,64}$ \
         && $(deployment_value "$manifest" activation_id) =~ ^[a-f0-9]{32}$ ]] || return 1
     awk -F= 'NF < 2 || ($1 != "container" && seen[$1]++) { exit 1 }' "$manifest" || return 1
-    [[ $(grep -c '^container=' "$manifest") -eq 4 ]] || return 1
-    for service in postgres minio mailpit iuin-server; do
+    for service in "${services[@]}"; do
         [[ $(grep -Ec "^container=$service id=[a-f0-9]{64} image_ref=[^[:space:]]+ image_id=sha256:[a-f0-9]{64} config_hash=[a-f0-9]{64}$" "$manifest") -eq 1 ]] \
             || return 1
     done
@@ -500,6 +530,64 @@ validate_active_container() {
         && "$expected_image" =~ ^sha256:[a-f0-9]{64}$ \
         && "$expected_config" =~ ^[a-f0-9]{64}$ ]] || return 1
     validate_container_identity "$service" "$id" "$expected_image" "$expected_config"
+}
+
+start_active_gateway_if_present() {
+    local runtime=$1 manifest format id current running health started now
+    validate_immutable_release "$runtime" || return 1
+    manifest="$runtime/deployment.manifest"
+    format=$(deployment_value "$manifest" format)
+    case "$format" in
+        1) return 0 ;;
+        2) ;;
+        *) log "active runtime has an unsupported deployment format"; return 1 ;;
+    esac
+    id=$(deployment_container_field "$manifest" gateway id)
+    current=$(current_service_id gateway) || return 1
+    [[ "$id" =~ ^[a-f0-9]{64}$ \
+        && "$current" == "$id" ]] \
+        || { log "gateway receipt identity is not the unique current gateway container"; return 1; }
+    validate_active_container "$runtime" gateway "$id" \
+        || { log "gateway container differs from the active immutable receipt"; return 1; }
+    docker update --restart=no "$id" >/dev/null || return 1
+    running=$(docker inspect --format '{{.State.Running}}' "$id") || return 1
+    case "$running" in
+        true) ;;
+        false)
+            docker start "$id" >/dev/null || return 1
+            ;;
+        *)
+            log "gateway container has an invalid running state"
+            return 1
+            ;;
+    esac
+    started=$(date +%s)
+    while :; do
+        running=$(docker inspect --format '{{.State.Running}}' "$id" 2>/dev/null || true)
+        health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' \
+            "$id" 2>/dev/null || true)
+        if [[ "$running" != true ]]; then
+            docker logs --tail 100 "$id" >&2 || true
+            log "gateway stopped while waiting for its upstream health to recover"
+            return 1
+        fi
+        case "$health" in
+            healthy) return 0 ;;
+            starting|unhealthy) ;;
+            *)
+                docker logs --tail 100 "$id" >&2 || true
+                log "gateway has a missing or invalid Docker health state"
+                return 1
+                ;;
+        esac
+        now=$(date +%s)
+        if (( now - started >= 300 )); then
+            docker logs --tail 100 "$id" >&2 || true
+            log "timed out waiting for gateway health after server recovery"
+            return 1
+        fi
+        sleep 3
+    done
 }
 
 legacy_runtime_uses_compat() {
@@ -589,10 +677,15 @@ run_active_health() {
 
 publish_recovery_receipt() {
     local source_runtime=$1 recovery_for_activation=$2 runtime_root=/opt/iuin/deploy releases
-    local deployed_at activation git_commit source_activation
+    local deployed_at activation git_commit source_activation source_format services_text
     local release staging link_tmp spec source_name target_name mode file_and_key runtime_file hash_key
     local service id full_id image_ref image_id config_hash running
+    local -a services
     validate_immutable_release "$source_runtime" || return 1
+    services_text=$(deployment_manifest_services "$source_runtime/deployment.manifest") || return 1
+    mapfile -t services <<< "$services_text"
+    source_format=$(deployment_value "$source_runtime/deployment.manifest" format)
+    [[ "$source_format" == 1 || "$source_format" == 2 ]] || return 1
     releases="$runtime_root/releases"
     deployed_at=$(date -u +'%Y%m%dT%H%M%SZ')
     activation=$(od -An -N16 -tx1 /dev/urandom | tr -d '[:space:]')
@@ -632,7 +725,7 @@ publish_recovery_receipt() {
     chown root:root "$staging/production.env" || return 1
     chmod 0600 "$staging/production.env" || return 1
     {
-        printf 'format=1\n'
+        printf 'format=%s\n' "$source_format"
         printf 'deployed_utc=%s\n' "$deployed_at"
         printf 'git_commit=%s\n' "$git_commit"
         printf 'activation_id=%s\n' "$activation"
@@ -653,7 +746,7 @@ publish_recovery_receipt() {
             hash_key=${file_and_key#*:}
             printf '%s=%s\n' "$hash_key" "$(sha256sum "$staging/$runtime_file" | awk '{print $1}')"
         done
-        for service in postgres minio mailpit iuin-server; do
+        for service in "${services[@]}"; do
             id=$(current_service_id "$service") || return 1
             [[ "$id" =~ ^[a-f0-9]{64}$ ]] || return 1
             running=$(docker inspect --format '{{.State.Running}}' "$id")
@@ -682,14 +775,34 @@ publish_recovery_receipt() {
 }
 
 rollback_previous_deployment() {
-    local marker=$1 runtime service key image_id image_ref config_hash current_id
+    local marker=$1 runtime service key image_id image_ref config_hash current_id services_text gateway_id running
+    local -a services retag_services
     runtime=$(marker_value "$marker" previous_release)
     validate_immutable_release "$runtime" || return 1
+    services_text=$(deployment_manifest_services "$runtime/deployment.manifest") || return 1
+    mapfile -t services <<< "$services_text"
     command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1 || return 1
     log "recorded container was replaced; recreating the previous successful deployment snapshot"
-    for service in server minio; do
-        image_id=$(marker_value "$marker" "${service}_image_id")
-        image_ref=$(marker_value "$marker" "${service}_image_ref")
+    retag_services=(iuin-server minio)
+    if [[ $(deployment_value "$runtime/deployment.manifest" format) == 2 ]]; then
+        retag_services+=(gateway)
+    else
+        gateway_id=$(current_service_id gateway) || return 1
+        if [[ -n "$gateway_id" ]]; then
+            validate_container_identity gateway "$gateway_id" || return 1
+            docker update --restart=no "$gateway_id" >/dev/null || return 1
+            running=$(docker inspect --format '{{.State.Running}}' "$gateway_id") || return 1
+            [[ "$running" == false ]] \
+                || docker stop --time 120 "$gateway_id" >/dev/null || return 1
+            docker rm "$gateway_id" >/dev/null || return 1
+            gateway_id=$(current_service_id gateway) || return 1
+            [[ -z "$gateway_id" ]] || return 1
+        fi
+    fi
+    for service in "${retag_services[@]}"; do
+        key=$(service_marker_key "$service")
+        image_id=$(marker_value "$marker" "${key}_image_id")
+        image_ref=$(marker_value "$marker" "${key}_image_ref")
         [[ "$image_id" =~ ^sha256:[a-f0-9]{64}$ && -n "$image_ref" \
             && "$image_ref" != *[[:space:]]* && "$image_ref" != *@* ]] || return 1
         docker image inspect "$image_id" >/dev/null 2>&1 || return 1
@@ -699,8 +812,8 @@ rollback_previous_deployment() {
         --project-directory "$runtime" \
         --env-file "$runtime/production.env" \
         --file "$runtime/compose.yaml" \
-        up --no-start --no-build --pull never postgres minio mailpit iuin-server || return 1
-    for service in postgres minio mailpit iuin-server; do
+        up --no-start --no-build --pull never "${services[@]}" || return 1
+    for service in "${services[@]}"; do
         key=$(service_marker_key "$service")
         image_id=$(marker_value "$marker" "${key}_image_id")
         config_hash=$(marker_value "$marker" "${key}_config_hash")
@@ -715,19 +828,30 @@ rollback_previous_deployment() {
 }
 
 recover_deploy_marker() {
-    local marker=$1 service key id image_id config_hash current_id timeout runtime current_manifest
+    local marker=$1 service key id image_id config_hash current_id timeout runtime current_manifest gateway_current
     local marker_commit marker_activation current_commit current_activation
     local receipt_type recovery_for source_activation expected_source_activation previous_release
     local previous_runtime phase activated=false recovered=false rollback_needed=false failed=false
+    local previous_services_text current_services_text
+    local -a previous_services current_services marker_services
     validate_marker "$marker" || return 1
     marker_commit=$(marker_value "$marker" git_commit)
     marker_activation=$(marker_value "$marker" activation_id)
     previous_runtime=$(marker_value "$marker" previous_runtime)
     phase=$(marker_value "$marker" phase)
+    previous_release=$(marker_value "$marker" previous_release)
     [[ "$marker_commit" =~ ^[a-f0-9]{40,64}$ && "$marker_activation" =~ ^[a-f0-9]{32}$ \
         && ( "$previous_runtime" == true || "$previous_runtime" == false ) \
         && ( "$phase" == preparing || "$phase" == modifying || "$phase" == committed ) ]] \
         || { log "deployment marker metadata is invalid"; return 1; }
+    if [[ "$previous_runtime" == true ]]; then
+        validate_immutable_release "$previous_release" \
+            || { log "previous immutable runtime recorded by the deployment marker is invalid"; return 1; }
+        previous_services_text=$(deployment_manifest_services "$previous_release/deployment.manifest") || return 1
+        mapfile -t previous_services <<< "$previous_services_text"
+    else
+        [[ -z "$previous_release" ]] || { log "first-deployment marker unexpectedly records a previous release"; return 1; }
+    fi
     if ! apply_restore_fence; then
         fail_close_application_services || log "one or more application containers could not be stopped"
         log "deployment recovery could not establish its maintenance fence; marker retained"
@@ -735,10 +859,20 @@ recover_deploy_marker() {
     fi
 
     if [[ "$phase" == preparing ]]; then
-        for service in postgres minio mailpit iuin-server; do
+        if [[ "$previous_runtime" == true ]]; then
+            runtime=$(active_runtime_path) || return 1
+            [[ "$runtime" == "$previous_release" ]] || { log "active runtime differs from the preparing marker"; return 1; }
+            marker_services=("${previous_services[@]}")
+        else
+            marker_services=(postgres minio mailpit iuin-server gateway)
+        fi
+        for service in "${marker_services[@]}"; do
             key=$(service_marker_key "$service")
             id=$(marker_value "$marker" "${key}_id")
-            [[ -n "$id" ]] || continue
+            if [[ -z "$id" ]]; then
+                [[ "$previous_runtime" == false ]] || { log "preparing marker is missing $service identity"; return 1; }
+                continue
+            fi
             image_id=$(marker_value "$marker" "${key}_image_id")
             config_hash=$(marker_value "$marker" "${key}_config_hash")
             [[ "$id" =~ ^[a-f0-9]{64}$ && "$image_id" =~ ^sha256:[a-f0-9]{64}$ \
@@ -750,10 +884,9 @@ recover_deploy_marker() {
         done
         systemctl restart iuin-docker-firewall.service || return 1
         if [[ "$previous_runtime" == true ]]; then
-            runtime=$(active_runtime_path) || return 1
             run_active_health --internal || return 1
+            finalize_restart_policies "$runtime" || return 1
         fi
-        finalize_restart_policies || return 1
         remove_restore_fence || return 1
         if [[ "$previous_runtime" == true ]] && ! run_active_health; then
             apply_restore_fence || fail_close_application_services || true
@@ -777,13 +910,13 @@ recover_deploy_marker() {
         receipt_type=$(deployment_value "$current_manifest" receipt_type)
         recovery_for=$(deployment_value "$current_manifest" recovery_for_activation)
         source_activation=$(deployment_value "$current_manifest" source_activation_id)
-        previous_release=$(marker_value "$marker" previous_release)
         if [[ "$receipt_type" == recovery && "$recovery_for" == "$marker_activation" \
             && "$previous_runtime" == true ]] \
             && validate_immutable_release "$previous_release"; then
             expected_source_activation=$(deployment_value "$previous_release/deployment.manifest" activation_id)
             [[ "$source_activation" == "$expected_source_activation" \
-                && "$current_commit" == $(deployment_value "$previous_release/deployment.manifest" git_commit) ]] \
+                && "$current_commit" == $(deployment_value "$previous_release/deployment.manifest" git_commit) \
+                && $(deployment_value "$current_manifest" format) == $(deployment_value "$previous_release/deployment.manifest" format) ]] \
                 && recovered=true
         fi
     fi
@@ -805,7 +938,7 @@ recover_deploy_marker() {
         log "no previous immutable runtime exists, so the deployment marker is retained for inspection"
         return 1
     else
-        for service in postgres minio mailpit iuin-server; do
+        for service in "${previous_services[@]}"; do
             key=$(service_marker_key "$service")
             id=$(marker_value "$marker" "${key}_id")
             image_id=$(marker_value "$marker" "${key}_image_id")
@@ -820,6 +953,14 @@ recover_deploy_marker() {
             current_id=$(current_service_id "$service") || { rollback_needed=true; break; }
             [[ -z "$current_id" || "$current_id" == "$id" ]] || { rollback_needed=true; break; }
         done
+        if [[ "$rollback_needed" == false \
+            && $(deployment_value "$previous_release/deployment.manifest" format) == 1 ]]; then
+            if ! gateway_current=$(current_service_id gateway); then
+                rollback_needed=true
+            elif [[ -n "$gateway_current" ]]; then
+                rollback_needed=true
+            fi
+        fi
         if [[ "$rollback_needed" == true ]]; then
             rollback_previous_deployment "$marker" \
                 || { log "previous deployment rollback failed; marker retained"; return 1; }
@@ -829,7 +970,9 @@ recover_deploy_marker() {
     fi
 
     [[ -n "$current_manifest" ]] || { log "no immutable runtime is available for recovery"; return 1; }
-    for service in postgres minio mailpit iuin-server; do
+    current_services_text=$(deployment_manifest_services "$current_manifest") || return 1
+    mapfile -t current_services <<< "$current_services_text"
+    for service in "${current_services[@]}"; do
         timeout=300
         [[ "$service" == iuin-server ]] && timeout=600
         id=$(deployment_container_field "$current_manifest" "$service" id)
@@ -844,7 +987,7 @@ recover_deploy_marker() {
     [[ "$failed" == false ]] || return 1
     systemctl restart iuin-docker-firewall.service || return 1
     run_active_health --internal || return 1
-    finalize_restart_policies || return 1
+    finalize_restart_policies "$runtime" || return 1
     remove_restore_fence || return 1
     if ! run_active_health; then
         if apply_restore_fence; then
@@ -943,11 +1086,13 @@ if [[ -e "$restore_marker" || -L "$restore_marker" ]]; then
             start_exact "$service" "$id" "$timeout" || { failed=true; break; }
         done
         [[ "$failed" == false ]] || { log "pre-mutation restore recovery failed; marker and fence retained"; exit 1; }
+        start_active_gateway_if_present "$runtime" \
+            || { log "pre-mutation restore gateway recovery failed; marker and fence retained"; exit 1; }
         systemctl restart iuin-docker-firewall.service \
             || { log "failed to refresh the container firewall; marker and fence retained"; exit 1; }
         run_active_health --internal \
             || { log "pre-mutation restore internal health failed; marker and fence retained"; exit 1; }
-        finalize_restart_policies \
+        finalize_restart_policies "$runtime" \
             || { log "failed to restore restart policies; marker and fence retained"; exit 1; }
         remove_restore_fence || exit 1
         if ! run_active_health; then
@@ -970,11 +1115,13 @@ if [[ -e "$restore_marker" || -L "$restore_marker" ]]; then
         fi
         [[ "$failed" == false ]] \
             || { log "committed restore container recovery failed; marker and fence retained"; exit 1; }
+        start_active_gateway_if_present "$runtime" \
+            || { log "committed restore gateway recovery failed; marker and fence retained"; exit 1; }
         systemctl restart iuin-docker-firewall.service \
             || { log "committed restore firewall refresh failed; marker and fence retained"; exit 1; }
         run_active_health --internal \
             || { log "committed restore internal health failed; marker and fence retained"; exit 1; }
-        finalize_restart_policies \
+        finalize_restart_policies "$runtime" \
             || { log "committed restore restart-policy finalization failed; marker and fence retained"; exit 1; }
         remove_restore_fence || { log "committed restore fence removal failed; marker retained"; exit 1; }
         if ! run_active_health; then

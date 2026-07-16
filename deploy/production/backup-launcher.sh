@@ -37,15 +37,25 @@ immutable_seed_hash() {
         | sha256sum | awk '{print $1}'
 }
 
-[[ $(manifest_value format) == 1 \
-    && $(manifest_value git_commit) =~ ^[a-f0-9]{40,64}$ \
+deployment_format=$(manifest_value format)
+case "$deployment_format" in
+    1) deployment_services=(postgres minio mailpit iuin-server) ;;
+    2) deployment_services=(postgres minio mailpit iuin-server gateway) ;;
+    *) echo "active deployment manifest has an unsupported format" >&2; exit 1 ;;
+esac
+[[ $(manifest_value git_commit) =~ ^[a-f0-9]{40,64}$ \
     && $(manifest_value activation_id) =~ ^[a-f0-9]{32}$ ]] \
     || { echo "active deployment manifest metadata is invalid" >&2; exit 1; }
 awk -F= 'NF < 2 || ($1 != "container" && seen[$1]++) { exit 1 }' \
     "$release/deployment.manifest" \
     || { echo "active deployment manifest has malformed or duplicate fields" >&2; exit 1; }
-[[ $(grep -c '^container=' "$release/deployment.manifest") -eq 4 ]] \
-    || { echo "active deployment manifest must contain four container receipts" >&2; exit 1; }
+[[ $(grep -c '^container=' "$release/deployment.manifest") -eq ${#deployment_services[@]} ]] \
+    || { echo "active deployment manifest has an invalid container receipt count for format $deployment_format" >&2; exit 1; }
+for service in "${deployment_services[@]}"; do
+    [[ $(grep -Ec "^container=$service id=[a-f0-9]{64} image_ref=[^[:space:]]+ image_id=sha256:[a-f0-9]{64} config_hash=[a-f0-9]{64}$" \
+        "$release/deployment.manifest") -eq 1 ]] \
+        || { echo "active deployment manifest is missing a valid $service container receipt" >&2; exit 1; }
+done
 for file_and_key in \
     "backup.sh:backup_sha256" "restore.sh:restore_sha256" "lib.sh:lib_sha256" \
     "compose.yaml:compose_sha256" "production.env:environment_sha256" \

@@ -78,7 +78,7 @@ failed=0
 restart_policies_ok=true
 expected_restart_policy=unless-stopped
 [[ "$health_mode" == full ]] || expected_restart_policy=maintenance-safe
-for service in postgres minio mailpit iuin-server; do
+for service in postgres minio mailpit iuin-server gateway; do
     container_id=$(compose ps --quiet "$service")
     if [[ -z "$container_id" ]]; then
         printf '%-14s %s\n' "$service" missing
@@ -91,7 +91,7 @@ for service in postgres minio mailpit iuin-server; do
     restart_policy=$(docker inspect --format '{{.HostConfig.RestartPolicy.Name}}' "$container_id")
     if [[ "$health_mode" == full ]]; then
         [[ "$restart_policy" == unless-stopped ]] || restart_policies_ok=false
-    elif [[ "$service" == postgres ]]; then
+    elif [[ "$service" == postgres || "$service" == gateway ]]; then
         [[ "$restart_policy" == no || "$restart_policy" == unless-stopped ]] || restart_policies_ok=false
     else
         [[ "$restart_policy" == no ]] || restart_policies_ok=false
@@ -108,11 +108,28 @@ compose --profile ops run --rm --no-deps --pull never minio-init check >/dev/nul
 if [[ "$health_mode" == full ]]; then
     curl --fail --silent --show-error --max-time 10 "$SITE_URL/api/v4/system/ping" \
         | jq -e '.status == "OK"' >/dev/null || failed=1
+
+    websocket_status=$(curl --http1.1 --silent --show-error --max-time 3 \
+        --output /dev/null --write-out '%{http_code}' \
+        --header 'Connection: Upgrade' \
+        --header 'Upgrade: websocket' \
+        --header 'Sec-WebSocket-Version: 13' \
+        --header 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' \
+        --header "Origin: $SITE_URL" \
+        "$SITE_URL/api/v4/websocket" 2>/dev/null || true)
+    if [[ "$websocket_status" == 101 ]]; then
+        printf '%-14s %s\n' gateway-ws upgraded
+    else
+        printf '%-14s %s\n' gateway-ws "failed ($websocket_status)"
+        failed=1
+    fi
 fi
 
+gateway_id=$(compose ps --quiet gateway)
 server_id=$(compose ps --quiet iuin-server)
 mailpit_id=$(compose ps --quiet mailpit)
-if [[ $(docker port "$server_id" 8065/tcp) == "$BIND_ADDRESS:8065" ]] \
+if [[ $(docker port "$gateway_id" 8065/tcp) == "$BIND_ADDRESS:8065" ]] \
+    && [[ -z "$(docker port "$server_id" 8065/tcp 2>/dev/null || true)" ]] \
     && [[ $(docker port "$server_id" 8443/tcp) == "$BIND_ADDRESS:8443" ]] \
     && [[ $(docker port "$server_id" 8443/udp) == "$BIND_ADDRESS:8443" ]] \
     && [[ $(docker port "$mailpit_id" 8025/tcp) == "$BIND_ADDRESS:8025" ]] \
@@ -123,8 +140,52 @@ else
     failed=1
 fi
 
+web_network="${COMPOSE_PROJECT_NAME}_web"
+backend_network="${COMPOSE_PROJECT_NAME}_backend"
+egress_network="${COMPOSE_PROJECT_NAME}_egress"
 mail_network="${COMPOSE_PROJECT_NAME}_mail"
 mail_ui_network="${COMPOSE_PROJECT_NAME}_mail_ui"
+gateway_networks=$(docker inspect --format \
+    '{{range $name, $config := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$gateway_id" \
+    | awk 'NF' | LC_ALL=C sort)
+server_networks=$(docker inspect --format \
+    '{{range $name, $config := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$server_id" \
+    | awk 'NF' | LC_ALL=C sort)
+trusted_proxy_environment_ok=false
+docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$server_id" \
+    | grep --quiet --fixed-strings --line-regexp \
+        'MM_SERVICESETTINGS_TRUSTEDPROXYIPHEADER=X-Forwarded-For' \
+    && trusted_proxy_environment_ok=true
+if [[ "$gateway_networks" == "$web_network" \
+    && "$server_networks" == "$(printf '%s\n%s\n%s\n%s' \
+        "$backend_network" "$egress_network" "$mail_network" "$web_network" | LC_ALL=C sort)" \
+    && $(docker network inspect --format '{{.Internal}}' "$web_network") == true \
+    && $(docker network inspect --format \
+        '{{index .Options "com.docker.network.bridge.name"}}' "$web_network") == br-iuin-web \
+    && "$trusted_proxy_environment_ok" == true ]]; then
+    printf '%-14s %s\n' gateway-net internal-only
+else
+    printf '%-14s %s\n' gateway-net failed
+    failed=1
+fi
+
+gateway_proxy_response=$(compose exec --no-TTY gateway /usr/bin/wget -q -T 5 -O - \
+    --header "Host: ${BIND_ADDRESS}:8065" \
+    http://127.0.0.1:8065/api/v4/system/ping 2>/dev/null || true)
+if printf '%s' "$gateway_proxy_response" | jq -e '.status == "OK"' >/dev/null 2>&1; then
+    printf '%-14s %s\n' gateway-proxy ok
+else
+    printf '%-14s %s\n' gateway-proxy failed
+    failed=1
+fi
+if compose exec --no-TTY gateway /usr/bin/wget -q -T 3 -O /dev/null \
+    http://1.1.1.1 >/dev/null 2>&1; then
+    printf '%-14s %s\n' gateway-egress exposed
+    failed=1
+else
+    printf '%-14s %s\n' gateway-egress blocked
+fi
+
 mailpit_networks=$(docker inspect --format \
     '{{range $name, $config := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$mailpit_id" \
     | awk 'NF' | LC_ALL=C sort)
@@ -197,11 +258,11 @@ mapfile -t resident_services < <(docker ps \
     --format '{{.Label "com.docker.compose.service"}}' \
     | LC_ALL=C sort)
 resident_count=${#resident_services[@]}
-if [[ "$resident_count" -eq 4 \
-    && "${resident_services[*]}" == 'iuin-server mailpit minio postgres' ]]; then
-    printf '%-14s %s\n' containers "4 resident"
+if [[ "$resident_count" -eq 5 \
+    && "${resident_services[*]}" == 'gateway iuin-server mailpit minio postgres' ]]; then
+    printf '%-14s %s\n' containers "5 resident"
 else
-    printf '%-14s %s\n' containers "expected exact four, found $resident_count"
+    printf '%-14s %s\n' containers "expected exact five, found $resident_count"
     failed=1
 fi
 
@@ -222,11 +283,19 @@ else
 fi
 
 expected_docker_user_first=IUIN-FILTER
+docker_daemon_config_ok=false
 [[ "$health_mode" == full ]] || expected_docker_user_first=IUIN-RESTORE
-if [[ $(docker info --format '{{.LiveRestoreEnabled}}' 2>/dev/null) == false ]]; then
+docker_daemon_config_metadata=$(stat --format '%u:%g:%a:%h' /etc/docker/daemon.json 2>/dev/null || true)
+if [[ "$docker_daemon_config_metadata" =~ ^0:0:(600|640|644):1$ ]] \
+    && jq -e '.["live-restore"] == false and .["allow-direct-routing"] == false' \
+        /etc/docker/daemon.json >/dev/null 2>&1; then
+    docker_daemon_config_ok=true
+fi
+if [[ $(docker info --format '{{.LiveRestoreEnabled}}' 2>/dev/null) == false \
+    && "$docker_daemon_config_ok" == true ]]; then
     printf '%-14s %s\n' docker-runtime ok
 else
-    printf '%-14s %s\n' docker-runtime unsafe-live-restore
+    printf '%-14s %s\n' docker-runtime unsafe-daemon-config
     failed=1
 fi
 if [[ $(docker info --format '{{.FirewallBackend.Driver}}' 2>/dev/null) == iptables ]] \
@@ -268,16 +337,16 @@ else
     failed=1
 fi
 
-mailpit_host_blocked=true
-iptables -w -C INPUT -j IUIN-MAIL-INPUT >/dev/null 2>&1 || mailpit_host_blocked=false
-for bridge in br-iuin-mail br-iuin-mailui; do
+container_host_blocked=true
+iptables -w -C INPUT -j IUIN-MAIL-INPUT >/dev/null 2>&1 || container_host_blocked=false
+for bridge in br-iuin-mail br-iuin-mailui br-iuin-web; do
     iptables -w -C IUIN-MAIL-INPUT -i "$bridge" -m conntrack --ctdir ORIGINAL -j DROP \
-        >/dev/null 2>&1 || mailpit_host_blocked=false
+        >/dev/null 2>&1 || container_host_blocked=false
 done
-if [[ "$mailpit_host_blocked" == true ]]; then
-    printf '%-14s %s\n' mailpit-host blocked
+if [[ "$container_host_blocked" == true ]]; then
+    printf '%-14s %s\n' container-host blocked
 else
-    printf '%-14s %s\n' mailpit-host failed
+    printf '%-14s %s\n' container-host failed
     failed=1
 fi
 

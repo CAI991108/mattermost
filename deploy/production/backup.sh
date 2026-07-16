@@ -55,6 +55,28 @@ deployment_container_field() {
     ' "$deployment_manifest"
 }
 
+deployment_format=$(deployment_value format)
+case "$deployment_format" in
+    1)
+        deployment_services=(postgres minio mailpit iuin-server)
+        backup_manifest_format=2
+        ;;
+    2)
+        deployment_services=(postgres minio mailpit iuin-server gateway)
+        backup_manifest_format=3
+        ;;
+    *) die "active deployment manifest has an unsupported format" ;;
+esac
+awk -F= 'NF < 2 || ($1 != "container" && seen[$1]++) { exit 1 }' "$deployment_manifest" \
+    || die "active deployment manifest has malformed or duplicate fields"
+[[ $(grep -c '^container=' "$deployment_manifest") -eq ${#deployment_services[@]} ]] \
+    || die "active deployment manifest has an invalid container receipt count for format $deployment_format"
+for service in "${deployment_services[@]}"; do
+    [[ $(grep -Ec "^container=$service id=[a-f0-9]{64} image_ref=[^[:space:]]+ image_id=sha256:[a-f0-9]{64} config_hash=[a-f0-9]{64}$" \
+        "$deployment_manifest") -eq 1 ]] \
+        || die "active deployment manifest is missing a valid $service container receipt"
+done
+
 marker="$DATA_ROOT/backups/.backup-in-progress"
 deploy_marker="$DATA_ROOT/backups/.deploy-in-progress"
 restore_marker="$DATA_ROOT/backups/.restore-in-progress"
@@ -124,6 +146,103 @@ remove_backup_fence() {
     done
 }
 
+receipted_service_id() {
+    local service=$1 ids count id project_label service_label
+    local expected_id expected_image expected_config live_image live_config
+    ids=$(docker ps --all --no-trunc --quiet \
+        --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" \
+        --filter "label=com.docker.compose.service=$service") || return 1
+    count=$(wc -w <<< "$ids")
+    [[ "$count" -eq 1 ]] \
+        || { log "$service is not a unique container in $COMPOSE_PROJECT_NAME" >&2; return 1; }
+    id=$ids
+    project_label=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$id")
+    service_label=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.service"}}' "$id")
+    expected_id=$(deployment_container_field "$service" id)
+    expected_image=$(deployment_container_field "$service" image_id)
+    expected_config=$(deployment_container_field "$service" config_hash)
+    live_image=$(docker inspect --format '{{.Image}}' "$id")
+    live_config=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.config-hash"}}' "$id")
+    [[ "$project_label" == "$COMPOSE_PROJECT_NAME" && "$service_label" == "$service" \
+        && "$expected_id" =~ ^[a-f0-9]{64}$ && "$id" == "$expected_id" \
+        && "$expected_image" =~ ^sha256:[a-f0-9]{64}$ && "$live_image" == "$expected_image" \
+        && "$expected_config" =~ ^[a-f0-9]{64}$ && "$live_config" == "$expected_config" ]] \
+        || { log "$service does not match the active immutable deployment receipt" >&2; return 1; }
+    printf '%s\n' "$id"
+}
+
+wait_for_recovering_container_health() {
+    local container=$1 timeout=${2:-300} started now state running status
+    started=$(date +%s)
+    while :; do
+        state=$(docker inspect --format \
+            '{{.State.Running}} {{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
+            "$container" 2>/dev/null || true)
+        running=${state%% *}
+        status=${state#* }
+        if [[ "$running" != true ]]; then
+            docker logs --tail 100 "$container" >&2 || true
+            log "container $container stopped while waiting for dependency recovery" >&2
+            return 1
+        fi
+        case "$status" in
+            healthy|running)
+                (wait_for_container_health "$container" 1) || return 1
+                return 0
+                ;;
+            starting|unhealthy) ;;
+            *)
+                docker logs --tail 100 "$container" >&2 || true
+                log "container $container entered unexpected health state $status" >&2
+                return 1
+                ;;
+        esac
+        now=$(date +%s)
+        if (( now - started >= timeout )); then
+            docker logs --tail 100 "$container" >&2 || true
+            log "timed out waiting for container $container to recover health" >&2
+            return 1
+        fi
+        sleep 3
+    done
+}
+
+ensure_recovery_container_running() {
+    local id=$1 running
+    docker update --restart=no "$id" >/dev/null || return 1
+    running=$(docker inspect --format '{{.State.Running}}' "$id" 2>/dev/null || true)
+    case "$running" in
+        true) ;;
+        false) docker start "$id" >/dev/null 2>&1 || true ;;
+        *) return 1 ;;
+    esac
+    [[ $(docker inspect --format '{{.State.Running}}' "$id" 2>/dev/null) == true ]]
+}
+
+fail_close_recovered_application_services() {
+    local gateway_id=$1 server_id=$2 minio_id=$3 mailpit_id=$4
+    local id running failed=false live_restore
+    local -a ids=()
+    if [[ -n "$gateway_id" ]]; then
+        ids+=("$gateway_id")
+    fi
+    ids+=("$server_id" "$minio_id" "$mailpit_id")
+    for id in "${ids[@]}"; do
+        docker update --restart=no "$id" >/dev/null 2>&1 || failed=true
+        docker stop --time 120 "$id" >/dev/null 2>&1 || true
+        running=$(docker inspect --format '{{.State.Running}}' "$id" 2>/dev/null || true)
+        [[ "$running" == false ]] || failed=true
+    done
+    [[ "$failed" == false ]] && return 0
+    log "container-level fail-close was incomplete; stopping Docker and its activation socket" >&2
+    live_restore=$(timeout --signal=TERM 15 docker info \
+        --format '{{.LiveRestoreEnabled}}' 2>/dev/null || true)
+    systemctl stop docker.service docker.socket || return 1
+    [[ "$live_restore" == false ]] \
+        && ! systemctl is-active --quiet docker.service \
+        && ! systemctl is-active --quiet docker.socket
+}
+
 restart_container() {
     local id=$1 timeout=$2 service=$3 ids count project_label service_label
     local expected_id expected_image expected_config live_image live_config
@@ -162,7 +281,8 @@ recover_interrupted_backup() {
     [[ -f "$marker" && ! -L "$marker" ]] || die "invalid backup recovery marker: $marker"
     [[ $(stat --format '%u' "$marker") == 0 ]] || die "backup recovery marker must be owned by root"
 
-    local format postgres_id minio_id mailpit_id server_id recovery_failed=false
+    local format postgres_id minio_id mailpit_id server_id gateway_id='' recovery_failed=false
+    local -a restart_policy_ids
     format=$(marker_value format)
     [[ "$format" == 1 ]] || die "unsupported backup recovery marker format"
     postgres_id=$(marker_value postgres_id)
@@ -181,23 +301,38 @@ recover_interrupted_backup() {
     if [[ "$recovery_failed" == false ]]; then
         restart_container "$server_id" 600 iuin-server || recovery_failed=true
     fi
+    if [[ "$recovery_failed" == false && "$deployment_format" == 2 ]]; then
+        if gateway_id=$(receipted_service_id gateway); then
+            ensure_recovery_container_running "$gateway_id" || recovery_failed=true
+            if [[ "$recovery_failed" == false ]]; then
+                wait_for_recovering_container_health "$gateway_id" 300 || recovery_failed=true
+            fi
+        else
+            recovery_failed=true
+        fi
+    fi
     if [[ "$recovery_failed" == true ]]; then
         log "automatic backup recovery failed; marker retained at $marker"
         return 1
     fi
     systemctl restart iuin-docker-firewall.service || return 1
     "$SCRIPT_DIR/health.sh" --internal || return 1
-    for id in "$postgres_id" "$minio_id" "$mailpit_id" "$server_id"; do
+    restart_policy_ids=("$postgres_id" "$minio_id" "$mailpit_id" "$server_id")
+    if [[ "$deployment_format" == 2 ]]; then
+        restart_policy_ids+=("$gateway_id")
+    fi
+    for id in "${restart_policy_ids[@]}"; do
         docker update --restart=unless-stopped "$id" >/dev/null || return 1
     done
     remove_backup_fence || return 1
     if ! "$SCRIPT_DIR/health.sh"; then
         if ! systemctl restart iuin-docker-firewall.service; then
-            for id in "$server_id" "$minio_id" "$mailpit_id"; do
-                docker update --restart=no "$id" >/dev/null 2>&1 || true
-                docker stop --time 120 "$id" >/dev/null 2>&1 || true
-            done
-            log "CRITICAL: full health failed, the fence could not be restored, and application services were stopped"
+            if fail_close_recovered_application_services \
+                "$gateway_id" "$server_id" "$minio_id" "$mailpit_id"; then
+                log "full health failed and the fence could not be restored; application services were stopped and verified"
+            else
+                log "CRITICAL: neither the firewall fence nor application fail-close could be guaranteed"
+            fi
         fi
         log "interrupted backup recovery failed full health; marker retained"
         return 1
@@ -245,18 +380,32 @@ postgres_id=$(running_service_id postgres)
 server_id=$(running_service_id iuin-server)
 minio_id=$(running_service_id minio)
 mailpit_id=$(running_service_id mailpit)
-for service_and_id in "postgres:$postgres_id" "iuin-server:$server_id" "minio:$minio_id" "mailpit:$mailpit_id"; do
+gateway_id=
+live_service_receipts=(
+    "postgres:$postgres_id"
+    "iuin-server:$server_id"
+    "minio:$minio_id"
+    "mailpit:$mailpit_id"
+)
+if [[ "$deployment_format" == 2 ]]; then
+    gateway_id=$(running_service_id gateway)
+    live_service_receipts+=("gateway:$gateway_id")
+fi
+for service_and_id in "${live_service_receipts[@]}"; do
     [[ -n "${service_and_id#*:}" ]] || die "${service_and_id%%:*} must be running before backup"
 done
 wait_for_container_health "$postgres_id" 300
 wait_for_container_health "$minio_id" 300
 wait_for_container_health "$mailpit_id" 300
 wait_for_container_health "$server_id" 600
+if [[ "$deployment_format" == 2 ]]; then
+    wait_for_container_health "$gateway_id" 300
+fi
 
 git_commit=$(deployment_value git_commit)
 [[ "$git_commit" =~ ^[a-f0-9]{40,64}$ ]] || die "active deployment manifest has an invalid git_commit"
-[[ $(deployment_value format) == 1 && $(deployment_value activation_id) =~ ^[a-f0-9]{32}$ ]] \
-    || die "active deployment manifest has invalid format or activation ID"
+[[ $(deployment_value activation_id) =~ ^[a-f0-9]{32}$ ]] \
+    || die "active deployment manifest has an invalid activation ID"
 for file_and_key in \
     "backup.sh:backup_sha256" "restore.sh:restore_sha256" "lib.sh:lib_sha256" \
     "compose.yaml:compose_sha256" "production.env:environment_sha256" \
@@ -282,7 +431,7 @@ expected_seed_hash=$(deployment_value seed_sha256)
     && -s "$IUIN_SEED_ROOT/profile/honors/achievements/achv_profile_anchor/icon.png" \
     && $(immutable_seed_hash "$IUIN_SEED_ROOT") == "$expected_seed_hash" ]] \
     || die "active immutable runtime seed differs from deployment manifest"
-for service_and_id in "postgres:$postgres_id" "iuin-server:$server_id" "minio:$minio_id" "mailpit:$mailpit_id"; do
+for service_and_id in "${live_service_receipts[@]}"; do
     service=${service_and_id%%:*}
     id=${service_and_id#*:}
     expected_id=$(deployment_container_field "$service" id)
@@ -372,15 +521,14 @@ tar --create --gzip --numeric-owner --file "$staging/mattermost-runtime.tar.gz" 
     --directory "$DATA_ROOT" mattermost/config mattermost/plugins mattermost/client-plugins mattermost/data
 
 {
-    printf 'backup_format=2\n'
+    printf 'backup_format=%s\n' "$backup_manifest_format"
     printf 'created_utc=%s\n' "$timestamp"
     printf 'git_commit=%s\n' "$git_commit"
     printf 'site_url=%s\n' "$SITE_URL"
     printf 'quiesced=true\n'
     printf 'deployment_manifest_sha256=%s\n' "$(sha256sum "$deployment_manifest" | awk '{print $1}')"
     sed 's/^/deployment_/' "$deployment_manifest"
-    for service_and_id in \
-        "postgres:$postgres_id" "iuin-server:$server_id" "minio:$minio_id" "mailpit:$mailpit_id"; do
+    for service_and_id in "${live_service_receipts[@]}"; do
         service=${service_and_id%%:*}
         id=${service_and_id#*:}
         image_ref=$(docker inspect --format '{{.Config.Image}}' "$id")
