@@ -73,6 +73,19 @@ if early_marker_present; then
 fi
 : "${DATA_ROOT:?DATA_ROOT is required}"
 : "${BIND_ADDRESS:?BIND_ADDRESS is required}"
+recovery_mode=automatic
+case $# in
+    0) ;;
+    1)
+        [[ "$1" == --rollback-committed-deploy ]] \
+            || { echo "unsupported recovery argument: $1" >&2; exit 2; }
+        recovery_mode='rollback-committed-deploy'
+        ;;
+    *)
+        echo "usage: $0 [--rollback-committed-deploy]" >&2
+        exit 2
+        ;;
+esac
 command -v docker >/dev/null 2>&1 || { echo "Docker is not installed" >&2; exit 1; }
 timeout --signal=TERM 30 docker info >/dev/null 2>&1 \
     || { echo "Docker daemon is not available" >&2; exit 1; }
@@ -827,6 +840,186 @@ rollback_previous_deployment() {
     publish_recovery_receipt "$runtime" "$(marker_value "$marker" activation_id)" || return 1
 }
 
+rollback_committed_deployment() {
+    local marker=$1 phase previous_runtime previous_release previous_manifest previous_format
+    local marker_commit marker_activation marker_sha256 current_runtime current_manifest
+    local current_commit current_activation current_format receipt_type recovery_for source_activation
+    local expected_source_activation services_text service key field expected actual id running
+    local image_ref image_id config_hash resolved_image_id recovered_runtime timeout failed=false
+    local -a current_services previous_services stop_services
+
+    validate_marker "$marker" || return 1
+    phase=$(marker_value "$marker" phase)
+    previous_runtime=$(marker_value "$marker" previous_runtime)
+    previous_release=$(marker_value "$marker" previous_release)
+    marker_commit=$(marker_value "$marker" git_commit)
+    marker_activation=$(marker_value "$marker" activation_id)
+    [[ "$phase" == committed && "$previous_runtime" == true \
+        && "$marker_commit" =~ ^[a-f0-9]{40,64}$ \
+        && "$marker_activation" =~ ^[a-f0-9]{32}$ ]] \
+        || { log "explicit rollback requires a committed deployment marker with a previous runtime"; return 1; }
+    marker_sha256=$(sha256sum "$marker" | awk '{print $1}')
+    [[ "$marker_sha256" =~ ^[a-f0-9]{64}$ ]] || return 1
+
+    current_runtime=$(active_runtime_path) \
+        || { log "explicit rollback requires a valid active immutable runtime"; return 1; }
+    current_manifest="$current_runtime/deployment.manifest"
+    current_commit=$(deployment_value "$current_manifest" git_commit)
+    current_activation=$(deployment_value "$current_manifest" activation_id)
+    current_format=$(deployment_value "$current_manifest" format)
+    receipt_type=$(deployment_value "$current_manifest" receipt_type)
+    [[ "$current_commit" == "$marker_commit" \
+        && "$current_activation" == "$marker_activation" \
+        && "$current_format" == 2 && -z "$receipt_type" ]] \
+        || { log "active runtime is not the exact committed format-2 activation recorded by the marker"; return 1; }
+
+    validate_immutable_release "$previous_release" \
+        || { log "previous immutable runtime recorded by the marker is invalid"; return 1; }
+    previous_manifest="$previous_release/deployment.manifest"
+    previous_format=$(deployment_value "$previous_manifest" format)
+    [[ "$previous_format" == 1 ]] \
+        || { log "explicit committed rollback is restricted to the previous format-1 runtime"; return 1; }
+    [[ "$previous_release" != "$current_runtime" ]] || return 1
+
+    services_text=$(deployment_manifest_services "$current_manifest") || return 1
+    mapfile -t current_services <<< "$services_text"
+    [[ "${current_services[*]}" == "postgres minio mailpit iuin-server gateway" ]] || return 1
+    services_text=$(deployment_manifest_services "$previous_manifest") || return 1
+    mapfile -t previous_services <<< "$services_text"
+    [[ "${previous_services[*]}" == "postgres minio mailpit iuin-server" ]] || return 1
+
+    # A committed marker is rewritten with the new activation's identities.
+    # Prove every marker field and every live/stopped container still matches
+    # that immutable receipt before making the rollback mutation explicit.
+    for service in "${current_services[@]}"; do
+        key=$(service_marker_key "$service")
+        for field in id image_ref image_id config_hash; do
+            expected=$(deployment_container_field "$current_manifest" "$service" "$field")
+            actual=$(marker_value "$marker" "${key}_${field}")
+            [[ -n "$expected" && "$actual" == "$expected" ]] \
+                || { log "committed marker differs from the active $service receipt"; return 1; }
+        done
+        id=$(current_service_id "$service") || return 1
+        validate_active_container "$current_runtime" "$service" "$id" \
+            || { log "$service differs from the active committed receipt"; return 1; }
+    done
+
+    # Prove all previous images are locally available before stopping anything.
+    # Digest references must already resolve exactly; mutable local references
+    # are retagged from the immutable image ID only after the fence is complete.
+    for service in "${previous_services[@]}"; do
+        image_ref=$(deployment_container_field "$previous_manifest" "$service" image_ref)
+        image_id=$(deployment_container_field "$previous_manifest" "$service" image_id)
+        config_hash=$(deployment_container_field "$previous_manifest" "$service" config_hash)
+        [[ -n "$image_ref" && "$image_ref" != *[[:space:]]* \
+            && "$image_id" =~ ^sha256:[a-f0-9]{64}$ \
+            && "$config_hash" =~ ^[a-f0-9]{64}$ ]] || return 1
+        docker image inspect "$image_id" >/dev/null 2>&1 \
+            || { log "previous $service image is no longer available locally"; return 1; }
+        if [[ "$image_ref" == *@* ]]; then
+            resolved_image_id=$(docker image inspect --format '{{.Id}}' "$image_ref" 2>/dev/null) \
+                || { log "previous digest reference for $service is unavailable"; return 1; }
+            [[ "$resolved_image_id" == "$image_id" ]] \
+                || { log "previous digest reference for $service resolves to a different image"; return 1; }
+        fi
+    done
+
+    if ! apply_restore_fence; then
+        fail_close_application_services || true
+        log "explicit committed rollback could not establish its maintenance fence"
+        return 1
+    fi
+
+    stop_services=(gateway iuin-server mailpit minio postgres)
+    for service in "${stop_services[@]}"; do
+        id=$(deployment_container_field "$current_manifest" "$service" id)
+        validate_active_container "$current_runtime" "$service" "$id" || return 1
+        docker update --restart=no "$id" >/dev/null || return 1
+        running=$(docker inspect --format '{{.State.Running}}' "$id") || return 1
+        case "$running" in
+            true) docker stop --time 120 "$id" >/dev/null || return 1 ;;
+            false) ;;
+            *) return 1 ;;
+        esac
+        [[ $(docker inspect --format '{{.State.Running}}' "$id") == false ]] || return 1
+    done
+    [[ $(active_runtime_path) == "$current_runtime" \
+        && $(sha256sum "$marker" | awk '{print $1}') == "$marker_sha256" ]] \
+        || { log "runtime or deployment marker changed while entering rollback"; return 1; }
+
+    id=$(deployment_container_field "$current_manifest" gateway id)
+    validate_active_container "$current_runtime" gateway "$id" || return 1
+    docker rm "$id" >/dev/null || return 1
+    id=$(current_service_id gateway) || return 1
+    [[ -z "$id" ]] || return 1
+
+    for service in "${previous_services[@]}"; do
+        image_ref=$(deployment_container_field "$previous_manifest" "$service" image_ref)
+        image_id=$(deployment_container_field "$previous_manifest" "$service" image_id)
+        if [[ "$image_ref" != *@* ]]; then
+            [[ "$image_ref" != *[[:space:]]* ]] || return 1
+            docker tag "$image_id" "$image_ref" || return 1
+        fi
+    done
+    IUIN_RESTART_POLICY=no docker compose \
+        --project-directory "$previous_release" \
+        --env-file "$previous_release/production.env" \
+        --file "$previous_release/compose.yaml" \
+        up --no-start --no-build --pull never "${previous_services[@]}" || return 1
+
+    for service in "${previous_services[@]}"; do
+        image_id=$(deployment_container_field "$previous_manifest" "$service" image_id)
+        config_hash=$(deployment_container_field "$previous_manifest" "$service" config_hash)
+        id=$(current_service_id "$service") || return 1
+        [[ -n "$id" ]] || return 1
+        validate_container_identity "$service" "$id" "$image_id" "$config_hash" \
+            || { log "recreated $service does not match the previous immutable receipt"; return 1; }
+        docker update --restart=no "$id" >/dev/null || return 1
+        [[ $(docker inspect --format '{{.State.Running}}' "$id") == false ]] || return 1
+    done
+    id=$(current_service_id gateway) || return 1
+    [[ -z "$id" ]] || return 1
+    systemctl restart iuin-docker-firewall.service || return 1
+    publish_recovery_receipt "$previous_release" "$marker_activation" || return 1
+
+    recovered_runtime=$(active_runtime_path) || return 1
+    receipt_type=$(deployment_value "$recovered_runtime/deployment.manifest" receipt_type)
+    recovery_for=$(deployment_value "$recovered_runtime/deployment.manifest" recovery_for_activation)
+    source_activation=$(deployment_value "$recovered_runtime/deployment.manifest" source_activation_id)
+    expected_source_activation=$(deployment_value "$previous_manifest" activation_id)
+    [[ "$receipt_type" == recovery && "$recovery_for" == "$marker_activation" \
+        && "$source_activation" == "$expected_source_activation" \
+        && $(deployment_value "$recovered_runtime/deployment.manifest" format) == 1 \
+        && $(deployment_value "$recovered_runtime/deployment.manifest" git_commit) \
+            == "$(deployment_value "$previous_manifest" git_commit)" ]] || return 1
+
+    for service in "${previous_services[@]}"; do
+        timeout=300
+        [[ "$service" == iuin-server ]] && timeout=600
+        id=$(deployment_container_field "$recovered_runtime/deployment.manifest" "$service" id)
+        image_id=$(deployment_container_field "$recovered_runtime/deployment.manifest" "$service" image_id)
+        config_hash=$(deployment_container_field "$recovered_runtime/deployment.manifest" "$service" config_hash)
+        start_exact "$service" "$id" "$timeout" "$image_id" "$config_hash" || { failed=true; break; }
+    done
+    [[ "$failed" == false ]] || return 1
+    systemctl restart iuin-docker-firewall.service || return 1
+    run_active_health --internal || return 1
+    finalize_restart_policies "$recovered_runtime" || return 1
+    remove_restore_fence || return 1
+    if ! run_active_health; then
+        if apply_restore_fence; then
+            log "explicit committed rollback failed full health; marker retained behind the maintenance fence"
+        else
+            fail_close_application_services || true
+            log "explicit committed rollback failed full health and application services were stopped"
+        fi
+        return 1
+    fi
+    rm -f -- "$marker" || return 1
+    sync_backup_root || return 1
+    log "committed format-2 deployment rolled back to an append-only format-1 recovery receipt"
+}
+
 recover_deploy_marker() {
     local marker=$1 service key id image_id config_hash current_id timeout runtime current_manifest gateway_current
     local marker_commit marker_activation current_commit current_activation
@@ -1047,6 +1240,17 @@ if (( marker_count > 1 )); then
     fail_close_application_services || log "one or more application containers could not be stopped"
     log "multiple maintenance markers are present; refusing to run conflicting recovery state machines"
     exit 1
+fi
+
+if [[ "$recovery_mode" == 'rollback-committed-deploy' ]]; then
+    [[ "$marker_count" -eq 1 \
+        && -e "$deploy_marker" && ! -L "$deploy_marker" \
+        && ! -e "$restore_marker" && ! -L "$restore_marker" \
+        && ! -e "$backup_marker" && ! -L "$backup_marker" ]] \
+        || { log "explicit committed rollback requires exactly one regular deployment marker"; exit 1; }
+    rollback_committed_deployment "$deploy_marker" \
+        || { log "explicit committed deployment rollback failed; marker and fence retained"; exit 1; }
+    exit 0
 fi
 
 if [[ -e "$restore_marker" || -L "$restore_marker" ]]; then

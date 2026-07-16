@@ -50,7 +50,9 @@ services:
       start_period: 30s
     logging: *default-logging
     networks:
-      - web
+      web: {}
+      gateway_publish:
+        gw_priority: 1
 
   postgres:
     image: postgres:17.10-alpine3.24@sha256:af194ccf3e2d7fe367012c7b88ce8b816c5c889b18a5b316799a1f0d7eac746a
@@ -407,6 +409,11 @@ networks:
     driver: bridge
     driver_opts:
       com.docker.network.bridge.name: br-iuin-web
+  gateway_publish:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-iuin-gwpub
+      com.docker.network.bridge.enable_ip_masquerade: "false"
   backend:
     internal: true
   egress: {}

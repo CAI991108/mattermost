@@ -15,6 +15,7 @@ update_input_chain=IUIN-UPD-INPUT
 mail_bridge=br-iuin-mail
 mail_ui_bridge=br-iuin-mailui
 web_bridge=br-iuin-web
+gateway_publish_bridge=br-iuin-gwpub
 mail_bridges=("$mail_bridge")
 
 (( EUID == 0 )) || { echo "must run as root" >&2; exit 1; }
@@ -73,7 +74,9 @@ remove_update_guards() {
 
 install_update_guards() {
     local spec protocol port bridge forward_active=false input_active=false
-    local -a guard_bridges=("${mail_bridges[@]}" "$mail_ui_bridge" "$web_bridge")
+    local -a guard_bridges=(
+        "${mail_bridges[@]}" "$mail_ui_bridge" "$web_bridge" "$gateway_publish_bridge"
+    )
     iptables -w -C DOCKER-USER -j "$update_forward_chain" >/dev/null 2>&1 && forward_active=true
     iptables -w -C INPUT -j "$update_input_chain" >/dev/null 2>&1 && input_active=true
 
@@ -82,10 +85,12 @@ install_update_guards() {
     if [[ "$forward_active" == false ]]; then
         iptables -w -F "$update_forward_chain" || return 1
     fi
-    iptables -w -C "$update_forward_chain" -i "$mail_ui_bridge" \
-        -m conntrack --ctdir ORIGINAL -j DROP >/dev/null 2>&1 \
-        || iptables -w -I "$update_forward_chain" 1 -i "$mail_ui_bridge" \
-            -m conntrack --ctdir ORIGINAL -j DROP || return 1
+    for bridge in "$mail_ui_bridge" "$gateway_publish_bridge"; do
+        iptables -w -C "$update_forward_chain" -i "$bridge" \
+            -m conntrack --ctdir ORIGINAL -j DROP >/dev/null 2>&1 \
+            || iptables -w -I "$update_forward_chain" 1 -i "$bridge" \
+                -m conntrack --ctdir ORIGINAL -j DROP || return 1
+    done
     for spec in tcp:8025 tcp:8065 tcp:8443 udp:8443; do
         protocol=${spec%%:*}
         port=${spec##*:}
@@ -254,11 +259,13 @@ case "$action" in
         iptables -w -N "$input_chain" 2>/dev/null || true
         iptables -w -F "$input_chain"
 
-        # Mailpit needs a gateway-backed bridge for its published UI port. Block
-        # the original direction of every connection initiated by that bridge,
-        # including connections established before a policy refresh. Replies to
-        # inbound UI requests use the conntrack REPLY direction and remain valid.
-        iptables -w -A "$chain" -i "$mail_ui_bridge" -m conntrack --ctdir ORIGINAL -j DROP
+        # Docker only publishes ports for containers with a gateway-backed
+        # network. Mailpit and Nginx each get a dedicated, non-masqueraded
+        # publishing bridge. Block every connection initiated from either bridge;
+        # replies to inbound published-port requests use the REPLY direction.
+        for bridge in "$mail_ui_bridge" "$gateway_publish_bridge"; do
+            iptables -w -A "$chain" -i "$bridge" -m conntrack --ctdir ORIGINAL -j DROP
+        done
         for spec in tcp:8025 tcp:8065 tcp:8443 udp:8443; do
             protocol=${spec%%:*}
             port=${spec##*:}
@@ -281,7 +288,8 @@ case "$action" in
 
         # Private service bridges may not initiate connections to host services.
         # Keep established replies so the host can still probe published ports.
-        for bridge in "${mail_bridges[@]}" "$mail_ui_bridge" "$web_bridge"; do
+        for bridge in "${mail_bridges[@]}" "$mail_ui_bridge" "$web_bridge" \
+            "$gateway_publish_bridge"; do
             iptables -w -A "$input_chain" -i "$bridge" -m conntrack --ctdir ORIGINAL -j DROP
         done
         iptables -w -A "$input_chain" -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN

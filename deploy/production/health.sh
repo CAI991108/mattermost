@@ -141,6 +141,7 @@ else
 fi
 
 web_network="${COMPOSE_PROJECT_NAME}_web"
+gateway_publish_network="${COMPOSE_PROJECT_NAME}_gateway_publish"
 backend_network="${COMPOSE_PROJECT_NAME}_backend"
 egress_network="${COMPOSE_PROJECT_NAME}_egress"
 mail_network="${COMPOSE_PROJECT_NAME}_mail"
@@ -156,14 +157,21 @@ docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$server_id"
     | grep --quiet --fixed-strings --line-regexp \
         'MM_SERVICESETTINGS_TRUSTEDPROXYIPHEADER=X-Forwarded-For' \
     && trusted_proxy_environment_ok=true
-if [[ "$gateway_networks" == "$web_network" \
+if [[ "$gateway_networks" == "$(printf '%s\n%s' \
+        "$gateway_publish_network" "$web_network" | LC_ALL=C sort)" \
     && "$server_networks" == "$(printf '%s\n%s\n%s\n%s' \
         "$backend_network" "$egress_network" "$mail_network" "$web_network" | LC_ALL=C sort)" \
     && $(docker network inspect --format '{{.Internal}}' "$web_network") == true \
     && $(docker network inspect --format \
         '{{index .Options "com.docker.network.bridge.name"}}' "$web_network") == br-iuin-web \
+    && $(docker network inspect --format '{{.Internal}}' "$gateway_publish_network") == false \
+    && $(docker network inspect --format \
+        '{{index .Options "com.docker.network.bridge.name"}}' "$gateway_publish_network") == br-iuin-gwpub \
+    && $(docker network inspect --format \
+        '{{index .Options "com.docker.network.bridge.enable_ip_masquerade"}}' \
+        "$gateway_publish_network") == false \
     && "$trusted_proxy_environment_ok" == true ]]; then
-    printf '%-14s %s\n' gateway-net internal-only
+    printf '%-14s %s\n' gateway-net isolated-publish
 else
     printf '%-14s %s\n' gateway-net failed
     failed=1
@@ -337,9 +345,17 @@ else
     failed=1
 fi
 
+if iptables -w -C IUIN-FILTER -i br-iuin-gwpub \
+    -m conntrack --ctdir ORIGINAL -j DROP >/dev/null 2>&1; then
+    printf '%-14s %s\n' gateway-edge blocked
+else
+    printf '%-14s %s\n' gateway-edge failed
+    failed=1
+fi
+
 container_host_blocked=true
 iptables -w -C INPUT -j IUIN-MAIL-INPUT >/dev/null 2>&1 || container_host_blocked=false
-for bridge in br-iuin-mail br-iuin-mailui br-iuin-web; do
+for bridge in br-iuin-mail br-iuin-mailui br-iuin-web br-iuin-gwpub; do
     iptables -w -C IUIN-MAIL-INPUT -i "$bridge" -m conntrack --ctdir ORIGINAL -j DROP \
         >/dev/null 2>&1 || container_host_blocked=false
 done
