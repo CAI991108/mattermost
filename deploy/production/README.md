@@ -16,6 +16,8 @@ Only the Nginx gateway on `10.22.111.16:8065/tcp`, the Mailpit Web UI/API on `10
 
 Secrets are generated under `/srv/iuin/secrets`, are never printed, and are ignored by Git. Mattermost gets separate least-privilege MinIO credentials rather than the MinIO root credentials. Mailpit receives only a SHA-512 crypt password hash; its recoverable UI password remains root-only on the host. Open server registration is disabled while administrator-created and invited users remain supported.
 
+The Desktop App landing page is disabled in the immutable container configuration. A new anonymous browser session therefore skips the one-time app-versus-browser choice and proceeds directly to `/login`.
+
 The Nginx gateway currently uses plain HTTP on a trusted LAN. Install the certificate and enable TLS on this existing gateway before exposing it outside that LAN. Until then, Mattermost credentials and sessions, Mailpit's HTTP Basic credentials, captured message bodies, invitation links, and password-reset links are not encrypted on the wire and can be observed or modified by a hostile system on the same network. Treat the configured `10.0.0.0/8` as trusted, do not reuse the generated Mailpit password, and rotate both Mailpit and administrator credentials after TLS is introduced. Modern browsers also require a secure HTTPS context for microphone and screen-capture APIs, so browser-based Calls may be unavailable over this temporary HTTP URL even though the media service is correctly listening; the desktop client is the practical interim option. Integrated Calls advertises `10.22.111.16` and has no TURN service, so it is intentionally LAN-only.
 
 ## First deployment

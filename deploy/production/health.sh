@@ -128,6 +128,22 @@ fi
 gateway_id=$(compose ps --quiet gateway)
 server_id=$(compose ps --quiet iuin-server)
 mailpit_id=$(compose ps --quiet mailpit)
+desktop_landing_environment_ok=false
+docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$server_id" \
+    | grep --quiet --fixed-strings --line-regexp \
+        'MM_SERVICESETTINGS_ENABLEDESKTOPLANDINGPAGE=false' \
+    && desktop_landing_environment_ok=true
+if [[ "$desktop_landing_environment_ok" == true && "$health_mode" == internal ]]; then
+    printf '%-14s %s\n' desktop-page configured
+elif [[ "$desktop_landing_environment_ok" == true ]] \
+    && curl --fail --silent --show-error --max-time 10 \
+        "$SITE_URL/api/v4/config/client?format=old" \
+        | jq -e '.EnableDesktopLandingPage == "false"' >/dev/null; then
+    printf '%-14s %s\n' desktop-page disabled
+else
+    printf '%-14s %s\n' desktop-page failed
+    failed=1
+fi
 if [[ $(docker port "$gateway_id" 8065/tcp) == "$BIND_ADDRESS:8065" ]] \
     && [[ -z "$(docker port "$server_id" 8065/tcp 2>/dev/null || true)" ]] \
     && [[ $(docker port "$server_id" 8443/tcp) == "$BIND_ADDRESS:8443" ]] \
