@@ -274,10 +274,10 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
 
     renderDialogHeader = () => {
         let openingLink = (
-                <FormattedMessage
-                    id='get_app.openingLink'
-                    defaultMessage='正在 IUIN Platform 中打开链接...'
-                />
+            <FormattedMessage
+                id='get_app.openingLink'
+                defaultMessage='正在 SAI-NET 中打开链接...'
+            />
         );
         if (this.props.enableCustomBrand) {
             openingLink = (
@@ -285,7 +285,7 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
                     id='get_app.openingLinkWhiteLabel'
                     defaultMessage='Opening link in {appName}...'
                     values={{
-                        appName: this.props.siteName || 'IUIN Platform',
+                        appName: this.props.siteName || 'SAI-NET',
                     }}
                 />
             );

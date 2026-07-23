@@ -573,7 +573,7 @@ export function appendHtmlModule(html: string, moduleHtml: string): string {
 }
 
 export function getDefaultReadmeMarkdown(user?: UserProfile): string {
-    const name = user ? escapeHtml(getDisplayName(user)) : 'IUIN Member';
+    const name = user ? escapeHtml(getDisplayName(user)) : 'SAI-NET Member';
     const title = user?.position ? escapeHtml(user.position) : 'Research member';
 
     return [

@@ -2568,7 +2568,7 @@ function getReadmePathWithRenamedFolder(path: string, previousFolderPath: string
 }
 
 function getProfileInitials(displayName: string, username: string): string {
-    const source = displayName.trim() || username.trim() || 'IUIN';
+    const source = displayName.trim() || username.trim() || 'SAI-NET';
     const words = source.split(/\s+/).filter(Boolean);
     const initials = words.length > 1 ? `${words[0][0]}${words[1][0]}` : source.slice(0, 2);
 

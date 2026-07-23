@@ -8,7 +8,8 @@ type Props = {
     customDescriptionText?: string;
     siteName: string | undefined;
 };
-const SiteNameAndDescription = ({customDescriptionText, siteName = 'IUIN Platform'}: Props) => {
+const SiteNameAndDescription = ({customDescriptionText, siteName = 'SAI-NET'}: Props) => {
+    const displaySiteName = siteName || 'SAI-NET';
     const description = customDescriptionText || (
         <FormattedMessage
             id='web.root.signup_info'
@@ -18,7 +19,7 @@ const SiteNameAndDescription = ({customDescriptionText, siteName = 'IUIN Platfor
 
     return (
         <>
-            <h1 id='site_name'>{siteName}</h1>
+            <h1 id='site_name'>{displaySiteName}</h1>
             <h3
                 id='site_description'
                 className='color--light'

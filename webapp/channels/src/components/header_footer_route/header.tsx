@@ -34,7 +34,7 @@ const Header = ({alternateLink, backButtonURL, onBackButtonClick}: HeaderProps) 
     }
 
     let title: React.ReactNode = SiteName;
-    if (title === 'IUIN Platform') {
+    if (title === 'SAI-NET') {
         title = '';
     } else if (title === 'Mattermost') {
         if (freeBanner) {

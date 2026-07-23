@@ -26,7 +26,9 @@ exports[`component/create_team should match snapshot default 1`] = `
       >
         <h1
           id="site_name"
-        />
+        >
+          SAI-NET
+        </h1>
         <h3
           class="color--light"
           id="site_description"
