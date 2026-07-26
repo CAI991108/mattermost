@@ -1,10 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import type {UserProfile} from '@mattermost/types/users';
+
 import type {IuinReadmeFile, IuinReadmeWorkspace} from './profile_data';
 import {
     IUIN_README_MAIN_FILE,
+    getDefaultReadmeMarkdown,
+    getReadmeFileContent,
     getReadmeRelativePath,
+    localizeLegacyDefaultReadmeWorkspace,
     moveReadmeEntry,
     parseIuinReadmeWorkspace,
     removeReadmeFile,
@@ -225,5 +230,46 @@ describe('IUIN README workspace file operations', () => {
         expect(moved.workspace.files.some((file) => file.path === 'archive/docs/home.md')).toBe(true);
         expect(rejected.changed).toBe(false);
         expect(rejected.reason).toBe('invalid');
+    });
+});
+
+describe('getDefaultReadmeMarkdown', () => {
+    test('uses Simplified Chinese copy for a zh-CN profile', () => {
+        const markdown = getDefaultReadmeMarkdown({
+            username: 'researcher',
+            locale: 'zh-CN',
+        } as UserProfile);
+
+        expect(markdown).toContain('researcher 是一名科研成员');
+        expect(markdown).toContain('研究方向、项目、论文、奖项');
+        expect(markdown).not.toContain('Research member');
+    });
+
+    test('uses Traditional Chinese copy for a zh-TW profile while preserving the position', () => {
+        const markdown = getDefaultReadmeMarkdown({
+            username: 'researcher',
+            locale: 'zh-TW',
+            position: 'AI Researcher',
+        } as UserProfile);
+
+        expect(markdown).toContain('researcher 是一名AI Researcher');
+        expect(markdown).toContain('研究方向、專案、論文、獎項');
+        expect(markdown).not.toContain('You can introduce');
+    });
+
+    test('localizes a stored legacy default without replacing user-authored content', () => {
+        const user = {
+            username: 'researcher',
+            locale: 'zh-CN',
+        } as UserProfile;
+        const legacyDefault = getDefaultReadmeMarkdown({...user, locale: 'en'});
+        const legacyWorkspace = workspace([markdownFile(IUIN_README_MAIN_FILE, legacyDefault)]);
+        const customWorkspace = workspace([markdownFile(IUIN_README_MAIN_FILE, '# My custom profile')]);
+
+        const localized = localizeLegacyDefaultReadmeWorkspace(legacyWorkspace, user);
+        const untouched = localizeLegacyDefaultReadmeWorkspace(customWorkspace, user);
+
+        expect(getReadmeFileContent(localized, IUIN_README_MAIN_FILE)).toContain('researcher 是一名科研成员');
+        expect(untouched).toBe(customWorkspace);
     });
 });

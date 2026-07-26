@@ -3,6 +3,7 @@
 
 import classNames from 'classnames';
 import React from 'react';
+import {defineMessages, useIntl} from 'react-intl';
 
 import {
     getIuinHonorRarityClassName,
@@ -17,8 +18,29 @@ type Props = {
     compact?: boolean;
 };
 
+const rarityMessages = defineMessages({
+    common: {
+        id: 'iuin_profile.honors.rarity.common',
+        defaultMessage: 'Common',
+    },
+    rare: {
+        id: 'iuin_profile.honors.rarity.rare',
+        defaultMessage: 'Rare',
+    },
+    epic: {
+        id: 'iuin_profile.honors.rarity.epic',
+        defaultMessage: 'Epic',
+    },
+    hidden: {
+        id: 'iuin_profile.honors.rarity.hidden',
+        defaultMessage: 'Hidden',
+    },
+});
+
 export default function IuinHonorRarityTag({rarity, className, compact}: Props) {
-    const label = getIuinHonorRarityLabel(rarity);
+    const intl = useIntl();
+    const normalizedRarity = getIuinHonorRarityLabel(rarity);
+    const label = intl.formatMessage(rarityMessages[normalizedRarity]);
 
     return (
         <span

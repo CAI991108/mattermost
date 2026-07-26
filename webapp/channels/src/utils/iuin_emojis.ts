@@ -62,6 +62,8 @@ export function removeIuinEmojiFromLibrary(emojiId: string): Promise<void> {
     return iuinFetch<void>(`/api/v4/iuin/emojis/${emojiId}/library`, {method: 'DELETE'});
 }
 
+export const deleteIuinEmoji = removeIuinEmojiFromLibrary;
+
 export function sendIuinEmoji(emojiId: string, channelId: string, rootId?: string): Promise<unknown> {
     return iuinFetch<unknown>(`/api/v4/iuin/emojis/${emojiId}/send`, {
         method: 'POST',

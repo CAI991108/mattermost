@@ -50,19 +50,6 @@ exports[`components/select_team/SelectTeam should match snapshot 1`] = `
             <h4>
               Teams you can join: 
             </h4>
-            <a
-              class="LearnAboutTeamsLink"
-              href="https://mattermost.com/pl/mattermost-academy-team-training?utm_source=mattermost&utm_medium=in-product&utm_content=learn_about_teams&uid=&sid=&edition=team&server_version="
-              location="learn_about_teams"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <i
-                aria-hidden="true"
-                class="icon icon-lightbulb-outline"
-              />
-              Learn about teams
-            </a>
           </div>
           <div
             class="infinite-scroll signup-team-all"
@@ -163,19 +150,6 @@ exports[`components/select_team/SelectTeam should match snapshot, on create team
             <h4>
               Teams you can join: 
             </h4>
-            <a
-              class="LearnAboutTeamsLink"
-              href="https://mattermost.com/pl/mattermost-academy-team-training?utm_source=mattermost&utm_medium=in-product&utm_content=learn_about_teams&uid=&sid=&edition=team&server_version="
-              location="learn_about_teams"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <i
-                aria-hidden="true"
-                class="icon icon-lightbulb-outline"
-              />
-              Learn about teams
-            </a>
           </div>
           <div
             class="infinite-scroll signup-team-all"
@@ -402,19 +376,6 @@ exports[`components/select_team/SelectTeam should match snapshot, on no joinable
             <h4>
               Teams you can join: 
             </h4>
-            <a
-              class="LearnAboutTeamsLink"
-              href="https://mattermost.com/pl/mattermost-academy-team-training?utm_source=mattermost&utm_medium=in-product&utm_content=learn_about_teams&uid=&sid=&edition=team&server_version="
-              location="learn_about_teams"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <i
-                aria-hidden="true"
-                class="icon icon-lightbulb-outline"
-              />
-              Learn about teams
-            </a>
           </div>
           <div
             class="infinite-scroll signup-team-all"
@@ -543,19 +504,6 @@ exports[`components/select_team/SelectTeam should match snapshot, on no joinable
             <h4>
               Teams you can join: 
             </h4>
-            <a
-              class="LearnAboutTeamsLink"
-              href="https://mattermost.com/pl/mattermost-academy-team-training?utm_source=mattermost&utm_medium=in-product&utm_content=learn_about_teams&uid=&sid=&edition=team&server_version="
-              location="learn_about_teams"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <i
-                aria-hidden="true"
-                class="icon icon-lightbulb-outline"
-              />
-              Learn about teams
-            </a>
           </div>
           <div
             class="infinite-scroll signup-team-all"

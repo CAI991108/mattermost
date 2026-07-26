@@ -5,10 +5,13 @@ import React from 'react';
 
 import type {SystemEmoji} from '@mattermost/types/emojis';
 
-import {renderWithContext, screen} from 'tests/react_testing_utils';
+import {fireEvent, renderWithContext, screen, waitFor} from 'tests/react_testing_utils';
 import EmojiMap from 'utils/emoji_map';
+import {deleteIuinEmoji, listIuinEmojis, listIuinRecentEmojis} from 'utils/iuin_emojis';
 
 import EmojiPicker from './emoji_picker';
+
+jest.mock('utils/iuin_emojis');
 
 jest.mock('components/emoji_picker/components/emoji_picker_skin', () => () => (
     <div/>
@@ -18,6 +21,10 @@ jest.mock('components/emoji_picker/components/emoji_picker_preview', () => ({emo
 ));
 
 describe('components/emoji_picker/EmojiPicker', () => {
+    const mockedDeleteIuinEmoji = jest.mocked(deleteIuinEmoji);
+    const mockedListIuinEmojis = jest.mocked(listIuinEmojis);
+    const mockedListIuinRecentEmojis = jest.mocked(listIuinRecentEmojis);
+
     const baseProps = {
         filter: '',
         visible: true,
@@ -25,6 +32,7 @@ describe('components/emoji_picker/EmojiPicker', () => {
         handleFilterChange: jest.fn(),
         handleEmojiPickerClose: jest.fn(),
         customEmojisEnabled: false,
+        currentUserId: 'current-user',
         customEmojiPage: 1,
         emojiMap: new EmojiMap(new Map()),
         recentEmojis: [],
@@ -37,6 +45,13 @@ describe('components/emoji_picker/EmojiPicker', () => {
             setUserSkinTone: jest.fn(),
         },
     };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockedDeleteIuinEmoji.mockResolvedValue();
+        mockedListIuinEmojis.mockResolvedValue([]);
+        mockedListIuinRecentEmojis.mockResolvedValue([]);
+    });
 
     test('should match snapshot', () => {
         const {asFragment} = renderWithContext(
@@ -104,5 +119,83 @@ describe('components/emoji_picker/EmojiPicker', () => {
         );
 
         expect(screen.queryByTestId('emojiPickerCategories')).not.toBeNull();
+    });
+
+    test('shows delete on right click only for an emoji created by the current user', async () => {
+        mockedListIuinEmojis.mockResolvedValue([
+            {
+                id: 'mine',
+                name: 'mine',
+                creatorUserId: 'current-user',
+                filename: 'mine.png',
+                mimeType: 'image/png',
+                sizeBytes: 1,
+                width: 32,
+                height: 32,
+                sha256: 'mine',
+                imageUrl: '/mine.png',
+                createdAt: 1,
+                updatedAt: 1,
+                libraryAt: 1,
+            },
+            {
+                id: 'theirs',
+                name: 'theirs',
+                creatorUserId: 'other-user',
+                filename: 'theirs.png',
+                mimeType: 'image/png',
+                sizeBytes: 1,
+                width: 32,
+                height: 32,
+                sha256: 'theirs',
+                imageUrl: '/theirs.png',
+                createdAt: 1,
+                updatedAt: 1,
+                libraryAt: 1,
+            },
+        ]);
+
+        renderWithContext(
+            <EmojiPicker
+                {...baseProps}
+                enableIuinEmojiLibrary={true}
+            />,
+        );
+
+        fireEvent.contextMenu(await screen.findByTitle('theirs.png'));
+        expect(screen.queryByRole('button', {name: 'Delete'})).not.toBeInTheDocument();
+
+        fireEvent.contextMenu(screen.getByTitle('mine.png'));
+        expect(screen.getByRole('button', {name: 'Delete'})).toBeInTheDocument();
+    });
+
+    test('deletes an owned emoji from the library', async () => {
+        mockedListIuinEmojis.mockResolvedValue([{
+            id: 'mine',
+            name: 'mine',
+            creatorUserId: 'current-user',
+            filename: 'mine.png',
+            mimeType: 'image/png',
+            sizeBytes: 1,
+            width: 32,
+            height: 32,
+            sha256: 'mine',
+            imageUrl: '/mine.png',
+            createdAt: 1,
+            updatedAt: 1,
+            libraryAt: 1,
+        }]);
+
+        renderWithContext(
+            <EmojiPicker
+                {...baseProps}
+                enableIuinEmojiLibrary={true}
+            />,
+        );
+        fireEvent.contextMenu(await screen.findByTitle('mine.png'));
+        fireEvent.click(screen.getByRole('button', {name: 'Delete'}));
+
+        await waitFor(() => expect(mockedDeleteIuinEmoji).toHaveBeenCalledWith('mine'));
+        await waitFor(() => expect(screen.queryByTitle('mine.png')).not.toBeInTheDocument());
     });
 });

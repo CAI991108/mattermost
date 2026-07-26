@@ -4,7 +4,7 @@
 import classNames from 'classnames';
 import throttle from 'lodash/throttle';
 import React, {type ReactNode, useRef, useState, useEffect, useCallback, memo, useMemo} from 'react';
-import {FormattedMessage} from 'react-intl';
+import {FormattedMessage, useIntl} from 'react-intl';
 import type {FixedSizeList} from 'react-window';
 import type InfiniteLoader from 'react-window-infinite-loader';
 
@@ -35,7 +35,7 @@ import NoResultsIndicator from 'components/no_results_indicator';
 import {NoResultsVariant} from 'components/no_results_indicator/types';
 
 import type {IuinEmoji} from 'utils/iuin_emojis';
-import {listIuinEmojis, listIuinRecentEmojis, uploadIuinEmoji} from 'utils/iuin_emojis';
+import {deleteIuinEmoji, listIuinEmojis, listIuinRecentEmojis, uploadIuinEmoji} from 'utils/iuin_emojis';
 
 import type {PropsFromRedux} from './index';
 
@@ -62,6 +62,7 @@ const EmojiPicker = ({
     customEmojiButtonDisabled,
     customEmojiButtonLabel,
     customEmojisEnabled = false,
+    currentUserId,
     customEmojiPage = 0,
     emojiMap,
     recentEmojis,
@@ -74,6 +75,7 @@ const EmojiPicker = ({
         setUserSkinTone,
     },
 }: Props) => {
+    const intl = useIntl();
     type IuinPanel = 'library' | 'recent' | 'emoji';
 
     const getInitialActiveCategory = () => SMILEY_EMOTION;
@@ -82,6 +84,8 @@ const EmojiPicker = ({
     const [iuinEmojis, setIuinEmojis] = useState<IuinEmoji[]>([]);
     const [iuinRecentEmojiNames, setIuinRecentEmojiNames] = useState<string[]>([]);
     const [iuinPanelError, setIuinPanelError] = useState('');
+    const [iuinDeleteTargetId, setIuinDeleteTargetId] = useState('');
+    const [iuinDeletePendingId, setIuinDeletePendingId] = useState('');
 
     const [cursor, setCursor] = useState<EmojiCursor>({
         rowIndex: -1,
@@ -177,6 +181,27 @@ const EmojiPicker = ({
             mounted = false;
         };
     }, [enableIuinEmojiLibrary, loadCustomEmojisIfNeeded]);
+
+    useEffect(() => {
+        if (!iuinDeleteTargetId) {
+            return undefined;
+        }
+
+        const closeDeleteAction = () => setIuinDeleteTargetId('');
+        const closeDeleteActionOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                closeDeleteAction();
+            }
+        };
+
+        window.addEventListener('click', closeDeleteAction);
+        window.addEventListener('keydown', closeDeleteActionOnEscape);
+
+        return () => {
+            window.removeEventListener('click', closeDeleteAction);
+            window.removeEventListener('keydown', closeDeleteActionOnEscape);
+        };
+    }, [iuinDeleteTargetId]);
 
     // clear out the active category on search input
     useEffect(() => {
@@ -428,6 +453,40 @@ const EmojiPicker = ({
         onIuinEmojiClick?.(sticker);
     }, [onIuinEmojiClick]);
 
+    const handleIuinEmojiContextMenu = useCallback((event: React.MouseEvent<HTMLButtonElement>, sticker: IuinEmoji) => {
+        if (!currentUserId || sticker.creatorUserId !== currentUserId) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        setIuinDeleteTargetId(sticker.id);
+        setIuinPanelError('');
+    }, [currentUserId]);
+
+    const handleDeleteIuinEmoji = useCallback(async (event: React.MouseEvent<HTMLButtonElement>, sticker: IuinEmoji) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!currentUserId || sticker.creatorUserId !== currentUserId || iuinDeletePendingId) {
+            return;
+        }
+
+        setIuinDeletePendingId(sticker.id);
+        try {
+            await deleteIuinEmoji(sticker.id);
+            setIuinEmojis((current) => current.filter((item) => item.id !== sticker.id));
+            setIuinDeleteTargetId('');
+            setIuinPanelError('');
+        } catch {
+            setIuinPanelError(intl.formatMessage({
+                id: 'emoji_picker.iuin.delete_error',
+                defaultMessage: 'Unable to delete this emoji.',
+            }));
+        } finally {
+            setIuinDeletePendingId('');
+        }
+    }, [currentUserId, intl, iuinDeletePendingId]);
+
     const iuinRecentEmojis = useMemo(() => {
         return iuinRecentEmojiNames.map((emojiName) => emojiMap.get(emojiName)).filter(Boolean) as Emoji[];
     }, [emojiMap, iuinRecentEmojiNames]);
@@ -504,20 +563,42 @@ const EmojiPicker = ({
                 >
                     <i className='icon-plus'/>
                 </button>
-                {iuinEmojis.map((sticker) => (
-                    <button
-                        key={sticker.id}
-                        type='button'
-                        className='emoji-picker__iuin-sticker'
-                        title={sticker.filename}
-                        onClick={() => handleLibraryEmojiClick(sticker)}
-                    >
-                        <img
-                            src={sticker.imageUrl}
-                            alt=''
-                        />
-                    </button>
-                ))}
+                {iuinEmojis.map((sticker) => {
+                    const canDelete = Boolean(currentUserId && sticker.creatorUserId === currentUserId);
+                    return (
+                        <div
+                            key={sticker.id}
+                            className='emoji-picker__iuin-sticker-wrapper'
+                        >
+                            <button
+                                type='button'
+                                className='emoji-picker__iuin-sticker'
+                                title={sticker.filename}
+                                onClick={() => handleLibraryEmojiClick(sticker)}
+                                onContextMenu={canDelete ? (event) => handleIuinEmojiContextMenu(event, sticker) : undefined}
+                            >
+                                <img
+                                    src={sticker.imageUrl}
+                                    alt=''
+                                />
+                            </button>
+                            {canDelete && iuinDeleteTargetId === sticker.id && (
+                                <button
+                                    type='button'
+                                    className='emoji-picker__iuin-delete'
+                                    disabled={iuinDeletePendingId === sticker.id}
+                                    onClick={(event) => handleDeleteIuinEmoji(event, sticker)}
+                                >
+                                    <i className='icon-trash-can-outline'/>
+                                    <FormattedMessage
+                                        id='emoji_picker.iuin.delete'
+                                        defaultMessage='Delete'
+                                    />
+                                </button>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
             {iuinPanelError && <div className='emoji-picker__iuin-error'>{iuinPanelError}</div>}
         </div>

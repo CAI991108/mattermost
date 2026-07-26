@@ -4,7 +4,7 @@
 import type {ChangeEvent, Dispatch, DragEvent as ReactDragEvent, KeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, SetStateAction} from 'react';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
-import {FormattedMessage, useIntl} from 'react-intl';
+import {FormattedMessage, type IntlShape, useIntl} from 'react-intl';
 import {useDispatch, useSelector} from 'react-redux';
 import type {RouteComponentProps} from 'react-router-dom';
 import {Redirect} from 'react-router-dom';
@@ -53,6 +53,7 @@ import {
     getReadmeRootName,
     IUIN_README_MAIN_FILE,
     isReadmeMainDocumentCandidate,
+    localizeLegacyDefaultReadmeWorkspace,
     type IuinReadmeMovePosition,
     moveReadmeEntry,
     type IuinProfileData,
@@ -574,7 +575,7 @@ function getSessionDeviceLabel(session: Session): string {
     return [browser, os].filter(Boolean).join(' / ') || session.device_id || session.id;
 }
 
-function getAuthServiceLabel(authService: string): string {
+function getAuthServiceLabel(authService: string, intl: IntlShape): string {
     switch (authService) {
     case 'gitlab':
         return 'GitLab';
@@ -589,9 +590,15 @@ function getAuthServiceLabel(authService: string): string {
     case 'openid':
         return 'OpenID';
     case 'magic_link':
-        return 'Magic link';
+        return intl.formatMessage({
+            id: 'iuin_profile.security.magic_link',
+            defaultMessage: 'Magic link',
+        });
     default:
-        return 'Email and password';
+        return intl.formatMessage({
+            id: 'iuin_profile.security.email_password',
+            defaultMessage: 'Email and password',
+        });
     }
 }
 
@@ -916,7 +923,7 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
 
         loadIuinReadmeWorkspaceFromBackend(user.id).then((workspace) => {
             if (!cancelled) {
-                setBackendReadmeWorkspace(workspace);
+                setBackendReadmeWorkspace(localizeLegacyDefaultReadmeWorkspace(workspace, user));
             }
         }).catch(() => {
             if (!cancelled) {
@@ -1120,7 +1127,10 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
 
     const hasAvatarFrame = Boolean(honorSummary?.avatarFrame);
     const avatarStatusClassName = `iuin-profile-avatar-status${avatarStatus?.text ? ' iuin-profile-avatar-status--has-text' : ''}${canEdit ? ' iuin-profile-avatar-status--clickable' : ''}`;
-    const avatarStatusLabel = avatarStatus?.text || (canEdit ? 'Set status' : undefined);
+    const avatarStatusLabel = avatarStatus?.text || (canEdit ? intl.formatMessage({
+        id: 'iuin_profile.editor.status_title',
+        defaultMessage: 'Set status',
+    }) : undefined);
     let avatarStatusIcon = <i className='icon icon-emoticon-plus-outline'/>;
     if (avatarStatus?.image) {
         avatarStatusIcon = (
@@ -3417,7 +3427,10 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
 
         // Keep the existing lightweight rename interaction used by this workbench.
         // eslint-disable-next-line no-alert
-        const nextName = window.prompt('Rename folder', currentName);
+        const nextName = window.prompt(intl.formatMessage({
+            id: 'iuin_profile.readme.rename_folder',
+            defaultMessage: 'Rename folder',
+        }), currentName);
         if (!nextName) {
             setTreeMenu(null);
             return;
@@ -3493,7 +3506,10 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
 
         // Keep file and folder rename behavior consistent.
         // eslint-disable-next-line no-alert
-        const nextName = window.prompt('Rename file', currentName);
+        const nextName = window.prompt(intl.formatMessage({
+            id: 'iuin_profile.readme.rename_file',
+            defaultMessage: 'Rename file',
+        }), currentName);
         if (!nextName) {
             setTreeMenu(null);
             return;
@@ -3694,8 +3710,14 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                             type='button'
                             className='iuin-readme-workbench__tree-menu'
                             onClick={(event) => openTreeMenu(event, 'folder', node.path)}
-                            aria-label={`Open ${node.name} folder actions`}
-                            title='Folder actions'
+                            aria-label={intl.formatMessage({
+                                id: 'iuin_profile.readme.open_folder_actions',
+                                defaultMessage: 'Open {name} folder actions',
+                            }, {name: node.name})}
+                            title={intl.formatMessage({
+                                id: 'iuin_profile.readme.folder_actions',
+                                defaultMessage: 'Folder actions',
+                            })}
                         >
                             <i className='icon icon-dots-vertical'/>
                         </button>
@@ -3711,14 +3733,20 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                     role='menuitem'
                                     onClick={() => renameReadmeFolderAtPath(node.path)}
                                 >
-                                    {'Rename'}
+                                    <FormattedMessage
+                                        id='iuin_profile.readme.rename'
+                                        defaultMessage='Rename'
+                                    />
                                 </button>
                                 <button
                                     type='button'
                                     role='menuitem'
                                     onClick={() => removeReadmeFolderAtPath(node.path)}
                                 >
-                                    {'Delete'}
+                                    <FormattedMessage
+                                        id='iuin_profile.readme.delete'
+                                        defaultMessage='Delete'
+                                    />
                                 </button>
                                 <span className='iuin-readme-workbench__tree-context-divider'/>
                                 <button
@@ -3726,21 +3754,30 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                     role='menuitem'
                                     onClick={() => createReadmeFileInDirectory(node.path)}
                                 >
-                                    {'New file'}
+                                    <FormattedMessage
+                                        id='iuin_profile.readme.new_file'
+                                        defaultMessage='New file'
+                                    />
                                 </button>
                                 <button
                                     type='button'
                                     role='menuitem'
                                     onClick={() => createReadmeFolderInDirectory(node.path)}
                                 >
-                                    {'New folder'}
+                                    <FormattedMessage
+                                        id='iuin_profile.readme.new_folder'
+                                        defaultMessage='New folder'
+                                    />
                                 </button>
                                 <button
                                     type='button'
                                     role='menuitem'
                                     onClick={() => uploadReadmeFileToFolder(node.path)}
                                 >
-                                    {'Upload'}
+                                    <FormattedMessage
+                                        id='iuin_profile.readme.upload'
+                                        defaultMessage='Upload'
+                                    />
                                 </button>
                             </div>
                         )}
@@ -3778,14 +3815,27 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 >
                     <i className={`icon ${getReadmeFileIcon(node.file)}`}/>
                     <span>{node.name}</span>
-                    {isMainDocument && <span className='iuin-readme-workbench__main-document-badge'>{'Main'}</span>}
+                    {isMainDocument && (
+                        <span className='iuin-readme-workbench__main-document-badge'>
+                            <FormattedMessage
+                                id='iuin_profile.readme.main'
+                                defaultMessage='Main'
+                            />
+                        </span>
+                    )}
                 </button>
                 <button
                     type='button'
                     className='iuin-readme-workbench__tree-menu'
                     onClick={(event) => openTreeMenu(event, 'file', node.file!.path)}
-                    aria-label={`Open ${node.name} file actions`}
-                    title='File actions'
+                    aria-label={intl.formatMessage({
+                        id: 'iuin_profile.readme.open_file_actions',
+                        defaultMessage: 'Open {name} file actions',
+                    }, {name: node.name})}
+                    title={intl.formatMessage({
+                        id: 'iuin_profile.readme.file_actions',
+                        defaultMessage: 'File actions',
+                    })}
                 >
                     <i className='icon icon-dots-vertical'/>
                 </button>
@@ -3801,7 +3851,10 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                             role='menuitem'
                             onClick={() => renameReadmeFileAtPath(node.file!.path)}
                         >
-                            {'Rename'}
+                            <FormattedMessage
+                                id='iuin_profile.readme.rename'
+                                defaultMessage='Rename'
+                            />
                         </button>
                         <button
                             type='button'
@@ -3811,7 +3864,10 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                 setTreeMenu(null);
                             }}
                         >
-                            {'Download'}
+                            <FormattedMessage
+                                id='iuin_profile.readme.download'
+                                defaultMessage='Download'
+                            />
                         </button>
                         {isReadmeMainDocumentCandidate(node.file) && !isMainDocument && (
                             <>
@@ -3821,7 +3877,10 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                     role='menuitem'
                                     onClick={() => setMainDocumentAtPath(node.file!.path)}
                                 >
-                                    {'Set as main document'}
+                                    <FormattedMessage
+                                        id='iuin_profile.readme.set_main_document'
+                                        defaultMessage='Set as main document'
+                                    />
                                 </button>
                             </>
                         )}
@@ -3831,13 +3890,16 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                             role='menuitem'
                             onClick={() => removeReadmeFileAtPath(node.file!.path)}
                         >
-                            {'Delete'}
+                            <FormattedMessage
+                                id='iuin_profile.readme.delete'
+                                defaultMessage='Delete'
+                            />
                         </button>
                     </div>
                 )}
             </div>
         );
-    }, [createReadmeFileInDirectory, createReadmeFolderInDirectory, draggedTreePath, expandedFolders, finishReadmeTreeDrag, handleReadmeTreeDragOver, handleReadmeTreeDragStart, handleReadmeTreeDrop, openTreeMenu, removeReadmeFileAtPath, removeReadmeFolderAtPath, renameReadmeFileAtPath, renameReadmeFolderAtPath, selectReadmeFile, selectedFile?.path, setMainDocumentAtPath, toggleReadmeFolder, treeDropTarget, treeMenu, uploadReadmeFileToFolder, workspace.activePath]);
+    }, [createReadmeFileInDirectory, createReadmeFolderInDirectory, draggedTreePath, expandedFolders, finishReadmeTreeDrag, handleReadmeTreeDragOver, handleReadmeTreeDragStart, handleReadmeTreeDrop, intl, openTreeMenu, removeReadmeFileAtPath, removeReadmeFolderAtPath, renameReadmeFileAtPath, renameReadmeFolderAtPath, selectReadmeFile, selectedFile?.path, setMainDocumentAtPath, toggleReadmeFolder, treeDropTarget, treeMenu, uploadReadmeFileToFolder, workspace.activePath]);
 
     const handleReadmeUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files || []);
@@ -3851,10 +3913,16 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         try {
             const uploadSize = files.reduce((total, file) => total + file.size, 0);
             if (files.some((file) => file.size > MAX_IUIN_README_UPLOAD_SIZE)) {
-                throw new Error('Files must be 5 MB or smaller.');
+                throw new Error(intl.formatMessage({
+                    id: 'iuin_profile.readme.file_size_error',
+                    defaultMessage: 'Files must be 5 MB or smaller.',
+                }));
             }
             if (getIuinReadmeWorkspaceSize(workspace) + uploadSize > MAX_IUIN_README_WORKSPACE_SIZE) {
-                throw new Error('README workspace storage is limited to 50 MB.');
+                throw new Error(intl.formatMessage({
+                    id: 'iuin_profile.readme.workspace_size_error',
+                    defaultMessage: 'README workspace storage is limited to 50 MB.',
+                }));
             }
 
             const reservedFiles = [...workspace.files];
@@ -3988,7 +4056,11 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 defaultMessage: 'README.md imported from GitHub and saved.',
             }));
         } catch (err) {
-            setError(err instanceof Error ? err.message : intl.formatMessage({
+            const publicReadmeMissing = err instanceof Error && err.message === 'Could not find a public README file in that repository.';
+            setError(publicReadmeMissing ? intl.formatMessage({
+                id: 'iuin_profile.readme.github_readme_missing',
+                defaultMessage: 'Could not find a public README file in that repository.',
+            }) : err instanceof Error ? err.message : intl.formatMessage({
                 id: 'iuin_profile.readme.github_import_error',
                 defaultMessage: 'Could not import the GitHub README.',
             }));
@@ -4021,30 +4093,53 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                 className='iuin-readme-workbench__sidebar-title'
                             >
                                 <i className='icon icon-chevron-down'/>
-                                <span>{'File tree'}</span>
+                                <span>
+                                    <FormattedMessage
+                                        id='iuin_profile.readme.file_tree'
+                                        defaultMessage='File tree'
+                                    />
+                                </span>
                             </button>
                             <div className='iuin-readme-workbench__tree-actions'>
                                 <button
                                     type='button'
                                     onClick={createReadmeFile}
-                                    aria-label='New file'
-                                    title='New file'
+                                    aria-label={intl.formatMessage({
+                                        id: 'iuin_profile.readme.new_file',
+                                        defaultMessage: 'New file',
+                                    })}
+                                    title={intl.formatMessage({
+                                        id: 'iuin_profile.readme.new_file',
+                                        defaultMessage: 'New file',
+                                    })}
                                 >
                                     <i className='icon icon-file-text-outline'/>
                                 </button>
                                 <button
                                     type='button'
                                     onClick={createReadmeFolder}
-                                    aria-label='New folder'
-                                    title='New folder'
+                                    aria-label={intl.formatMessage({
+                                        id: 'iuin_profile.readme.new_folder',
+                                        defaultMessage: 'New folder',
+                                    })}
+                                    title={intl.formatMessage({
+                                        id: 'iuin_profile.readme.new_folder',
+                                        defaultMessage: 'New folder',
+                                    })}
                                 >
                                     <i className='icon icon-folder-outline'/>
                                 </button>
                                 <button
                                     type='button'
                                     onClick={() => uploadInputRef.current?.click()}
-                                    aria-label='Upload files'
-                                    title='Upload files'
+                                    aria-label={intl.formatMessage({
+                                        id: 'iuin_profile.readme.upload_files',
+                                        defaultMessage: 'Upload files',
+                                    })}
+                                    title={intl.formatMessage({
+                                        id: 'iuin_profile.readme.upload_files',
+                                        defaultMessage: 'Upload files',
+                                    })}
                                 >
                                     <i className='icon icon-upload-outline'/>
                                 </button>
@@ -4073,7 +4168,12 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                 className='iuin-readme-workbench__sidebar-title'
                             >
                                 <i className='icon icon-github-circle'/>
-                                <span>{'GitHub import'}</span>
+                                <span>
+                                    <FormattedMessage
+                                        id='iuin_profile.readme.github_import'
+                                        defaultMessage='GitHub import'
+                                    />
+                                </span>
                             </button>
                         </div>
                         <div className='iuin-readme-workbench__github-panel'>
@@ -4096,7 +4196,19 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                     disabled={importing || !githubUrl.trim()}
                                 >
                                     <i className='icon icon-download-outline'/>
-                                    <span>{importing ? 'Importing' : 'Import'}</span>
+                                    <span>
+                                        {importing ? (
+                                            <FormattedMessage
+                                                id='iuin_profile.readme.importing'
+                                                defaultMessage='Importing'
+                                            />
+                                        ) : (
+                                            <FormattedMessage
+                                                id='iuin_profile.readme.import'
+                                                defaultMessage='Import'
+                                            />
+                                        )}
+                                    </span>
                                 </button>
                             </div>
                         </div>
@@ -4118,7 +4230,10 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                         onClick={insertSelectedFileIntoReadme}
                                     >
                                         <i className='icon icon-link-variant'/>
-                                        <span>{'Insert into main document'}</span>
+                                        <FormattedMessage
+                                            id='iuin_profile.readme.insert_into_main_document'
+                                            defaultMessage='Insert into main document'
+                                        />
                                     </button>
                                     <button
                                         type='button'
@@ -4126,7 +4241,10 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                         onClick={removeSelectedFile}
                                     >
                                         <i className='icon icon-trash-can-outline'/>
-                                        <span>{'Delete'}</span>
+                                        <FormattedMessage
+                                            id='iuin_profile.readme.delete'
+                                            defaultMessage='Delete'
+                                        />
                                     </button>
                                 </>
                             )}
@@ -4158,7 +4276,12 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 <section className='iuin-readme-workbench__preview'>
                     <div className='iuin-readme-workbench__preview-toolbar'>
                         <div className='iuin-readme-workbench__preview-title'>
-                            <span>{'Preview'}</span>
+                            <span>
+                                <FormattedMessage
+                                    id='iuin_profile.editor.preview'
+                                    defaultMessage='Preview'
+                                />
+                            </span>
                             <strong>{workspace.activePath}</strong>
                         </div>
                         <div className='iuin-readme-workbench__preview-actions'>
@@ -4168,7 +4291,10 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                                     onClick={() => downloadReadmeFile(mainDocument)}
                                 >
                                     <i className='icon icon-download-outline'/>
-                                    <span>{'Download'}</span>
+                                    <FormattedMessage
+                                        id='iuin_profile.readme.download'
+                                        defaultMessage='Download'
+                                    />
                                 </button>
                             )}
                         </div>
@@ -4274,12 +4400,13 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
                 return;
             }
 
-            const homepageReadme = getReadmeFileContent(workspace, workspace.activePath) || '';
+            const localizedWorkspace = localizeLegacyDefaultReadmeWorkspace(workspace, currentUser);
+            const homepageReadme = getReadmeFileContent(localizedWorkspace, localizedWorkspace.activePath) || '';
 
             setDraft((previous) => ({
                 ...previous,
                 homepageHtml: homepageReadme,
-                readmeWorkspace: serializeIuinReadmeWorkspace(workspace),
+                readmeWorkspace: serializeIuinReadmeWorkspace(localizedWorkspace),
             }));
         }).catch(() => {
             // Keep the legacy user props workspace when the backend workspace is unavailable.
@@ -5526,7 +5653,7 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
                                         defaultMessage='Sign-in method'
                                     />
                                 </span>
-                                <strong>{getAuthServiceLabel(settings?.security.auth_service || currentUser.auth_service || '')}</strong>
+                                <strong>{getAuthServiceLabel(settings?.security.auth_service || currentUser.auth_service || '', intl)}</strong>
                             </div>
                             <div>
                                 <span>

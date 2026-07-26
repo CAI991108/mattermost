@@ -4,8 +4,6 @@
 import React from 'react';
 import {defineMessage, FormattedMessage} from 'react-intl';
 
-import ExternalLink from 'components/external_link';
-
 import HelpLinks from './help_links';
 import useHelpPageTitle from './use_help_page_title';
 
@@ -38,7 +36,7 @@ const HelpMessaging = (): JSX.Element => {
                     <p>
                         <FormattedMessage
                             id='help.messaging.write.description'
-                            defaultMessage='Use the text input box at the bottom of the Mattermost interface to write a message. Press <b>ENTER</b> to send the message. Use <b>SHIFT+ENTER</b> to create a new line without sending a message.'
+                            defaultMessage='Use the text input box at the bottom of the interface to write a message. Press <b>ENTER</b> to send the message. Use <b>SHIFT+ENTER</b> to create a new line without sending a message.'
                             values={{
                                 b: (chunks: React.ReactNode) => <b>{chunks}</b>,
                             }}
@@ -127,11 +125,11 @@ const HelpMessaging = (): JSX.Element => {
                                 <td><code className='Help__inline-code'>{'In-line code'}</code></td>
                             </tr>
                             <tr>
-                                <td><code>{'[hyperlink](https://www.mattermost.com)'}</code></td>
-                                <td><a href='https://www.mattermost.com'>{'hyperlink'}</a></td>
+                                <td><code>{'[hyperlink](https://example.com)'}</code></td>
+                                <td><a href='https://example.com'>{'hyperlink'}</a></td>
                             </tr>
                             <tr>
-                                <td><code>{'![embedded image](travis-ci.org/mattermost/platform.svg)'}</code></td>
+                                <td><code>{'![embedded image](https://example.com/status.svg)'}</code></td>
                                 <td>
                                     <span className='Help__badge'>{'build'}</span>
                                     <span className='Help__badge Help__badge--secondary'>{'unknown'}</span>
@@ -155,17 +153,9 @@ const HelpMessaging = (): JSX.Element => {
                     <p>
                         <FormattedMessage
                             id='help.messaging.emoji.description'
-                            defaultMessage={'Type <code>:</code> to open an emoji autocomplete. If the existing emojis don\'t say what you want to express, you can also create your own <link>Custom Emoji</link>.'}
+                            defaultMessage={'Type <code>:</code> to open an emoji autocomplete. If the existing emojis don\'t say what you want to express, you can also create your own custom emoji.'}
                             values={{
                                 code: (chunks: React.ReactNode) => <code>{chunks}</code>,
-                                link: (chunks: React.ReactNode) => (
-                                    <ExternalLink
-                                        href='https://docs.mattermost.com/end-user-guide/collaborate/react-with-emojis-gifs.html#upload-custom-emojis'
-                                        location='help_messaging'
-                                    >
-                                        {chunks}
-                                    </ExternalLink>
-                                ),
                             }}
                         />
                     </p>
@@ -181,7 +171,7 @@ const HelpMessaging = (): JSX.Element => {
                     <p>
                         <FormattedMessage
                             id='help.messaging.attach.description'
-                            defaultMessage='Drag and drop files into Mattermost, or select the Attachment icon in the text input box.'
+                            defaultMessage='Drag and drop files into the message area, or select the Attachment icon in the text input box.'
                         />
                     </p>
                 </section>

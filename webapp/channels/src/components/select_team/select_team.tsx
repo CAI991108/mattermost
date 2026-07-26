@@ -19,7 +19,6 @@ import AnnouncementBar from 'components/announcement_bar';
 import BackButton from 'components/common/back_button';
 import InfiniteScroll from 'components/common/infinite_scroll';
 import SiteNameAndDescription from 'components/common/site_name_and_description';
-import ExternalLink from 'components/external_link';
 import LoadingScreen from 'components/loading_screen';
 import SystemPermissionGate from 'components/permissions_gates/system_permission_gate';
 import LogoutIcon from 'components/widgets/icons/fa_logout_icon';
@@ -33,8 +32,6 @@ import './select_team.scss';
 
 export const TEAMS_PER_PAGE = 30;
 const TEAM_MEMBERSHIP_DENIAL_ERROR_ID = 'api.team.add_members.user_denied';
-const MATTERMOST_ACADEMY_TEAM_TRAINING_LINK = 'https://mattermost.com/pl/mattermost-academy-team-training';
-
 type Actions = {
     getTeams: (page?: number, perPage?: number, includeTotalCount?: boolean) => Promise<ActionResult<unknown>>;
     loadRolesIfNeeded: (roles: Iterable<string>) => void;
@@ -292,20 +289,6 @@ export default class SelectTeam extends React.PureComponent<Props, State> {
                                 defaultMessage='Teams you can join: '
                             />
                         </h4>
-                        <ExternalLink
-                            location='learn_about_teams'
-                            href={MATTERMOST_ACADEMY_TEAM_TRAINING_LINK}
-                            className='LearnAboutTeamsLink'
-                        >
-                            <i
-                                className='icon icon-lightbulb-outline'
-                                aria-hidden={true}
-                            />
-                            <FormattedMessage
-                                id='learn_about_teams'
-                                defaultMessage='Learn about teams'
-                            />
-                        </ExternalLink>
                     </div>
                     <InfiniteScroll
                         callBack={this.fetchMoreTeams}

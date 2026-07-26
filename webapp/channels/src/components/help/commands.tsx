@@ -4,8 +4,6 @@
 import React from 'react';
 import {defineMessage, FormattedMessage} from 'react-intl';
 
-import ExternalLink from 'components/external_link';
-
 import HelpLinks from './help_links';
 import useHelpPageTitle from './use_help_page_title';
 
@@ -31,7 +29,7 @@ const HelpCommands = (): JSX.Element => {
                 <p>
                     <FormattedMessage
                         id='help.commands.intro'
-                        defaultMessage='You can execute commands, called slash commands, by typing into the text input box to perform operations in Mattermost. To run a slash command, type <code>/</code> followed by a command and some arguments to perform actions.'
+                        defaultMessage='You can execute commands, called slash commands, by typing into the text input box. To run a slash command, type <code>/</code> followed by a command and some arguments to perform actions.'
                         values={{
                             code: (chunks: React.ReactNode) => <code>{chunks}</code>,
                         }}
@@ -48,17 +46,8 @@ const HelpCommands = (): JSX.Element => {
                     <p>
                         <FormattedMessage
                             id='help.commands.builtin.description'
-                            defaultMessage='Built-in slash commands come with all Mattermost installations. See the <link>product documentation</link> for a list of available built-in slash commands.'
-                            values={{
-                                link: (chunks: React.ReactNode) => (
-                                    <ExternalLink
-                                        href='https://docs.mattermost.com/integrations-guide/built-in-slash-commands.html'
-                                        location='help_commands'
-                                    >
-                                        {chunks}
-                                    </ExternalLink>
-                                ),
-                            }}
+                            defaultMessage='Built-in slash commands are available in this deployment. Type <code>/</code> to view the commands available to you.'
+                            values={{code: (chunks: React.ReactNode) => <code>{chunks}</code>}}
                         />
                     </p>
                     <p>
@@ -168,17 +157,9 @@ const HelpCommands = (): JSX.Element => {
                     <p>
                         <FormattedMessage
                             id='help.commands.custom.note'
-                            defaultMessage='Custom slash commands are disabled by default and can be enabled by the System Admin in the System Console by going to <b>Integrations > Integration Management</b>. Learn about configuring custom slash commands in the <link>developer documentation</link>.'
+                            defaultMessage='Custom slash commands are disabled by default and can be enabled by the System Admin in the System Console by going to <b>Integrations > Integration Management</b>.'
                             values={{
                                 b: (chunks: React.ReactNode) => <b>{chunks}</b>,
-                                link: (chunks: React.ReactNode) => (
-                                    <ExternalLink
-                                        href='https://developers.mattermost.com/integrate/slash-commands/custom/'
-                                        location='help_commands'
-                                    >
-                                        {chunks}
-                                    </ExternalLink>
-                                ),
                             }}
                         />
                     </p>

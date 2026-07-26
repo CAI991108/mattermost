@@ -65,7 +65,7 @@ const AllowedDomainsSelect = ({allowedDomains, setAllowedDomains, setHasChanges,
             {showAllowedDomains &&
             <SelectTextInput
                 id='allowedDomains'
-                placeholder={formatMessage({id: 'general_tab.AllowedDomainsExample', defaultMessage: 'corp.mattermost.com, mattermost.com'})}
+                placeholder='example.edu, research.example.org'
                 aria-label={formatMessage({id: 'general_tab.allowedDomains.ariaLabel', defaultMessage: 'Allowed Domains'})}
                 value={allowedDomains}
                 onChange={handleOnChangeDomains}

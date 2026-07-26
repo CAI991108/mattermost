@@ -7,7 +7,6 @@ import {FormattedMessage} from 'react-intl';
 
 import type {Theme} from 'mattermost-redux/selectors/entities/preferences';
 
-import ExternalLink from 'components/external_link';
 import SettingItemMax from 'components/setting_item_max';
 import SettingItemMin from 'components/setting_item_min';
 import type SettingItemMinComponent from 'components/setting_item_min';
@@ -222,22 +221,6 @@ export default class ThemeSetting extends React.PureComponent<Props, State> {
                 );
 
                 inputs.push(premade, custom);
-
-                inputs.push(
-                    <div key='otherThemes'>
-                        <br/>
-                        <ExternalLink
-                            id='otherThemes'
-                            href='http://docs.mattermost.com/help/settings/theme-colors.html#custom-theme-examples'
-                            location='user_settings_theme'
-                        >
-                            <FormattedMessage
-                                id='user.settings.display.theme.otherThemes'
-                                defaultMessage='See other themes'
-                            />
-                        </ExternalLink>
-                    </div>,
-                );
             } else {
                 inputs.push(premade);
             }

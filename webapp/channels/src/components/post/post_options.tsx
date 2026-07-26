@@ -225,7 +225,7 @@ const PostOptions = (props: Props): JSX.Element => {
             }) || [];
     }
 
-    const dotMenu = !iuinStickerId && (
+    const dotMenu = (
         <li>
             <DotMenu
                 post={props.post}
@@ -241,7 +241,14 @@ const PostOptions = (props: Props): JSX.Element => {
             />
         </li>
     );
-    const postMenuActions = iuinStickerId ? addIuinStickerFavorite : dotMenu;
+    const postMenuActions = iuinStickerId ? (
+        <>
+            {addIuinStickerFavorite}
+            {dotMenu}
+        </>
+    ) : (
+        dotMenu
+    );
 
     // Build post options
     let options: ReactNode;

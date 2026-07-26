@@ -572,15 +572,53 @@ export function appendHtmlModule(html: string, moduleHtml: string): string {
     return `${trimmed}\n\n${moduleHtml.trim()}`;
 }
 
+function getDefaultReadmeDescription(user: UserProfile | undefined, name: string): string {
+    const locale = user?.locale?.toLowerCase();
+    if (locale === 'zh-cn') {
+        const title = user?.position ? escapeHtml(user.position) : '科研成员';
+
+        return `${name} 是一名${title}。你可以在这里介绍研究方向、项目、论文、奖项、课程资料和实用链接。`;
+    }
+
+    if (locale === 'zh-tw') {
+        const title = user?.position ? escapeHtml(user.position) : '研究成員';
+
+        return `${name} 是一名${title}。你可以在這裡介紹研究方向、專案、論文、獎項、課程資料和實用連結。`;
+    }
+
+    const title = user?.position ? escapeHtml(user.position) : 'Research member';
+
+    return `${name} is a ${title}. You can introduce research directions, projects, papers, awards, course materials, and useful links here.`;
+}
+
 export function getDefaultReadmeMarkdown(user?: UserProfile): string {
     const name = user ? escapeHtml(getDisplayName(user)) : 'SAI-NET Member';
-    const title = user?.position ? escapeHtml(user.position) : 'Research member';
 
     return [
         `# ${name}`,
         '',
-        `${name} is a ${title}. You can introduce research directions, projects, papers, awards, course materials, and useful links here.`,
+        getDefaultReadmeDescription(user, name),
     ].join('\n');
+}
+
+export function localizeLegacyDefaultReadmeWorkspace(workspace: IuinReadmeWorkspace, user: UserProfile): IuinReadmeWorkspace {
+    const locale = user.locale?.toLowerCase();
+    if (locale !== 'zh-cn' && locale !== 'zh-tw') {
+        return workspace;
+    }
+
+    const currentContent = getReadmeFileContent(workspace, workspace.activePath);
+    const legacyEnglishContent = getDefaultReadmeMarkdown({...user, locale: 'en'});
+    if (currentContent !== legacyEnglishContent) {
+        return workspace;
+    }
+
+    return setReadmeFileContent(
+        workspace,
+        workspace.activePath,
+        getDefaultReadmeMarkdown(user),
+        'markdown',
+    );
 }
 
 function getDefaultReadmeFile(content: string): IuinReadmeFile {
