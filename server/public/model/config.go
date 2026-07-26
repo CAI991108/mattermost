@@ -2450,11 +2450,11 @@ func (s *AnnouncementSettings) SetDefaults() {
 	}
 
 	if s.AdminNoticesEnabled == nil {
-		s.AdminNoticesEnabled = new(true)
+		s.AdminNoticesEnabled = new(false)
 	}
 
 	if s.UserNoticesEnabled == nil {
-		s.UserNoticesEnabled = new(true)
+		s.UserNoticesEnabled = new(false)
 	}
 	if s.NoticesURL == nil {
 		s.NoticesURL = new(AnnouncementSettingsDefaultNoticesJsonURL)
