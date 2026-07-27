@@ -117,7 +117,9 @@ const TeamSettingsModal = ({isOpen, onExited, focusOriginElement}: Props) => {
             uiName: formatMessage({id: 'team_settings_modal.accessTab', defaultMessage: 'Access'}),
             icon: 'icon icon-account-multiple-outline',
             iconTitle: formatMessage({id: 'generic_icons.member', defaultMessage: 'Member Icon'}),
-            display: canInviteUsers,
+
+            // LZX修改，隐藏「访问」tab，只展示信息（原为 display: canInviteUsers）
+            display: false,
         },
         {
             name: 'access_policies',

@@ -12,7 +12,10 @@ import type {Post} from '@mattermost/types/posts';
 import MessageSubmitError from 'components/message_submit_error';
 import MsgTyping from 'components/msg_typing';
 
-import HelpButton from './help_button';
+// NOTE: 已隐藏消息输入框右下角的「帮助」入口（不再渲染 HelpButton），
+// 底层逻辑（HelpButton 组件、popoutHelp、/help 与 /_popout/help 路由）保持不变。
+// 如需恢复该入口，取消本行 import 与下方 JSX 的注释即可。
+// import HelpButton from './help_button';
 
 interface Props {
     postError?: ReactNode;
@@ -57,7 +60,8 @@ export default function Footer({
                     rootId={rootId}
                 />
             )}
-            {!isInEditMode && <HelpButton/>}
+            {/* 「帮助」入口已隐藏，如需恢复取消下行注释即可 */}
+            {/* {!isInEditMode && <HelpButton/>} */}
         </div>
     );
 }

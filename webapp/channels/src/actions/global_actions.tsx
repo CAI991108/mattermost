@@ -425,7 +425,10 @@ export async function redirectUserToDefaultTeam(searchParams?: URLSearchParams) 
             return;
         }
 
-        historyPushWithQueryParams('/select_team', searchParams);
+        // LZX修改：注释掉无团队时自动跳转 /select_team 的计划。
+        // 实际环境不会存在没有任何团队/频道的用户，避免误跳到 select_team 页面。
+        // 路由本身保留，用户仍可通过侧边栏「加入其他团队」等入口手动进入。
+        // historyPushWithQueryParams('/select_team', searchParams);
         return;
     }
 
@@ -458,5 +461,7 @@ export async function redirectUserToDefaultTeam(searchParams?: URLSearchParams) 
         }
     }
 
-    historyPushWithQueryParams('/select_team', searchParams);
+    // LZX修改：注释掉所有团队都无可访问频道时兜底跳转 /select_team 的计划。
+    // 与上方无团队分支同理，保留路由但不再自动跳转。
+    // historyPushWithQueryParams('/select_team', searchParams);
 }

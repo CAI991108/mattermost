@@ -114,6 +114,8 @@ const gmIntroMessages = defineMessages({
     [NotificationLevel.NONE]: {id: 'intro_messages.GM.none', defaultMessage: 'You have selected to <b>never</b> be notified in this group message.'},
 });
 
+// LZX修改，隐藏频道介绍描述文字后该函数暂无引用，保留定义以便恢复。
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const getGMIntroMessageSpecificPart = (userProfile: UserProfileType | undefined, membership: ChannelMembership | undefined) => {
     const isMuted = isChannelMuted(membership);
     if (isMuted) {
@@ -153,11 +155,16 @@ function createGMIntroMessage(
     profiles: UserProfileType[],
     currentUserId: string,
     currentUser: UserProfileType,
+
+    // LZX修改，隐藏频道介绍描述文字后 channelMembership 暂无引用，保留参数以便恢复。
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     channelMembership?: ChannelMembership,
 ) {
     const channelIntroId = 'channelIntro';
 
     if (profiles.length > 0) {
+        // LZX修改，隐藏频道介绍描述文字后 currentUserProfile 暂无引用，保留声明以便恢复。
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const currentUserProfile = profiles.find((v) => v.id === currentUserId);
 
         const pictures = profiles.
@@ -191,6 +198,7 @@ function createGMIntroMessage(
                 <h2 className='channel-intro__title'>
                     {channel.display_name}
                 </h2>
+                {/* LZX修改，隐藏频道介绍描述文字。原代码保留如下：
                 <p className='channel-intro__text'>
                     <FormattedMessage
                         id='intro_messages.group_message'
@@ -198,6 +206,7 @@ function createGMIntroMessage(
                     />
                     {getGMIntroMessageSpecificPart(currentUserProfile, channelMembership)}
                 </p>
+                */}
                 {actionButtons}
             </div>
         );
@@ -208,12 +217,14 @@ function createGMIntroMessage(
             id={channelIntroId}
             className={'channel-intro ' + centeredIntro}
         >
+            {/* LZX修改，隐藏频道介绍描述文字。原代码保留如下：
             <p className='channel-intro__text'>
                 <FormattedMessage
                     id='intro_messages.group_message'
                     defaultMessage='This is the start of your group message history with these teammates. '
                 />
             </p>
+            */}
         </div>
     );
 }
@@ -224,6 +235,9 @@ function createDMIntroMessage(
     currentUser: UserProfileType,
     isMobileView: boolean,
     teammate?: UserProfileType,
+
+    // LZX修改，隐藏频道介绍描述文字后 teammateName 暂无引用，保留参数以便恢复。
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     teammateName?: string,
 ) {
     const channelIntroId = 'channelIntro';
@@ -265,6 +279,7 @@ function createDMIntroMessage(
                         userId={teammate?.id}
                     />
                 </h2>
+                {/* LZX修改，隐藏频道介绍描述文字。原代码保留如下：
                 <p className='channel-intro__text'>
                     <FormattedMessage
                         id='intro_messages.DM'
@@ -274,6 +289,7 @@ function createDMIntroMessage(
                         }}
                     />
                 </p>
+                */}
                 {actionButtons}
             </div>
         );
@@ -284,12 +300,14 @@ function createDMIntroMessage(
             id={channelIntroId}
             className={'channel-intro ' + centeredIntro}
         >
+            {/* LZX修改，隐藏频道介绍描述文字。原代码保留如下：
             <p className='channel-intro__text'>
                 <FormattedMessage
                     id='intro_messages.teammate'
                     defaultMessage='This is the start of your direct message history with this teammate. Messages and files shared here are not shown to anyone else.'
                 />
             </p>
+            */}
         </div>
     );
 }
@@ -356,6 +374,7 @@ function createOffTopicIntroMessage(
             <h2 className='channel-intro__title'>
                 {channel.display_name}
             </h2>
+            {/* LZX修改，隐藏频道介绍描述文字。原代码保留如下：
             <p className='channel-intro__text'>
                 <FormattedMessage
                     id='intro_messages.offTopic'
@@ -365,6 +384,7 @@ function createOffTopicIntroMessage(
                     }}
                 />
             </p>
+            */}
             {actionButtons}
         </div>
     );
@@ -471,6 +491,7 @@ function createDefaultIntroMessage(
             <h2 className='channel-intro__title'>
                 {channel.display_name}
             </h2>
+            {/* LZX修改，隐藏频道介绍描述文字。原代码保留如下：
             <p className='channel-intro__text'>
                 {!isReadOnly &&
                     <FormattedMessage
@@ -491,6 +512,7 @@ function createDefaultIntroMessage(
                     />
                 }
             </p>
+            */}
             {actionButtons}
         </div>
     );
@@ -507,35 +529,39 @@ function createStandardIntroMessage(
     creatorName: string,
     isInManagedCategory?: boolean,
 ) {
-    let memberMessage;
+    // LZX修改，隐藏频道介绍描述文字后 memberMessage 暂无引用，保留声明以便恢复。
+    // let memberMessage;
     let teamInviteLink = null;
-    const channelIsArchived = channel.delete_at !== 0;
+
+    // LZX修改，隐藏频道介绍描述文字后 channelIsArchived 暂无引用，保留声明以便恢复。
+    // const channelIsArchived = channel.delete_at !== 0;
     const totalUsers = stats.total_users_count;
     const inviteUsers = totalUsers < usersLimit;
 
-    if (channelIsArchived) {
-        memberMessage = '';
-    } else if (channel.type === Constants.PRIVATE_CHANNEL) {
-        memberMessage = (
-            <FormattedMessage
-                id='intro_messages.onlyInvited'
-                defaultMessage='This is the start of {display_name}. Only invited members can see this private channel.'
-                values={{
-                    display_name: channel.display_name,
-                }}
-            />
-        );
-    } else {
-        memberMessage = (
-            <FormattedMessage
-                id='intro_messages.anyMember'
-                defaultMessage='This is the start of {display_name}. Any team member can join and read this channel.'
-                values={{
-                    display_name: channel.display_name,
-                }}
-            />
-        );
-    }
+    // LZX修改，隐藏频道介绍描述文字，memberMessage 赋值逻辑一并注释保留如下：
+    // if (channelIsArchived) {
+    //     memberMessage = '';
+    // } else if (channel.type === Constants.PRIVATE_CHANNEL) {
+    //     memberMessage = (
+    //         <FormattedMessage
+    //             id='intro_messages.onlyInvited'
+    //             defaultMessage='This is the start of {display_name}. Only invited members can see this private channel.'
+    //             values={{
+    //                 display_name: channel.display_name,
+    //             }}
+    //         />
+    //     );
+    // } else {
+    //     memberMessage = (
+    //         <FormattedMessage
+    //             id='intro_messages.anyMember'
+    //             defaultMessage='This is the start of {display_name}. Any team member can join and read this channel.'
+    //             values={{
+    //                 display_name: channel.display_name,
+    //             }}
+    //         />
+    //     );
+    // }
 
     const date = (
         <FormattedDate
@@ -593,18 +619,19 @@ function createStandardIntroMessage(
         );
     }
 
-    let purposeMessage;
-    if (channel.purpose && channel.purpose !== '') {
-        purposeMessage = (
-            <span>
-                <FormattedMessage
-                    id='intro_messages.purpose'
-                    defaultMessage=" This channel's purpose is: {purpose}"
-                    values={{purpose: channel.purpose}}
-                />
-            </span>
-        );
-    }
+    // LZX修改，隐藏频道介绍描述文字，purposeMessage 声明与赋值一并注释保留如下：
+    // let purposeMessage;
+    // if (channel.purpose && channel.purpose !== '') {
+    //     purposeMessage = (
+    //         <span>
+    //             <FormattedMessage
+    //                 id='intro_messages.purpose'
+    //                 defaultMessage=" This channel's purpose is: {purpose}"
+    //                 values={{purpose: channel.purpose}}
+    //             />
+    //         </span>
+    //     );
+    // }
 
     const isPrivate = channel.type === Constants.PRIVATE_CHANNEL;
     let setHeaderButton = null;
@@ -661,10 +688,12 @@ function createStandardIntroMessage(
                 {isPrivate ? <LockOutlineIcon size={14}/> : <GlobeIcon size={14}/>}
                 {createMessage}
             </div>
+            {/* LZX修改，隐藏频道介绍描述文字。原代码保留如下：
             <p className='channel-intro__text'>
                 {memberMessage}
                 {purposeMessage}
             </p>
+            */}
             {actionButtons}
         </div>
     );
