@@ -13,11 +13,12 @@ import type {UserProfile} from '@mattermost/types/users';
 
 import deepFreeze from 'mattermost-redux/utils/deep_freeze';
 
-import useCopyText from 'components/common/hooks/useCopyText';
+// LZX修改，先移除「复制邀请链接」功能相关 import（useCopyText / getSiteURL），随功能注释一并停用
+// import useCopyText from 'components/common/hooks/useCopyText';
 import UsersEmailsInput from 'components/widgets/inputs/users_emails_input';
 
 import {Constants} from 'utils/constants';
-import {getSiteURL} from 'utils/url';
+// import {getSiteURL} from 'utils/url';
 
 import AddToChannels, {defaultCustomMessage, defaultInviteChannels} from './add_to_channels';
 import type {CustomMessageProps, InviteChannels} from './add_to_channels';
@@ -84,47 +85,50 @@ export default function InviteView(props: Props) {
 
     const {formatMessage} = useIntl();
 
-    const inviteURL = useMemo(() => {
-        return `${getSiteURL()}/signup_user_complete/?id=${props.currentTeam.invite_id}`;
-    }, [props.currentTeam.invite_id]);
+    // LZX修改，先移除「复制邀请链接」功能（产品需求：无需复制链接，直接邀请即可）。
+    // inviteURL 拼接 + useCopyText 复制 + copyButton 渲染整体停用，注释保留便于恢复。
+    // 团队 invite_id 生成逻辑（regenerateTeamInviteId，见上方 useEffect）保持不动。
+    // const inviteURL = useMemo(() => {
+    //     return `${getSiteURL()}/signup_user_complete/?id=${props.currentTeam.invite_id}`;
+    // }, [props.currentTeam.invite_id]);
 
-    const copyText = useCopyText({
-        text: inviteURL,
-    });
+    // const copyText = useCopyText({
+    //     text: inviteURL,
+    // });
 
-    const copyButton = (
-        <Button
-            onClick={copyText.onClick}
-            data-testid='InviteView__copyInviteLink'
-            aria-label={
-                formatMessage({
-                    id: 'invite_modal.copy_link.url_aria',
-                    defaultMessage: 'team invite link {inviteURL}',
-                }, {inviteURL})
-            }
-            emphasis='secondary'
-            aria-live='polite'
-        >
-            {!copyText.copiedRecently && (
-                <>
-                    <i className='icon icon-link-variant'/>
-                    <FormattedMessage
-                        id='invite_modal.copy_link'
-                        defaultMessage='Copy invite link'
-                    />
-                </>
-            )}
-            {copyText.copiedRecently && (
-                <>
-                    <i className='icon icon-check'/>
-                    <FormattedMessage
-                        id='invite_modal.copied'
-                        defaultMessage='Copied'
-                    />
-                </>
-            )}
-        </Button>
-    );
+    // const copyButton = (
+    //     <Button
+    //         onClick={copyText.onClick}
+    //         data-testid='InviteView__copyInviteLink'
+    //         aria-label={
+    //             formatMessage({
+    //                 id: 'invite_modal.copy_link.url_aria',
+    //                 defaultMessage: 'team invite link {inviteURL}',
+    //             }, {inviteURL})
+    //         }
+    //         emphasis='secondary'
+    //         aria-live='polite'
+    //     >
+    //         {!copyText.copiedRecently && (
+    //             <>
+    //                 <i className='icon icon-link-variant'/>
+    //                 <FormattedMessage
+    //                     id='invite_modal.copy_link'
+    //                     defaultMessage='Copy invite link'
+    //                 />
+    //             </>
+    //         )}
+    //         {copyText.copiedRecently && (
+    //             <>
+    //                 <i className='icon icon-check'/>
+    //                 <FormattedMessage
+    //                     id='invite_modal.copied'
+    //                     defaultMessage='Copied'
+    //                 />
+    //             </>
+    //         )}
+    //     </Button>
+    // );
 
     const errorProperties = {
         showError: false,
@@ -274,7 +278,8 @@ export default function InviteView(props: Props) {
                 <OverageUsersBannerNotice/>
             </Modal.Body>
             <Modal.Footer className={classNames('InviteView__footer', props.footerClass, {'InviteView__footer-guest': props.inviteType === InviteType.GUEST})}>
-                {props.inviteType === InviteType.MEMBER && copyButton}
+                {/* LZX修改，先移除「复制邀请链接」按钮渲染 */}
+                {/* {props.inviteType === InviteType.MEMBER && copyButton} */}
                 <Button
                     disabled={!isInviteValid}
                     onClick={props.invite}
