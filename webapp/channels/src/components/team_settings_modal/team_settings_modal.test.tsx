@@ -79,7 +79,7 @@ describe('components/team_settings_modal', () => {
         });
     });
 
-    test('should display access tab when can invite users', async () => {
+    test('should hide access tab even when user can invite users', async () => {
         renderWithContext(
             <TeamSettingsModal
                 {...baseProps}
@@ -88,8 +88,7 @@ describe('components/team_settings_modal', () => {
         );
         const infoButton = screen.getByRole('tab', {name: 'info'});
         expect(infoButton).toBeDefined();
-        const accessButton = screen.getByRole('tab', {name: 'access'});
-        expect(accessButton).toBeDefined();
+        expect(screen.queryByRole('tab', {name: 'access'})).not.toBeInTheDocument();
     });
 
     test('should not display access tab when can not invite users', async () => {

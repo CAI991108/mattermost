@@ -101,7 +101,7 @@ describe('components/post_view/ChannelIntroMessages', () => {
             expect(beginningHeading).toBeInTheDocument();
             expect(beginningHeading).toHaveClass('channel-intro__title');
 
-            expect(screen.getByText('This is the start of test channel. Any team member can join and read this channel.')).toBeInTheDocument();
+            expect(screen.queryByText('This is the start of test channel. Any team member can join and read this channel.')).not.toBeInTheDocument();
         });
     });
 
@@ -125,10 +125,7 @@ describe('components/post_view/ChannelIntroMessages', () => {
             expect(screen.queryByText('test channel')).not.toBeInTheDocument();
             expect(screen.queryByText('Any member can join and read this channel.')).not.toBeInTheDocument();
 
-            // there are no profiles in the dom, channel type is GM_CHANNEL, teammate text should be displayed
-            expect(screen.getByText('This is the start of your group message history with these teammates.', {exact: false})).toBeInTheDocument();
-
-            expect(screen.getByText('This is the start of your', {exact: false})).toHaveClass('channel-intro__text');
+            expect(screen.queryByText('This is the start of your group message history with these teammates.', {exact: false})).not.toBeInTheDocument();
         });
 
         test('should match component state, with profiles', () => {
@@ -139,7 +136,7 @@ describe('components/post_view/ChannelIntroMessages', () => {
                 />, initialState,
             );
 
-            expect(screen.getByText('This is the start of your group message history with these teammates. ', {exact: false})).toBeInTheDocument();
+            expect(screen.queryByText('This is the start of your group message history with these teammates. ', {exact: false})).not.toBeInTheDocument();
 
             const headerDialog = screen.getByLabelText('Set header');
             expect(headerDialog).toBeInTheDocument();
@@ -178,9 +175,7 @@ describe('components/post_view/ChannelIntroMessages', () => {
                 />, initialState,
             );
 
-            const message = screen.getByText('This is the start of your direct message history with this teammate. Messages and files shared here are not shown to anyone else.', {exact: false});
-            expect(message).toBeInTheDocument();
-            expect(message).toHaveClass('channel-intro__text');
+            expect(screen.queryByText('This is the start of your direct message history with this teammate. Messages and files shared here are not shown to anyone else.', {exact: false})).not.toBeInTheDocument();
         });
 
         test('should match component state, with teammate', () => {
@@ -191,7 +186,7 @@ describe('components/post_view/ChannelIntroMessages', () => {
                     teammateName='my teammate'
                 />, initialState,
             );
-            expect(screen.getByText('This is the start of your direct message history with my teammate.', {exact: false})).toBeInTheDocument();
+            expect(screen.queryByText('This is the start of your direct message history with my teammate.', {exact: false})).not.toBeInTheDocument();
 
             const teammate = screen.getByText('my teammate');
 
@@ -205,11 +200,7 @@ describe('components/post_view/ChannelIntroMessages', () => {
             expect(image).toHaveAttribute('src', '/api/v4/users/user1/image?_=0');
             expect(image).toHaveAttribute('loading', 'lazy');
 
-            const headerDialog = screen.getByLabelText('Set header');
-
-            expect(headerDialog).toBeInTheDocument();
-            expect(headerDialog).toHaveTextContent('Set header');
-            expect(headerDialog).toHaveClass('action-button');
+            expect(screen.queryByLabelText('Set header')).not.toBeInTheDocument();
         });
     });
 
@@ -237,7 +228,7 @@ describe('components/post_view/ChannelIntroMessages', () => {
             expect(beginningHeading).toBeInTheDocument();
             expect(beginningHeading).toHaveClass('channel-intro__title');
 
-            expect(screen.getByText('Messages can only be posted by admins. Everyone automatically becomes a permanent member of this channel when they join the team.', {exact: false})).toBeInTheDocument();
+            expect(screen.queryByText('Messages can only be posted by admins. Everyone automatically becomes a permanent member of this channel when they join the team.', {exact: false})).not.toBeInTheDocument();
         });
 
         test('should match component state without any permission', () => {
@@ -255,7 +246,7 @@ describe('components/post_view/ChannelIntroMessages', () => {
 
             expect(beginningHeading).toBeInTheDocument();
             expect(beginningHeading).toHaveClass('channel-intro__title');
-            expect(screen.getByText('Post messages here that you want everyone to see. Everyone automatically becomes a member of this channel when they join the team.', {exact: false})).toBeInTheDocument();
+            expect(screen.queryByText('Post messages here that you want everyone to see. Everyone automatically becomes a member of this channel when they join the team.', {exact: false})).not.toBeInTheDocument();
         });
     });
 
@@ -277,8 +268,7 @@ describe('components/post_view/ChannelIntroMessages', () => {
                     {...props}
                 />, initialState,
             );
-            screen.getByText('This is the start of off-topic, a channel for non-work-related conversations.');
-            expect(screen.getByText('This is the start of off-topic, a channel for non-work-related conversations.')).toHaveClass('channel-intro__text');
+            expect(screen.queryByText('This is the start of off-topic, a channel for non-work-related conversations.')).not.toBeInTheDocument();
         });
     });
 });

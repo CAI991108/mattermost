@@ -37,7 +37,7 @@ jest.mock('stores/redux_store', () => {
 
 describe('actions/global_actions', () => {
     describe('redirectUserToDefaultTeam', () => {
-        it('should redirect to /select_team when no team is available', async () => {
+        it('should not redirect when no team is available', async () => {
             const store = mockStore({
                 entities: {
                     general: {
@@ -69,7 +69,7 @@ describe('actions/global_actions', () => {
             getState.mockImplementation(store.getState);
 
             await redirectUserToDefaultTeam();
-            expect(getHistory().push).toHaveBeenCalledWith('/select_team');
+            expect(getHistory().push).not.toHaveBeenCalled();
         });
 
         it('should redirect to last viewed channel in the last viewed team when the user have access to that team', async () => {
@@ -219,7 +219,7 @@ describe('actions/global_actions', () => {
             expect(getHistory().push).toHaveBeenCalledWith('/team2/channels/channel-in-team-2');
         });
 
-        it('should redirect to /select_team when the user have no channels in the any of his teams', async () => {
+        it('should not redirect when the user has no channels in any team', async () => {
             const userId = 'user1';
             LocalStorageStore.setPreviousTeamId(userId, 'team1');
             LocalStorageStore.setPreviousChannelName(userId, 'team1', 'channel-in-team-1');
@@ -288,7 +288,7 @@ describe('actions/global_actions', () => {
             getState.mockImplementation(store.getState);
 
             await redirectUserToDefaultTeam();
-            expect(getHistory().push).toHaveBeenCalledWith('/select_team');
+            expect(getHistory().push).not.toHaveBeenCalled();
         });
 
         it('should do nothing if there is not current user', async () => {

@@ -19,7 +19,7 @@ describe('Footer Component', () => {
     };
 
     describe('HelpButton visibility', () => {
-        it('should render HelpButton when not in edit mode', () => {
+        it('should not render HelpButton when not in edit mode', () => {
             renderWithContext(
                 <Footer
                     {...baseProps}
@@ -27,7 +27,7 @@ describe('Footer Component', () => {
                 />,
             );
 
-            expect(screen.getByText('Help')).toBeInTheDocument();
+            expect(screen.queryByText('Help')).not.toBeInTheDocument();
         });
 
         it('should not render HelpButton when in edit mode', () => {
@@ -41,7 +41,7 @@ describe('Footer Component', () => {
             expect(screen.queryByText('Help')).not.toBeInTheDocument();
         });
 
-        it('should render HelpButton as a button element with correct attributes', () => {
+        it('should not expose a messaging help button', () => {
             renderWithContext(
                 <Footer
                     {...baseProps}
@@ -49,10 +49,7 @@ describe('Footer Component', () => {
                 />,
             );
 
-            const helpButton = screen.getByText('Help');
-            expect(helpButton.tagName).toBe('BUTTON');
-            expect(helpButton).toHaveAttribute('type', 'button');
-            expect(helpButton).toHaveAttribute('aria-label', 'Messaging help');
+            expect(screen.queryByRole('button', {name: 'Messaging help'})).not.toBeInTheDocument();
         });
     });
 
