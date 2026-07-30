@@ -334,6 +334,10 @@ func getIuinProfileWorkspaceFile(c *Context, w http.ResponseWriter, r *http.Requ
 
 func readIuinProfileWorkspace(c *Context, ctx context.Context, userID string) (*iuinProfileWorkspacePayload, *model.AppError) {
 	db := c.App.Srv().Store().GetInternalReplicaDB()
+	return readIuinProfileWorkspaceFromDB(c, ctx, db, userID)
+}
+
+func readIuinProfileWorkspaceFromDB(c *Context, ctx context.Context, db *sql.DB, userID string) (*iuinProfileWorkspacePayload, *model.AppError) {
 	workspace, appErr := selectIuinProfileWorkspace(ctx, db, userID)
 	if appErr != nil {
 		return nil, appErr
@@ -457,7 +461,7 @@ func saveIuinProfileWorkspace(c *Context, ctx context.Context, userID string, pa
 
 	removeUnusedIuinProfileStorage(c, oldEntries, pending)
 
-	return readIuinProfileWorkspace(c, ctx, userID)
+	return readIuinProfileWorkspaceFromDB(c, ctx, db, userID)
 }
 
 func persistIuinProfileWorkspaceUpload(c *Context, ctx context.Context, userID string, entryPath string, entryType string, mimeType string, content []byte) (*iuinProfileEntryRow, *model.AppError) {
