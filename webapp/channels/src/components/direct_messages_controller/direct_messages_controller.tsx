@@ -69,7 +69,7 @@ export default function DirectMessagesController(props: Props) {
             </ResizableLhs>
             <div
                 id='channel_view'
-                className='channel-view direct-messages-controller'
+                className='channel-view'
                 data-testid='channel_view'
             >
                 <div className='container-fluid channel-view-inner'>

@@ -21,7 +21,7 @@ describe('DirectMessagesController', () => {
         document.body.classList.remove('app__body', 'channel-view');
     });
 
-    it('applies the themed channel layout while mounted', () => {
+    it('keeps the native full-width channel layout and body class while mounted', () => {
         const {getByTestId, unmount} = renderWithContext(
             <DirectMessagesController {...({} as any)}/>,
             {
@@ -38,7 +38,8 @@ describe('DirectMessagesController', () => {
         );
 
         expect(document.body).toHaveClass('channel-view');
-        expect(getByTestId('channel_view')).toHaveClass('channel-view', 'direct-messages-controller');
+        expect(getByTestId('channel_view')).toHaveClass('channel-view');
+        expect(getByTestId('channel_view')).not.toHaveClass('direct-messages-controller');
 
         unmount();
 
