@@ -4315,6 +4315,7 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
     const intl = useIntl();
     const dispatch = useDispatch();
     const passwordConfig = useSelector(getPasswordConfig);
+    const draftRevisionRef = useRef(0);
     const [draft, setDraft] = useState(() => getIuinProfileData(currentUser));
     const [accountDraft, setAccountDraft] = useState(() => getAccountDraft(currentUser));
     const [passwordDraft, setPasswordDraft] = useState<PasswordDraft>(() => getEmptyPasswordDraft());
@@ -4324,6 +4325,7 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
     const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [accountSaveState, setAccountSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [securitySaveState, setSecuritySaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+    const [workspaceLoading, setWorkspaceLoading] = useState(true);
     const [settingsLoading, setSettingsLoading] = useState(false);
     const [settings, setSettings] = useState<IuinProfileSettingsResponse | null>(null);
     const [sessions, setSessions] = useState<Session[]>([]);
@@ -4378,6 +4380,7 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
     }, [error, notice, passwordMessage]);
 
     useEffect(() => {
+        draftRevisionRef.current = 0;
         setDraft(getIuinProfileData(currentUser));
         setAccountDraft(getAccountDraft(currentUser));
         setPasswordDraft(getEmptyPasswordDraft());
@@ -4394,9 +4397,11 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
 
     useEffect(() => {
         let cancelled = false;
+        const revisionBeforeLoad = draftRevisionRef.current;
+        setWorkspaceLoading(true);
 
         loadIuinReadmeWorkspaceFromBackend(currentUser.id).then((workspace) => {
-            if (cancelled) {
+            if (cancelled || draftRevisionRef.current !== revisionBeforeLoad) {
                 return;
             }
 
@@ -4410,6 +4415,10 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
             }));
         }).catch(() => {
             // Keep the legacy user props workspace when the backend workspace is unavailable.
+        }).finally(() => {
+            if (!cancelled) {
+                setWorkspaceLoading(false);
+            }
         });
 
         return () => {
@@ -4427,11 +4436,13 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
     }, [currentUser.username]);
 
     const setAdvancedDraft = useCallback<Dispatch<SetStateAction<IuinProfileData>>>((nextDraft) => {
+        draftRevisionRef.current += 1;
         setDraft((previous) => (typeof nextDraft === 'function' ? (nextDraft as (previousDraft: IuinProfileData) => IuinProfileData)(previous) : nextDraft));
         setSaveState('idle');
     }, []);
 
     const setField = useCallback((field: keyof typeof draft, value: string) => {
+        draftRevisionRef.current += 1;
         setDraft((previous) => ({
             ...previous,
             [field]: value,
@@ -4440,6 +4451,7 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
     }, []);
 
     const updateReadmeWorkspace = useCallback((updater: (workspace: IuinReadmeWorkspace) => IuinReadmeWorkspace) => {
+        draftRevisionRef.current += 1;
         setDraft((previous) => ({
             ...previous,
             ...(() => {
@@ -4859,11 +4871,17 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
     }, [startEditingResearchField]);
 
     const handleSave = useCallback(async () => {
+        if (workspaceLoading) {
+            return;
+        }
+
+        const revisionBeingSaved = draftRevisionRef.current;
+        const draftBeingSaved = draft;
         setSaveState('saving');
         setError('');
 
         try {
-            await saveIuinReadmeWorkspaceToBackend(currentUser.id, parseIuinReadmeWorkspace(draft.readmeWorkspace, draft.homepageHtml, getReadmeRootName(currentUser)));
+            await saveIuinReadmeWorkspaceToBackend(currentUser.id, parseIuinReadmeWorkspace(draftBeingSaved.readmeWorkspace, draftBeingSaved.homepageHtml, getReadmeRootName(currentUser)));
         } catch (err) {
             setSaveState('error');
             setError(err instanceof Error ? err.message : intl.formatMessage({
@@ -4873,7 +4891,7 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
             return;
         }
 
-        const result = await dispatch(updateMe(getProfilePatch(currentUser, draft)) as any) as any;
+        const result = await dispatch(updateMe(getProfilePatch(currentUser, draftBeingSaved)) as any) as any;
         if (result.error) {
             setSaveState('error');
             setError(result.error.message || intl.formatMessage({
@@ -4883,9 +4901,14 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
             return;
         }
 
+        if (draftRevisionRef.current !== revisionBeingSaved) {
+            setSaveState('idle');
+            return;
+        }
+
         setSaveState('saved');
         getHistory().push(`/u/${currentUser.username}`);
-    }, [currentUser, dispatch, draft, intl]);
+    }, [currentUser, dispatch, draft, intl, workspaceLoading]);
 
     const handleAccountSave = useCallback(async () => {
         const nextEmail = accountDraft.email.trim();
@@ -5099,7 +5122,7 @@ function IuinProfileEditor({currentUser, initialSection = 'homepage'}: {currentU
                         <button
                             type='button'
                             className='iuin-profile-button'
-                            disabled={saveState === 'saving'}
+                            disabled={saveState === 'saving' || workspaceLoading}
                             onClick={handleSave}
                         >
                             {getProfileSaveMessage(saveState === 'saving')}
