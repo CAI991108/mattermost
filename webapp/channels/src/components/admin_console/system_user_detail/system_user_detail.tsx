@@ -297,6 +297,13 @@ export class SystemUserDetail extends PureComponent<Props, State> {
         );
     };
 
+    private isUsernameAndEmailManagedByProvider = (state: State = this.state): boolean => {
+        return Boolean(
+            state.user?.auth_service &&
+            state.user.auth_service !== Constants.MAGIC_LINK_SERVICE,
+        );
+    };
+
     private isCpaValueChanged = (currentValue: string | string[] | undefined, originalValue: string | string[] | undefined): boolean => {
         if (Array.isArray(currentValue) && Array.isArray(originalValue)) {
             return currentValue.length !== originalValue.length ||
@@ -422,7 +429,7 @@ export class SystemUserDetail extends PureComponent<Props, State> {
     };
 
     handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
-        if (!this.state.user || this.state.user.auth_service) {
+        if (!this.state.user || this.isUsernameAndEmailManagedByProvider()) {
             return;
         }
 
@@ -480,7 +487,7 @@ export class SystemUserDetail extends PureComponent<Props, State> {
     };
 
     handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => {
-        if (!this.state.user || this.state.user.auth_service) {
+        if (!this.state.user || this.isUsernameAndEmailManagedByProvider()) {
             return;
         }
 
@@ -678,7 +685,7 @@ export class SystemUserDetail extends PureComponent<Props, State> {
                     defaultMessage='Username'
                 />
                 <AtIcon/>
-                {this.state.user?.auth_service ? (
+                {this.isUsernameAndEmailManagedByProvider() ? (
                     <WithTooltip
                         title={this.props.intl.formatMessage({
                             id: 'admin.userManagement.userDetail.managedByProvider.title',
@@ -743,7 +750,7 @@ export class SystemUserDetail extends PureComponent<Props, State> {
                     defaultMessage='Email'
                 />
                 <EmailIcon/>
-                {this.state.user?.auth_service ? (
+                {this.isUsernameAndEmailManagedByProvider() ? (
                     <WithTooltip
                         title={this.props.intl.formatMessage({
                             id: 'admin.userManagement.userDetail.managedByProvider.title',
@@ -1106,8 +1113,9 @@ export class SystemUserDetail extends PureComponent<Props, State> {
             let updatedUser: UserProfile = {...this.state.user};
 
             // Track what changes are being made
-            const emailChanged = !this.state.user.auth_service && this.state.emailField !== this.state.user.email;
-            const usernameChanged = !this.state.user.auth_service && this.state.usernameField !== this.state.user.username;
+            const providerManagesUsernameAndEmail = this.isUsernameAndEmailManagedByProvider();
+            const emailChanged = !providerManagesUsernameAndEmail && this.state.emailField !== this.state.user.email;
+            const usernameChanged = !providerManagesUsernameAndEmail && this.state.usernameField !== this.state.user.username;
             const authDataChanged = this.state.authDataField !== (this.state.user.auth_data || '');
             const cpaChanged = this.hasCpaChanges();
 

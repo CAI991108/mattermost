@@ -1566,7 +1566,7 @@ func updateUser(c *Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check that the fields being updated are not set by the login provider
-	conflictField := c.App.CheckProviderAttributes(c.AppContext, ouser, user.ToPatch())
+	conflictField := checkProviderAttributesForUserUpdate(c, ouser, user.ToPatch())
 	if conflictField != "" {
 		c.Err = model.NewAppError(
 			"updateUser", "api.user.update_user.login_provider_attribute_set.app_error",
@@ -1596,6 +1596,19 @@ func updateUser(c *Context, w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(ruser); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
+}
+
+func checkProviderAttributesForUserUpdate(c *Context, user *model.User, patch *model.UserPatch) string {
+	if !c.IsSystemAdmin() || user.AuthService != model.UserAuthServiceMagicLink || patch.Username == nil {
+		return c.App.CheckProviderAttributes(c.AppContext, user, patch)
+	}
+
+	// Magic Link uses the user's email as its login target and does not manage
+	// usernames externally. Let system administrators update the username while
+	// retaining all other provider-owned field checks.
+	providerPatch := *patch
+	providerPatch.Username = nil
+	return c.App.CheckProviderAttributes(c.AppContext, user, &providerPatch)
 }
 
 func patchUser(c *Context, w http.ResponseWriter, r *http.Request) {
@@ -1644,7 +1657,7 @@ func patchUser(c *Context, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	conflictField := c.App.CheckProviderAttributes(c.AppContext, ouser, &patch)
+	conflictField := checkProviderAttributesForUserUpdate(c, ouser, &patch)
 	if conflictField != "" {
 		c.Err = model.NewAppError(
 			"patchUser", "api.user.patch_user.login_provider_attribute_set.app_error",

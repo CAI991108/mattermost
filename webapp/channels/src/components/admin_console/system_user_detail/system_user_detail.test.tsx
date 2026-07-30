@@ -22,10 +22,12 @@ import {TestHelper} from 'utils/test_helper';
 // Mock user profile data
 const user = Object.assign(TestHelper.getUserMock(), {auth_service: ''}) as UserProfile;
 const ldapUser = {...user, auth_service: Constants.LDAP_SERVICE} as UserProfile;
+const magicLinkUser = {...user, auth_service: Constants.MAGIC_LINK_SERVICE} as UserProfile;
 
 // Mock getUser action result
 const getUserMock = jest.fn().mockResolvedValue({data: user, error: null});
 const getLdapUserMock = jest.fn().mockResolvedValue({data: ldapUser, error: null});
+const getMagicLinkUserMock = jest.fn().mockResolvedValue({data: magicLinkUser, error: null});
 
 describe('SystemUserDetail', () => {
     const defaultProps: Props = {
@@ -158,6 +160,46 @@ describe('SystemUserDetail', () => {
     });
 
     describe('change detection', () => {
+        test('should let a system admin update a Magic Link username and email', async () => {
+            const userEventInstance = userEvent.setup();
+            const patchUser = jest.fn().mockResolvedValue({
+                data: {
+                    ...magicLinkUser,
+                    username: 'newusername',
+                    email: 'newemail@example.com',
+                },
+                error: null,
+            });
+            const props = {
+                ...defaultProps,
+                getUser: getMagicLinkUserMock,
+                patchUser,
+            };
+
+            renderWithContext(<SystemUserDetail {...props}/>);
+
+            await waitForElementToBeRemoved(() => screen.queryAllByTestId('loadingSpinner'));
+
+            const usernameInput = screen.getByPlaceholderText('Enter username');
+            const emailInput = screen.getByLabelText('Email');
+            expect(usernameInput).not.toBeDisabled();
+            expect(emailInput).not.toBeDisabled();
+
+            await userEventInstance.clear(usernameInput);
+            await userEventInstance.type(usernameInput, 'newusername');
+            await userEventInstance.clear(emailInput);
+            await userEventInstance.type(emailInput, 'newemail@example.com');
+            await userEventInstance.click(screen.getByTestId('saveSetting'));
+            await userEventInstance.click(await screen.findByRole('button', {name: 'Save Changes'}));
+
+            await waitFor(() => {
+                expect(patchUser).toHaveBeenCalledWith(expect.objectContaining({
+                    username: 'newusername',
+                    email: 'newemail@example.com',
+                }));
+            });
+        });
+
         test('should detect email changes and enable save', async () => {
             const userEventInstance = userEvent.setup();
             renderWithContext(<SystemUserDetail {...defaultProps}/>);

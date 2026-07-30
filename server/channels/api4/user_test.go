@@ -8838,6 +8838,32 @@ func TestMarkThreadUnreadMentionCount(t *testing.T) {
 
 func TestPatchAndUpdateWithProviderAttributes(t *testing.T) {
 	mainHelper.Parallel(t)
+	t.Run("Magic Link user", func(t *testing.T) {
+		th := Setup(t).InitBasic(t)
+
+		user := th.CreateUserWithAuth(t, model.UserAuthServiceMagicLink)
+		newUsername := "magic-" + model.NewId()
+		newEmail := th.GenerateTestEmail()
+		updatedUser, _, err := th.SystemAdminClient.PatchUser(context.Background(), user.Id, &model.UserPatch{
+			Username: &newUsername,
+			Email:    &newEmail,
+		})
+		require.NoError(t, err)
+		require.Equal(t, newUsername, updatedUser.Username)
+		require.Equal(t, newEmail, updatedUser.Email)
+
+		updatedUser.Username = "magic-update-" + model.NewId()
+		updatedUser.Email = th.GenerateTestEmail()
+		updatedUser, _, err = th.SystemAdminClient.UpdateUser(context.Background(), updatedUser)
+		require.NoError(t, err)
+
+		_, resp, err := th.Client.PatchUser(context.Background(), user.Id, &model.UserPatch{
+			Username: new("unauthorized-change"),
+		})
+		require.Error(t, err)
+		CheckForbiddenStatus(t, resp)
+	})
+
 	t.Run("LDAP user", func(t *testing.T) {
 		th := SetupEnterprise(t).InitBasic(t)
 
