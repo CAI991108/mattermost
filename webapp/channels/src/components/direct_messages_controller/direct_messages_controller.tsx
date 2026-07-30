@@ -8,10 +8,10 @@ import type {RouteComponentProps} from 'react-router-dom';
 
 import {fetchAllMyChannelMembers, fetchAllMyTeamsChannels} from 'mattermost-redux/actions/channels';
 
-import ResizableLhs from 'components/resizable_sidebar/resizable_lhs';
-
 import {getIsLhsOpen} from 'selectors/lhs';
 import {getIsRhsOpen} from 'selectors/rhs';
+
+import ResizableLhs from 'components/resizable_sidebar/resizable_lhs';
 
 import DirectMessagesCenter from './direct_messages_center';
 import DirectMessagesSidebar from './direct_messages_sidebar';
@@ -19,6 +19,8 @@ import DirectMessagesSidebar from './direct_messages_sidebar';
 import './direct_messages_controller.scss';
 
 type Props = RouteComponentProps<{identifier?: string}>;
+
+const BODY_CLASS_FOR_DIRECT_MESSAGES = ['channel-view'];
 
 /**
  * DirectMessagesController is the top-level layout for the /direct_messages route.
@@ -30,6 +32,14 @@ export default function DirectMessagesController(props: Props) {
     const lhsOpen = useSelector(getIsLhsOpen);
     const rhsOpen = useSelector(getIsRhsOpen);
     const [channelsLoaded, setChannelsLoaded] = useState(false);
+
+    useEffect(() => {
+        document.body.classList.add(...BODY_CLASS_FOR_DIRECT_MESSAGES);
+
+        return () => {
+            document.body.classList.remove(...BODY_CLASS_FOR_DIRECT_MESSAGES);
+        };
+    }, []);
 
     useEffect(() => {
         let mounted = true;
@@ -59,7 +69,7 @@ export default function DirectMessagesController(props: Props) {
             </ResizableLhs>
             <div
                 id='channel_view'
-                className='channel-view'
+                className='channel-view direct-messages-controller'
                 data-testid='channel_view'
             >
                 <div className='container-fluid channel-view-inner'>
