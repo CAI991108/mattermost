@@ -15093,3 +15093,96 @@ body.app__body:has(.iuin-profile-page--customization-only) *::-webkit-scrollbar 
     border-radius: 6px;
     box-shadow: inset 0 0 0 1px var(--button-bg, #1c58d9);
 }
+
+/* Keep profile surfaces synchronized with the active Mattermost channel theme. */
+/* stylelint-disable no-duplicate-selectors -- these terminal overrides intentionally supersede legacy profile skins. */
+.iuin-profile-display {
+    --iuin-profile-github-bg: var(--center-channel-bg);
+    --iuin-profile-github-border: rgba(var(--center-channel-color-rgb), 0.18);
+    --iuin-channel-bg: var(--center-channel-bg);
+    --iuin-hui-surface: var(--center-channel-bg);
+    --iuin-hui-surface-soft: rgba(var(--center-channel-color-rgb), 0.035);
+    background: var(--center-channel-bg);
+    color: var(--center-channel-color);
+}
+
+#channel_view.channel-view:has(.iuin-profile-display),
+body.app__body #root .main-wrapper:has(.iuin-profile-display),
+.channel-view-inner:has(.iuin-profile-display),
+#app-content:has(.iuin-profile-display) {
+    background: var(--center-channel-bg);
+    color: var(--center-channel-color);
+}
+
+.iuin-profile-display .iuin-profile-academic-sidebar .iuin-profile-button--full,
+.iuin-profile-display .iuin-profile-academic-sidebar .iuin-profile-button--full:hover,
+.iuin-profile-display .iuin-profile-academic-sidebar .iuin-profile-button--full:focus {
+    border-color: var(--iuin-profile-github-border);
+    background: rgba(var(--center-channel-color-rgb), 0.045);
+    box-shadow: none;
+    color: var(--center-channel-color);
+}
+
+.iuin-profile-display .iuin-profile-readme-card-title,
+.iuin-profile-display .iuin-profile-timeline-section--experience .iuin-profile-hui-section__header h2,
+.iuin-profile-display .iuin-profile-timeline-section--education .iuin-profile-hui-section__header h2,
+.iuin-profile-display .iuin-profile-timeline-section--papers .iuin-profile-hui-section__header h2,
+.iuin-profile-display .iuin-profile-timeline-section--awards .iuin-profile-hui-section__header h2 {
+    color: var(--center-channel-color);
+}
+
+.iuin-profile-display .iuin-profile-readme-home-preview .iuin-profile-rendered.iuin-readme-workbench__preview-body,
+.iuin-profile-display .iuin-profile-timeline-section--experience .iuin-profile-hui-card--timeline-item,
+.iuin-profile-display .iuin-profile-timeline-section--education .iuin-profile-hui-card--timeline-item,
+.iuin-profile-display .iuin-profile-timeline-section--papers .iuin-profile-hui-card--timeline-item,
+.iuin-profile-display .iuin-profile-timeline-section--awards .iuin-profile-hui-card--timeline-item,
+.iuin-profile-display .iuin-profile-timeline-section--experience .iuin-profile-hui-card--timeline-item:hover,
+.iuin-profile-display .iuin-profile-timeline-section--experience .iuin-profile-hui-card--timeline-item:focus-within,
+.iuin-profile-display .iuin-profile-timeline-section--education .iuin-profile-hui-card--timeline-item:hover,
+.iuin-profile-display .iuin-profile-timeline-section--education .iuin-profile-hui-card--timeline-item:focus-within,
+.iuin-profile-display .iuin-profile-timeline-section--papers .iuin-profile-hui-card--timeline-item:hover,
+.iuin-profile-display .iuin-profile-timeline-section--papers .iuin-profile-hui-card--timeline-item:focus-within,
+.iuin-profile-display .iuin-profile-timeline-section--awards .iuin-profile-hui-card--timeline-item:hover,
+.iuin-profile-display .iuin-profile-timeline-section--awards .iuin-profile-hui-card--timeline-item:focus-within {
+    border-color: var(--iuin-profile-github-border);
+    border-left-color: var(--iuin-profile-timeline-accent);
+    background: var(--center-channel-bg);
+}
+
+.iuin-profile-display .iuin-profile-timeline-section--experience,
+.iuin-profile-display .iuin-profile-timeline-section--education,
+.iuin-profile-display .iuin-profile-timeline-section--papers,
+.iuin-profile-display .iuin-profile-timeline-section--awards {
+    --iuin-profile-timeline-accent: var(--button-bg, #1c58d9);
+    --iuin-profile-timeline-accent-soft: rgba(var(--button-bg-rgb, 28, 88, 217), 0.12);
+    --iuin-profile-timeline-title: var(--center-channel-color);
+}
+
+.iuin-profile-display .iuin-profile-timeline__content strong,
+.iuin-profile-display .iuin-profile-timeline__content p,
+.iuin-profile-display .iuin-profile-acv-heading__icon,
+.iuin-profile-display .iuin-profile-acv-card__icon {
+    color: rgba(var(--center-channel-color-rgb), 0.72) !important;
+}
+
+.iuin-profile-page .iuin-profile-button,
+.iuin-profile-entry-dialog .iuin-profile-button,
+.iuin-profile-widget-dialog .iuin-profile-button,
+.iuin-readme-workbench__top-actions .iuin-readme-workbench__ghost-button,
+.iuin-readme-workbench__preview-actions button {
+    border-color: rgba(var(--center-channel-color-rgb), 0.18) !important;
+    background: var(--center-channel-bg) !important;
+    box-shadow: none !important;
+    color: var(--center-channel-color) !important;
+}
+
+.iuin-profile-page .iuin-profile-button:not(.iuin-profile-button--subtle),
+.iuin-profile-entry-dialog .iuin-profile-button:not(.iuin-profile-button--subtle),
+.iuin-profile-widget-dialog .iuin-profile-button:not(.iuin-profile-button--subtle),
+.iuin-readme-workbench__top-actions .iuin-readme-workbench__save-button {
+    border-color: var(--button-bg, #1c58d9) !important;
+    background: var(--button-bg, #1c58d9) !important;
+    color: var(--button-color, #fff) !important;
+}
+
+/* stylelint-enable no-duplicate-selectors */
