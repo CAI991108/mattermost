@@ -170,6 +170,13 @@ export function loadPlugin(manifest: PluginManifest): Promise<void> {
             bundlePath = bundlePath.replace('/static/', '/static/plugins/');
         }
 
+        // The IUIN gateway applies a narrow branding override to the signed Calls bundle.
+        // Keep this revisioned query parameter in sync with that override so clients don't
+        // keep using the upstream bundle from its year-long immutable cache.
+        if (manifest.id === 'com.mattermost.calls' && bundlePath) {
+            bundlePath += `${bundlePath.includes('?') ? '&' : '?'}iuin-branding=v1`;
+        }
+
         addPluginRegisteredHandler(manifest.id, onLoad);
 
         console.log('Loading ' + describePlugin(manifest)); //eslint-disable-line no-console
