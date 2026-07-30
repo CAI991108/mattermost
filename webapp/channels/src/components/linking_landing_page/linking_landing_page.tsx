@@ -13,7 +13,7 @@ import ExternalLink from 'components/external_link';
 
 import desktopImg from 'images/deep-linking/deeplinking-desktop-img.png';
 import mobileImg from 'images/deep-linking/deeplinking-mobile-img.png';
-import MattermostLogoSvg from 'images/logo.svg';
+import SAILogoPng from 'images/cuhk-sai-logo01.png';
 import {LandingPreferenceTypes} from 'utils/constants';
 
 type Props = {
@@ -357,7 +357,8 @@ export default class LinkingLandingPage extends PureComponent<Props, State> {
         let header = (
             <div className='get-app__header'>
                 <img
-                    src={MattermostLogoSvg}
+                    src={SAILogoPng}
+                    alt='SAI-NET'
                     className='get-app__logo'
                 />
             </div>
