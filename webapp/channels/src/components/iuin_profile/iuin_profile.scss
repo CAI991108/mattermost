@@ -15186,3 +15186,569 @@ body.app__body #root .main-wrapper:has(.iuin-profile-display),
 }
 
 /* stylelint-enable no-duplicate-selectors */
+
+/* IUIN active theme contract. */
+/* Standalone dialogs are rendered outside the profile shell, so every root owns the same Mattermost-backed tokens. */
+/* stylelint-disable no-duplicate-selectors -- terminal theme rules supersede the legacy fixed light palette. */
+.iuin-profile-page,
+.iuin-profile-display,
+.iuin-readme-workbench,
+.iuin-profile-entry-dialog,
+.iuin-profile-widget-dialog,
+.iuin-profile-avatar-crop-dialog,
+.iuin-profile-achievement-detail {
+    --iuin-theme-bg: var(--center-channel-bg);
+    --iuin-theme-text: var(--center-channel-color);
+    --iuin-theme-muted: rgba(var(--center-channel-color-rgb), 0.72);
+    --iuin-theme-faint: rgba(var(--center-channel-color-rgb), 0.56);
+    --iuin-theme-border: rgba(var(--center-channel-color-rgb), 0.18);
+    --iuin-theme-border-strong: rgba(var(--center-channel-color-rgb), 0.28);
+    --iuin-theme-surface: rgba(var(--center-channel-color-rgb), 0.04);
+    --iuin-theme-surface-hover: rgba(var(--center-channel-color-rgb), 0.08);
+    --iuin-theme-selected: rgba(var(--button-bg-rgb, 28, 88, 217), 0.12);
+    --iuin-theme-accent: var(--button-bg, #1c58d9);
+    --iuin-theme-accent-text: var(--button-color, #fff);
+    --iuin-theme-shadow: rgba(var(--center-channel-color-rgb), 0.16);
+}
+
+/* Profile avatar edit and status actions. */
+.iuin-profile-display .iuin-profile-avatar-upload,
+.iuin-profile-display .iuin-profile-avatar-status {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    box-shadow: 0 6px 18px var(--iuin-theme-shadow);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-display .iuin-profile-avatar-upload:hover,
+.iuin-profile-display .iuin-profile-avatar-upload:focus,
+.iuin-profile-display .iuin-profile-avatar-status:hover,
+.iuin-profile-display .iuin-profile-avatar-status:focus {
+    border-color: var(--iuin-theme-border-strong);
+    background: var(--iuin-theme-surface-hover);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-display .iuin-profile-avatar-upload:focus-visible,
+.iuin-profile-display .iuin-profile-avatar-status:focus-visible {
+    box-shadow: 0 0 0 3px var(--iuin-theme-selected), 0 6px 18px var(--iuin-theme-shadow);
+}
+
+.iuin-profile-display .iuin-profile-avatar-upload:disabled,
+.iuin-profile-display .iuin-profile-avatar-status:disabled {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-surface);
+    color: var(--iuin-theme-faint);
+}
+
+.iuin-profile-display .iuin-profile-avatar-status__text {
+    color: var(--iuin-theme-text);
+}
+
+/* README editor, preview, and GitHub import surfaces. */
+.iuin-readme-workbench__github-inline,
+.iuin-readme-workbench__code-editor,
+.iuin-readme-workbench__preview-canvas,
+.iuin-readme-workbench__preview-body,
+.iuin-readme-workbench__preview-body.iuin-profile-rendered {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-readme-workbench__github-inline label,
+.iuin-readme-workbench__github-inline span,
+.iuin-readme-workbench__github-inline input,
+.iuin-readme-workbench__code-editor textarea {
+    color: var(--iuin-theme-text);
+}
+
+.iuin-readme-workbench__github-inline input,
+.iuin-readme-workbench__code-editor textarea {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+}
+
+.iuin-readme-workbench__github-inline input::placeholder,
+.iuin-readme-workbench__code-editor textarea::placeholder {
+    color: var(--iuin-theme-faint);
+}
+
+.iuin-readme-workbench__github-inline input:focus,
+.iuin-readme-workbench__code-editor textarea:focus {
+    border-color: var(--iuin-theme-accent);
+    box-shadow: 0 0 0 3px var(--iuin-theme-selected);
+}
+
+/* Shared standalone dialog shell. */
+.iuin-profile-entry-dialog,
+.iuin-profile-widget-dialog,
+.iuin-profile-avatar-crop-dialog,
+.iuin-profile-achievement-detail {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    box-shadow: 0 18px 48px var(--iuin-theme-shadow);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-entry-dialog__header,
+.iuin-profile-widget-dialog__header,
+.iuin-profile-avatar-crop-dialog__header,
+.iuin-profile-entry-dialog__actions,
+.iuin-profile-widget-dialog__actions,
+.iuin-profile-avatar-crop-dialog__actions {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-surface);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-entry-dialog__header h2,
+.iuin-profile-entry-dialog__header p,
+.iuin-profile-widget-dialog__header h2,
+.iuin-profile-widget-dialog__header p,
+.iuin-profile-avatar-crop-dialog__header h2 {
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-entry-dialog__header span,
+.iuin-profile-widget-dialog__header span {
+    color: var(--iuin-theme-muted);
+}
+
+.iuin-profile-entry-dialog__close,
+.iuin-profile-widget-dialog__close,
+.iuin-profile-avatar-crop-dialog__close,
+.iuin-profile-honor-action-button,
+.iuin-profile-honor-action-button.iuin-profile-entry-dialog__close {
+    border-color: transparent;
+    background: transparent;
+    color: var(--iuin-theme-muted);
+}
+
+.iuin-profile-entry-dialog__close:hover,
+.iuin-profile-entry-dialog__close:focus,
+.iuin-profile-widget-dialog__close:hover,
+.iuin-profile-widget-dialog__close:focus,
+.iuin-profile-avatar-crop-dialog__close:hover,
+.iuin-profile-avatar-crop-dialog__close:focus,
+.iuin-profile-honor-action-button:not(:disabled):hover,
+.iuin-profile-honor-action-button:not(:disabled):focus {
+    background: var(--iuin-theme-surface-hover);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-entry-dialog__form label,
+.iuin-profile-widget-dialog__field,
+.iuin-profile-widget-dialog__upload,
+.iuin-profile-avatar-crop-dialog__zoom {
+    color: var(--iuin-theme-muted);
+}
+
+.iuin-profile-entry-dialog__form input,
+.iuin-profile-entry-dialog__form textarea,
+.iuin-profile-widget-dialog input,
+.iuin-profile-widget-dialog textarea,
+.iuin-profile-avatar-crop-dialog input {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-entry-dialog__form input::placeholder,
+.iuin-profile-entry-dialog__form textarea::placeholder,
+.iuin-profile-widget-dialog input::placeholder,
+.iuin-profile-widget-dialog textarea::placeholder {
+    color: var(--iuin-theme-faint);
+}
+
+.iuin-profile-entry-dialog__form input:focus,
+.iuin-profile-entry-dialog__form textarea:focus,
+.iuin-profile-widget-dialog input:focus,
+.iuin-profile-widget-dialog textarea:focus,
+.iuin-profile-avatar-crop-dialog input:focus {
+    border-color: var(--iuin-theme-accent);
+    box-shadow: 0 0 0 3px var(--iuin-theme-selected);
+}
+
+/* Research fields and widget editors. */
+.iuin-profile-fields-dialog,
+.iuin-profile-fields-dialog .iuin-profile-entry-dialog__header,
+.iuin-profile-fields-dialog__actions,
+.iuin-profile-widget-dialog__body {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-fields-dialog .iuin-profile-editor__field-list,
+.iuin-profile-fields-dialog .iuin-profile-editor__field-card,
+.iuin-profile-widget-dialog__choice,
+.iuin-profile-widget-dialog__upload {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-surface);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-fields-dialog .iuin-profile-editor__field-card--editing,
+.iuin-profile-fields-dialog .iuin-profile-editor__field-card input,
+.iuin-profile-fields-dialog__add {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-fields-dialog .iuin-profile-editor__field-card:hover,
+.iuin-profile-fields-dialog__add:hover,
+.iuin-profile-fields-dialog__add:focus,
+.iuin-profile-widget-dialog__choice:hover,
+.iuin-profile-widget-dialog__choice:focus {
+    border-color: var(--iuin-theme-border-strong);
+    background: var(--iuin-theme-surface-hover);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-widget-dialog__choice.active {
+    border-color: var(--iuin-theme-accent);
+    background: var(--iuin-theme-selected);
+    color: var(--iuin-theme-text);
+}
+
+/* Avatar crop and frame manager. */
+.iuin-profile-avatar-crop-dialog__stage,
+.iuin-profile-avatar-manager__avatar-panel,
+.iuin-profile-avatar-manager__frame-grid,
+.iuin-profile-avatar-manager__inspector {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-surface);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-avatar-manager__body,
+.iuin-profile-honor-dialog__body {
+    --iuin-profile-editor-divider: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-avatar-manager__avatar-copy h3,
+.iuin-profile-avatar-manager__section-heading h3,
+.iuin-profile-avatar-manager__inspector strong {
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-avatar-manager__avatar-copy p,
+.iuin-profile-avatar-manager__section-heading span,
+.iuin-profile-avatar-manager__inspector p,
+.iuin-profile-avatar-manager__inspector em {
+    color: var(--iuin-theme-muted);
+}
+
+.iuin-profile-avatar-manager__upload,
+.iuin-profile-avatar-manager__frame {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-avatar-manager__upload:hover,
+.iuin-profile-avatar-manager__upload:focus,
+.iuin-profile-avatar-manager__frame:hover,
+.iuin-profile-avatar-manager__frame:focus {
+    border-color: var(--iuin-theme-border-strong);
+    background: var(--iuin-theme-surface-hover);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-avatar-manager__frame--selected,
+.iuin-profile-avatar-manager__frame--focused {
+    border-color: var(--iuin-theme-accent);
+    background: var(--iuin-theme-selected);
+    box-shadow: 0 0 0 3px var(--iuin-theme-selected);
+}
+
+/* Honors, titles, and achievement detail. Decorative artwork keeps its authored colors. */
+.iuin-profile-honor-dialog,
+.iuin-profile-title-vault,
+.iuin-profile-achievement-vault,
+.iuin-profile-honor-wall,
+.iuin-profile-honor-inspector,
+.iuin-profile-honor-dialog__selected {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-honor-dialog__summary,
+.iuin-profile-honor-dialog__empty,
+.iuin-profile-honor-inspector__description,
+.iuin-profile-honor-inspector__content em,
+.iuin-profile-honor-card__description,
+.iuin-profile-honor-card__content em {
+    color: var(--iuin-theme-muted);
+}
+
+.iuin-profile-honor-inspector__content strong,
+.iuin-profile-honor-card,
+.iuin-profile-honor-card__content strong {
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-honor-wall__slot--empty,
+.iuin-profile-honor-card,
+.iuin-profile-honor-card__visual,
+.iuin-profile-honor-card__state,
+.iuin-profile-honor-dialog__order-actions button {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-surface);
+}
+
+.iuin-profile-honor-card:not(:disabled):hover,
+.iuin-profile-honor-card:not(:disabled):focus,
+.iuin-profile-honor-dialog__order-actions button:hover,
+.iuin-profile-honor-dialog__order-actions button:focus {
+    border-color: var(--iuin-theme-border-strong);
+    background: var(--iuin-theme-surface-hover);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-honor-card--selected,
+.iuin-profile-honor-card--selected .iuin-profile-honor-card__state {
+    border-color: var(--iuin-theme-accent);
+    background: var(--iuin-theme-selected);
+}
+
+.iuin-profile-honor-card--locked,
+.iuin-profile-honor-dialog__order-actions button:disabled {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-surface);
+    color: var(--iuin-theme-faint);
+}
+
+.iuin-profile-achievement-detail__body {
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-achievement-detail__body h2,
+.iuin-profile-achievement-detail__body p {
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-achievement-detail__category {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-surface);
+    color: var(--iuin-theme-muted);
+}
+
+/* Shared secondary and primary actions follow the active custom theme. */
+.iuin-profile-entry-dialog .iuin-profile-button,
+.iuin-profile-widget-dialog .iuin-profile-button,
+.iuin-profile-avatar-crop-dialog__button {
+    border-color: var(--iuin-theme-border) !important;
+    background: var(--iuin-theme-bg) !important;
+    box-shadow: none !important;
+    color: var(--iuin-theme-text) !important;
+}
+
+.iuin-profile-entry-dialog .iuin-profile-button:not(:disabled):hover,
+.iuin-profile-entry-dialog .iuin-profile-button:not(:disabled):focus,
+.iuin-profile-widget-dialog .iuin-profile-button:not(:disabled):hover,
+.iuin-profile-widget-dialog .iuin-profile-button:not(:disabled):focus,
+.iuin-profile-avatar-crop-dialog__button:not(:disabled):hover,
+.iuin-profile-avatar-crop-dialog__button:not(:disabled):focus {
+    border-color: var(--iuin-theme-border-strong) !important;
+    background: var(--iuin-theme-surface-hover) !important;
+    color: var(--iuin-theme-text) !important;
+}
+
+.iuin-profile-entry-dialog .iuin-profile-button:not(.iuin-profile-button--subtle):last-child,
+.iuin-profile-widget-dialog .iuin-profile-button:not(.iuin-profile-button--subtle):last-child,
+.iuin-profile-avatar-crop-dialog__button:last-child {
+    border-color: var(--iuin-theme-accent) !important;
+    background: var(--iuin-theme-accent) !important;
+    color: var(--iuin-theme-accent-text) !important;
+}
+
+.iuin-profile-entry-dialog .iuin-profile-button:disabled,
+.iuin-profile-widget-dialog .iuin-profile-button:disabled,
+.iuin-profile-avatar-crop-dialog__button:disabled {
+    border-color: var(--iuin-theme-border) !important;
+    background: var(--iuin-theme-surface) !important;
+    color: var(--iuin-theme-faint) !important;
+}
+
+/* stylelint-enable no-duplicate-selectors */
+
+/* Enforce the theme contract over higher-specificity legacy skins. */
+/* stylelint-disable no-duplicate-selectors -- specificity is intentional for terminal compatibility overrides. */
+.iuin-readme-workbench__menubar,
+.iuin-readme-workbench__rail,
+.iuin-readme-workbench__file-tab,
+.iuin-readme-workbench__preview-toolbar,
+.iuin-readme-workbench__editor-shell,
+.iuin-readme-workbench__body,
+.iuin-readme-workbench__sidebar,
+.iuin-readme-workbench__source,
+.iuin-readme-workbench__preview,
+.iuin-readme-workbench__sidebar-panel,
+.iuin-readme-workbench__sidebar-panel--github {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-readme-workbench__brand,
+.iuin-readme-workbench__product-label,
+.iuin-readme-workbench__sidebar-title,
+.iuin-readme-workbench__file-tab,
+.iuin-readme-workbench__preview-title,
+.iuin-readme-workbench__preview-title strong {
+    color: var(--iuin-theme-text);
+}
+
+.iuin-readme-workbench__preview-title span,
+.iuin-readme-workbench__sidebar-panel--github .iuin-readme-workbench__github-inline,
+.iuin-readme-workbench__sidebar-panel--github .iuin-readme-workbench__github-inline > i {
+    color: var(--iuin-theme-muted);
+}
+
+.iuin-readme-workbench__source .iuin-profile-editor__code-editor-shell,
+.iuin-readme-workbench__source .iuin-profile-editor__code-editor,
+.iuin-readme-workbench__source .iuin-profile-editor__code-line-numbers {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-readme-workbench__source .iuin-profile-editor__code-line-numbers {
+    background: var(--iuin-theme-surface);
+    color: var(--iuin-theme-faint);
+}
+
+.iuin-readme-workbench__source .iuin-profile-editor__code-editor:focus {
+    box-shadow: inset 0 0 0 1px var(--iuin-theme-border-strong);
+}
+
+.iuin-readme-workbench__preview-canvas {
+    background:
+        linear-gradient(90deg, var(--iuin-theme-surface) 0 14px, transparent 14px calc(100% - 14px), var(--iuin-theme-surface) calc(100% - 14px) 100%),
+        var(--iuin-theme-bg);
+}
+
+.iuin-readme-workbench .iuin-profile-rendered.iuin-readme-workbench__preview-body {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-readme-workbench__sidebar-panel--github .iuin-readme-workbench__github-inline {
+    border-color: var(--iuin-theme-border);
+    background: transparent;
+    box-shadow: none;
+}
+
+.iuin-readme-workbench__sidebar-panel--github .iuin-readme-workbench__github-inline input {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    box-shadow: none;
+    color: var(--iuin-theme-text);
+}
+
+.iuin-readme-workbench__sidebar-panel--github .iuin-readme-workbench__github-inline input::placeholder {
+    color: var(--iuin-theme-faint);
+}
+
+.iuin-readme-workbench__sidebar-panel--github .iuin-readme-workbench__github-inline input:focus {
+    border-color: var(--iuin-theme-accent);
+    box-shadow: 0 0 0 3px var(--iuin-theme-selected);
+}
+
+.iuin-readme-workbench__sidebar-panel--github .iuin-readme-workbench__github-inline button {
+    border-color: var(--iuin-theme-accent);
+    background: var(--iuin-theme-accent);
+    box-shadow: none;
+    color: var(--iuin-theme-accent-text);
+}
+
+.iuin-readme-workbench__sidebar-panel--github .iuin-readme-workbench__github-inline button i,
+.iuin-readme-workbench__top-actions .iuin-readme-workbench__save-button i {
+    color: var(--iuin-theme-accent-text);
+}
+
+.iuin-readme-workbench__sidebar-panel--github .iuin-readme-workbench__github-inline button:hover,
+.iuin-readme-workbench__sidebar-panel--github .iuin-readme-workbench__github-inline button:focus {
+    border-color: var(--iuin-theme-accent);
+    background: var(--iuin-theme-accent);
+    color: var(--iuin-theme-accent-text);
+}
+
+.iuin-readme-workbench__sidebar-panel--github .iuin-readme-workbench__github-inline button:disabled {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-surface);
+    color: var(--iuin-theme-faint);
+}
+
+.iuin-readme-workbench__top-actions .iuin-readme-workbench__ghost-button i,
+.iuin-readme-workbench__preview-actions button i {
+    color: var(--iuin-theme-muted);
+}
+
+/* Profile semantic text, chips, and edit controls. */
+.iuin-profile-display .iuin-profile-academic-sidebar__position,
+.iuin-profile-display .iuin-profile-academic-sidebar__module h2,
+.iuin-profile-display .iuin-profile-academic-sidebar__empty,
+.iuin-profile-display .iuin-profile-rendered p,
+.iuin-profile-display .iuin-profile-homepage-card .iuin-profile-rendered .iuin-profile-lead {
+    color: var(--iuin-theme-muted);
+}
+
+.iuin-profile-display .iuin-profile-academic-sidebar__module,
+.iuin-profile-display .iuin-profile-academic-sidebar__meta,
+.iuin-profile-display .iuin-profile-rendered h2 {
+    border-color: var(--iuin-theme-border);
+}
+
+.iuin-profile-display .iuin-profile-academic-sidebar__module--status,
+.iuin-profile-display .iuin-profile-hui-button,
+.iuin-profile-display .iuin-profile-hui-chip,
+.iuin-profile-display .iuin-profile-research-fields-edit {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-display .iuin-profile-hui-chip--accent.iuin-profile-hui-chip--soft,
+.iuin-profile-display .iuin-profile-hui-chip--success.iuin-profile-hui-chip--secondary {
+    border-color: var(--iuin-theme-accent);
+    background: var(--iuin-theme-selected);
+    color: var(--iuin-theme-accent);
+}
+
+.iuin-profile-display .iuin-profile-hui-button:hover,
+.iuin-profile-display .iuin-profile-hui-button:focus,
+.iuin-profile-display .iuin-profile-research-fields-edit:hover,
+.iuin-profile-display .iuin-profile-research-fields-edit:focus,
+.iuin-profile-display .iuin-profile-research-field-chip:hover,
+.iuin-profile-display .iuin-profile-research-field-chip:focus {
+    border-color: var(--iuin-theme-border-strong);
+    background: var(--iuin-theme-surface-hover);
+    box-shadow: 0 0 0 3px var(--iuin-theme-selected);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-display .iuin-profile-hui-card,
+.iuin-profile-display .iuin-profile-readme-home-preview,
+.iuin-profile-display .iuin-profile-homepage-card__body {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-display .iuin-profile-rendered,
+.iuin-profile-display .iuin-profile-rendered h1,
+.iuin-profile-display .iuin-profile-rendered h2,
+.iuin-profile-display .iuin-profile-rendered h3 {
+    color: var(--iuin-theme-text);
+}
+
+/* stylelint-enable no-duplicate-selectors */
