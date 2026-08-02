@@ -19,5 +19,6 @@ assert_config_contains 'proxy_set_header Accept-Encoding "";'
 assert_config_contains "sub_filter_types *;"
 assert_config_contains "sub_filter_once off;"
 assert_config_contains "sub_filter 'Set up audio devices to be used for Mattermost calls' 'Set up audio devices to be used for calls';"
+assert_config_contains "sub_filter '设置用于 Mattermost 通话的音频设备' '设置用于通话的音频设备';"
 
 printf 'Calls branding proxy rules are present\n'
