@@ -65,13 +65,12 @@ import {
     renameReadmeFolder,
     renameReadmeFile,
     renderIuinReadmeMarkdown,
-    sanitizeIuinProfileHtml,
     serializeIuinReadmeWorkspace,
     setReadmeFileContent,
     setReadmeMainDocument,
     splitProfileList,
 } from './profile_data';
-import {getIuinReadmeUploadType, isIuinReadmeImageFile, MAX_IUIN_README_UPLOAD_SIZE, MAX_IUIN_README_WORKSPACE_SIZE} from './readme_upload';
+import {createIuinReadmeFileFromRemoteUrl, fetchIuinReadmeRemote, getIuinReadmeUploadType, getIuinReadmeWorkspaceSize, isIuinReadmeImageFile, MAX_IUIN_README_UPLOAD_SIZE, MAX_IUIN_README_WORKSPACE_SIZE} from './readme_upload';
 import {useIuinJoinedTeamLabels} from './use_joined_channels';
 
 import './iuin_profile.scss';
@@ -229,7 +228,6 @@ type GitHubReadmeReference = {
 type GitHubReadmeImport = {
     rootName: string;
     files: IuinReadmeFile[];
-    githubRenderedHtml: string;
     supportingFileCount: number;
 };
 
@@ -499,18 +497,6 @@ async function uploadIuinReadmeWorkspaceFile(userId: string, file: File, path: s
 
     const uploaded = await response.json() as IuinReadmeFile;
     return materializeIuinReadmeWorkspaceFile(userId, uploaded);
-}
-
-function getIuinReadmeWorkspaceSize(workspace: IuinReadmeWorkspace): number {
-    return workspace.files.reduce((total, file) => {
-        if (file.type === 'folder') {
-            return total;
-        }
-        if (file.type === 'asset' && typeof file.sizeBytes === 'number') {
-            return total + file.sizeBytes;
-        }
-        return total + new Blob([file.content]).size;
-    }, 0);
 }
 
 async function loadIuinReadmeWorkspaceFromBackend(userId: string): Promise<IuinReadmeWorkspace> {
@@ -863,13 +849,8 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
     const fallbackReadmeWorkspace = useMemo(() => parseIuinReadmeWorkspace(profile.readmeWorkspace, profile.homepageHtml, getReadmeRootName(user)), [profile.homepageHtml, profile.readmeWorkspace, user]);
     const [backendReadmeWorkspace, setBackendReadmeWorkspace] = useState<IuinReadmeWorkspace | null>(null);
     const readmeWorkspace = backendReadmeWorkspace || fallbackReadmeWorkspace;
-    const [overviewGithubRenderedHtml, setOverviewGithubRenderedHtml] = useState('');
-    const renderedReadmeWorkspace = useMemo(() => overviewGithubRenderedHtml && !readmeWorkspace.githubRenderedHtml ? {
-        ...readmeWorkspace,
-        githubRenderedHtml: overviewGithubRenderedHtml,
-    } : readmeWorkspace, [overviewGithubRenderedHtml, readmeWorkspace]);
-    const readmeContent = useMemo(() => getReadmeFileContent(renderedReadmeWorkspace, renderedReadmeWorkspace.activePath), [renderedReadmeWorkspace]);
-    const readmeHtml = useMemo(() => renderReadmeWorkspacePreview(readmeContent, renderedReadmeWorkspace), [readmeContent, renderedReadmeWorkspace]);
+    const readmeContent = useMemo(() => getReadmeFileContent(readmeWorkspace, readmeWorkspace.activePath), [readmeWorkspace]);
+    const readmeHtml = useMemo(() => renderReadmeWorkspacePreview(readmeContent, readmeWorkspace), [readmeContent, readmeWorkspace]);
     const joinedAt = new Intl.DateTimeFormat(undefined, {
         month: 'short',
         year: 'numeric',
@@ -1163,38 +1144,6 @@ function IuinProfileOverview({user, canEdit}: {user: UserProfile; canEdit: boole
             )}
         </>
     );
-
-    useEffect(() => {
-        setOverviewGithubRenderedHtml('');
-
-        if (readmeWorkspace.githubRenderedHtml) {
-            return undefined;
-        }
-
-        const repository = getSameNameProfileRepositoryFromRootName(readmeWorkspace.rootName);
-        if (!repository) {
-            return undefined;
-        }
-
-        let cancelled = false;
-        const hydrateOverviewPreview = async () => {
-            try {
-                const metadata = await fetchGitHubJson<GitHubRepositoryMetadata>(`${GITHUB_API_BASE}/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.repo)}`);
-                const renderedHtml = await tryFetchGitHubRenderedReadmeHtml(repository.owner, repository.repo, IUIN_README_MAIN_FILE, metadata.default_branch || 'main');
-                if (!cancelled && renderedHtml) {
-                    setOverviewGithubRenderedHtml(renderedHtml);
-                }
-            } catch {
-                // Keep the local Markdown preview when GitHub's rendered README endpoint is unavailable.
-            }
-        };
-
-        hydrateOverviewPreview();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [readmeWorkspace.githubRenderedHtml, readmeWorkspace.rootName]);
 
     return (
         <>
@@ -2712,7 +2661,7 @@ function getGitHubReadmeUrl(owner: string, repo: string, ref: string): string {
 }
 
 async function fetchGitHubJson<T>(url: string): Promise<T> {
-    const response = await fetch(url, {
+    const response = await fetchIuinReadmeRemote(url, {
         headers: {
             Accept: 'application/vnd.github+json',
         },
@@ -2739,20 +2688,6 @@ async function fetchGitHubJson<T>(url: string): Promise<T> {
     return response.json();
 }
 
-async function fetchGitHubText(url: string, accept: string): Promise<string> {
-    const response = await fetch(url, {
-        headers: {
-            Accept: accept,
-        },
-    });
-
-    if (!response.ok) {
-        throw new Error(`GitHub request failed (${response.status}).`);
-    }
-
-    return response.text();
-}
-
 async function fetchGitHubContents(owner: string, repo: string, path: string, ref: string): Promise<GitHubContentsEntry | GitHubContentsEntry[]> {
     return fetchGitHubJson<GitHubContentsEntry | GitHubContentsEntry[]>(getGitHubContentsUrl(owner, repo, path, ref));
 }
@@ -2765,17 +2700,9 @@ async function tryFetchGitHubContents(owner: string, repo: string, path: string,
     }
 }
 
-async function tryFetchGitHubRenderedReadmeHtml(owner: string, repo: string, path: string, ref: string): Promise<string> {
-    try {
-        return await fetchGitHubText(getGitHubContentsUrl(owner, repo, path, ref), 'application/vnd.github.html');
-    } catch {
-        return '';
-    }
-}
-
 async function fetchGitHubFileText(entry: GitHubContentsEntry): Promise<string> {
     if (entry.download_url) {
-        const response = await fetch(entry.download_url);
+        const response = await fetchIuinReadmeRemote(entry.download_url);
         if (!response.ok) {
             throw new Error(`Could not download ${entry.path}.`);
         }
@@ -2806,7 +2733,7 @@ function isImportableGitHubEntry(entry: GitHubContentsEntry): boolean {
     }
 
     if (GITHUB_ASSET_FILE_PATTERN.test(entry.name)) {
-        return Boolean(entry.download_url);
+        return Boolean(entry.download_url) && (entry.size || 0) <= MAX_IUIN_README_UPLOAD_SIZE;
     }
 
     return (entry.size || 0) <= GITHUB_IMPORT_TEXT_SIZE_LIMIT;
@@ -2893,12 +2820,7 @@ async function createGitHubWorkspaceFile(entry: GitHubContentsEntry, workspacePa
             return null;
         }
 
-        return {
-            path,
-            content: entry.download_url,
-            type: 'asset',
-            updatedAt: Date.now(),
-        };
+        return createIuinReadmeFileFromRemoteUrl(entry.download_url, path);
     }
 
     const content = await fetchGitHubFileText(entry);
@@ -2937,7 +2859,6 @@ async function importGitHubReadmeWorkspace(repository: GitHubRepositoryReference
     }
 
     const originalReadme = await fetchGitHubFileText(readmeEntry);
-    const githubRenderedHtml = await tryFetchGitHubRenderedReadmeHtml(repository.owner, repository.repo, readmeEntry.path, ref);
     const references = getGitHubReadmeReferences(originalReadme, readmeDir);
     const importedReadme = rewriteGitHubReadmeReferences(originalReadme, references);
     const files: IuinReadmeFile[] = [{
@@ -2949,8 +2870,11 @@ async function importGitHubReadmeWorkspace(repository: GitHubRepositoryReference
     const seenRepoPaths = new Set([normalizeReadmeRelativePath(readmeEntry.path)]);
     const seenWorkspacePaths = new Set([IUIN_README_MAIN_FILE]);
 
-    const pushEntry = async (entry: GitHubContentsEntry, workspacePath: string) => {
+    const pushEntry = async (entry: GitHubContentsEntry, workspacePath: string, required = false) => {
         if (files.length >= GITHUB_IMPORT_SUPPORT_FILE_LIMIT + 1 || !isImportableGitHubEntry(entry)) {
+            if (required) {
+                throw new Error(`Could not import referenced file ${workspacePath}.`);
+            }
             return;
         }
 
@@ -2960,8 +2884,35 @@ async function importGitHubReadmeWorkspace(repository: GitHubRepositoryReference
             return;
         }
 
-        const file = await createGitHubWorkspaceFile(entry, nextWorkspacePath);
+        const currentSize = getIuinReadmeWorkspaceSize({rootName: '', activePath: IUIN_README_MAIN_FILE, files});
+        if (entry.size && currentSize + entry.size > MAX_IUIN_README_WORKSPACE_SIZE) {
+            if (required) {
+                throw new Error('GitHub import exceeds the 50 MB workspace limit.');
+            }
+            return;
+        }
+
+        let file: IuinReadmeFile | null;
+        try {
+            file = await createGitHubWorkspaceFile(entry, nextWorkspacePath);
+        } catch (error) {
+            if (required) {
+                throw error;
+            }
+            return;
+        }
         if (!file) {
+            if (required) {
+                throw new Error(`Could not import referenced file ${workspacePath}.`);
+            }
+            return;
+        }
+
+        const nextSize = getIuinReadmeWorkspaceSize({rootName: '', activePath: IUIN_README_MAIN_FILE, files: [...files, file]});
+        if (nextSize > MAX_IUIN_README_WORKSPACE_SIZE) {
+            if (required) {
+                throw new Error('GitHub import exceeds the 50 MB workspace limit.');
+            }
             return;
         }
 
@@ -2972,9 +2923,11 @@ async function importGitHubReadmeWorkspace(repository: GitHubRepositoryReference
 
     for (const reference of references) {
         const entry = await tryFetchGitHubContents(repository.owner, repository.repo, reference.repoPath, ref);
-        if (entry && !Array.isArray(entry)) {
-            await pushEntry(entry, reference.workspacePath);
+        if (!entry || Array.isArray(entry)) {
+            throw new Error(`Could not import referenced file ${reference.workspacePath}.`);
         }
+
+        await pushEntry(entry, reference.workspacePath, true);
     }
 
     for (const entry of directoryEntries) {
@@ -2987,7 +2940,6 @@ async function importGitHubReadmeWorkspace(repository: GitHubRepositoryReference
     return {
         rootName: `${repository.owner}-${repository.repo}`,
         files,
-        githubRenderedHtml,
         supportingFileCount: Math.max(files.length - 1, 0),
     };
 }
@@ -3003,12 +2955,6 @@ function getDraftWithReadmeWorkspace(draft: IuinProfileData, workspace: IuinRead
 }
 
 function renderReadmeWorkspacePreview(markdown: string, workspace: IuinReadmeWorkspace): string {
-    if (workspace.activePath === IUIN_README_MAIN_FILE && workspace.githubRenderedHtml) {
-        const resolvedHtml = resolveReadmeWorkspaceAssetReferences(extractGitHubRenderedReadmeBody(workspace.githubRenderedHtml), workspace);
-
-        return sanitizeIuinProfileHtml(resolvedHtml);
-    }
-
     const resolvedMarkdown = resolveReadmeWorkspaceAssetReferences(markdown, workspace);
 
     return renderIuinReadmeMarkdown(resolvedMarkdown);
@@ -3034,18 +2980,6 @@ function resolveReadmeWorkspaceAssetReferences(content: string, workspace: IuinR
     }, content);
 }
 
-function extractGitHubRenderedReadmeBody(html: string): string {
-    if (typeof DOMParser === 'undefined') {
-        return html;
-    }
-
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const article = doc.querySelector('article.markdown-body') || doc.querySelector('article');
-
-    return article?.innerHTML || doc.body.innerHTML || html;
-}
-
 function getReadmePreviewReferenceAliases(path: string, mainDocumentDirectory = ''): string[] {
     const normalized = normalizeReadmeRelativePath(path);
     if (!normalized) {
@@ -3062,25 +2996,6 @@ function getReadmePreviewReferenceAliases(path: string, mainDocumentDirectory = 
     });
 
     return Array.from(new Set(aliases));
-}
-
-function getSameNameProfileRepositoryFromRootName(rootName: string): GitHubRepositoryReference | null {
-    const segments = rootName.split('-').map((segment) => segment.trim()).filter(Boolean);
-    if (segments.length < 2 || segments.length % 2 !== 0) {
-        return null;
-    }
-
-    const middle = segments.length / 2;
-    const owner = segments.slice(0, middle).join('-');
-    const repo = segments.slice(middle).join('-');
-    if (!owner || owner !== repo) {
-        return null;
-    }
-
-    return {
-        owner,
-        repo,
-    };
 }
 
 function escapeRegExp(value: string): string {
@@ -3205,7 +3120,6 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
     const [treeMenu, setTreeMenu] = useState<ReadmeTreeMenu | null>(null);
     const [draggedTreePath, setDraggedTreePath] = useState('');
     const [treeDropTarget, setTreeDropTarget] = useState<ReadmeTreeDropTarget | null>(null);
-    const hydratedGithubPreviewRootsRef = useRef<Set<string>>(new Set());
     const draft = controlledDraft || localDraft;
     const setReadmeDraft = useCallback((nextDraft: SetStateAction<IuinProfileData>) => {
         if (setControlledDraft) {
@@ -3307,52 +3221,6 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
         });
         setError('');
     }, [currentUser, setReadmeDraft]);
-
-    useEffect(() => {
-        if (workspace.activePath !== IUIN_README_MAIN_FILE || workspace.githubRenderedHtml) {
-            return undefined;
-        }
-
-        const repository = getSameNameProfileRepositoryFromRootName(workspace.rootName);
-        if (!repository) {
-            return undefined;
-        }
-
-        const hydrationKey = `${repository.owner}/${repository.repo}`;
-        if (hydratedGithubPreviewRootsRef.current.has(hydrationKey)) {
-            return undefined;
-        }
-
-        hydratedGithubPreviewRootsRef.current.add(hydrationKey);
-        let cancelled = false;
-
-        const hydratePreview = async () => {
-            try {
-                const metadata = await fetchGitHubJson<GitHubRepositoryMetadata>(`${GITHUB_API_BASE}/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.repo)}`);
-                const renderedHtml = await tryFetchGitHubRenderedReadmeHtml(repository.owner, repository.repo, IUIN_README_MAIN_FILE, metadata.default_branch || 'main');
-                if (!cancelled && renderedHtml) {
-                    updateWorkspace((previous) => {
-                        if (previous.githubRenderedHtml) {
-                            return previous;
-                        }
-
-                        return {
-                            ...previous,
-                            githubRenderedHtml: renderedHtml,
-                        };
-                    });
-                }
-            } catch {
-                // Existing imports still render through the local Markdown path when GitHub is unreachable.
-            }
-        };
-
-        hydratePreview();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [updateWorkspace, workspace.activePath, workspace.githubRenderedHtml, workspace.rootName]);
 
     const selectReadmeFile = useCallback((path: string) => {
         setSelectedPath(path);
@@ -4017,10 +3885,18 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
             const importedWorkspace: IuinReadmeWorkspace = {
                 rootName: imported.rootName,
                 activePath: IUIN_README_MAIN_FILE,
-                githubRenderedHtml: imported.githubRenderedHtml,
                 files: imported.files,
             };
-            const nextDraft = getDraftWithReadmeWorkspace(draft, importedWorkspace);
+            if (getIuinReadmeWorkspaceSize(importedWorkspace) > MAX_IUIN_README_WORKSPACE_SIZE) {
+                throw new Error('GitHub import exceeds the 50 MB workspace limit.');
+            }
+
+            const persistedWorkspace = await saveIuinReadmeWorkspaceToBackend(currentUser.id, importedWorkspace);
+            const displayedWorkspace = {
+                ...persistedWorkspace,
+                files: persistedWorkspace.files.map((file) => materializeIuinReadmeWorkspaceFile(currentUser.id, file)),
+            };
+            const nextDraft = getDraftWithReadmeWorkspace(draft, displayedWorkspace);
             setReadmeDraft(nextDraft);
             setSelectedPath(IUIN_README_MAIN_FILE);
             setGithubUrl('');
@@ -4034,7 +3910,6 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 });
                 return next;
             });
-            await saveIuinReadmeWorkspaceToBackend(currentUser.id, importedWorkspace);
             const result = await dispatch(updateMe(getProfilePatch(currentUser, nextDraft)) as any) as any;
             if (result.error) {
                 const message = typeof result.error?.message === 'string' ? result.error.message : intl.formatMessage({
@@ -4043,7 +3918,7 @@ function IuinReadmeAdvancedEditor({currentUser, embedded = false, draft: control
                 });
                 setError(intl.formatMessage({
                     id: 'iuin_profile.readme.github_imported_save_failed',
-                    defaultMessage: 'README.md was imported into the editor, but saving failed: {message}',
+                    defaultMessage: 'README.md was saved, but the profile summary could not be updated: {message}',
                 }, {message}));
                 return;
             }

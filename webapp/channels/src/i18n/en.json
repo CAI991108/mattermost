@@ -5536,7 +5536,7 @@
   "iuin_profile.readme.github_import_error": "Could not import the GitHub README.",
   "iuin_profile.readme.github_import_save_error": "Could not save the imported README.",
   "iuin_profile.readme.github_imported": "README.md imported from GitHub and saved.",
-  "iuin_profile.readme.github_imported_save_failed": "README.md was imported into the editor, but saving failed: {message}",
+  "iuin_profile.readme.github_imported_save_failed": "README.md was saved, but the profile summary could not be updated: {message}",
   "iuin_profile.readme.github_imported_with_files": "README.md imported from GitHub with {count} supporting files and saved.",
   "iuin_profile.readme.github_readme_missing": "Could not find a public README file in that repository.",
   "iuin_profile.readme.github_url_error": "Enter a GitHub repository URL like https://github.com/owner/repo.",

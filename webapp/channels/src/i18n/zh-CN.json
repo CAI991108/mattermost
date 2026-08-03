@@ -5379,7 +5379,7 @@
   "iuin_profile.readme.github_import_save_error": "无法保存导入的 README。",
   "iuin_profile.readme.github_imported": "已从 GitHub 导入并保存 README.md。",
   "iuin_profile.readme.github_readme_missing": "在该仓库中找不到公开的 README 文件。",
-  "iuin_profile.readme.github_imported_save_failed": "README.md 已导入编辑器，但保存失败：{message}",
+  "iuin_profile.readme.github_imported_save_failed": "README.md 已保存，但无法更新个人资料摘要：{message}",
   "iuin_profile.readme.github_imported_with_files": "已从 GitHub 导入 README.md 和 {count} 个相关文件并保存。",
   "iuin_profile.readme.github_url_error": "请输入类似 https://github.com/owner/repo 的 GitHub 仓库地址。",
   "iuin_profile.readme.import": "导入",

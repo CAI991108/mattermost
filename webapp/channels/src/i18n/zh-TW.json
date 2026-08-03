@@ -4182,7 +4182,7 @@
   "iuin_profile.readme.github_import_save_error": "無法儲存匯入的 README。",
   "iuin_profile.readme.github_imported": "已從 GitHub 匯入並儲存 README.md。",
   "iuin_profile.readme.github_readme_missing": "在此儲存庫中找不到公開的 README 檔案。",
-  "iuin_profile.readme.github_imported_save_failed": "README.md 已匯入編輯器，但儲存失敗：{message}",
+  "iuin_profile.readme.github_imported_save_failed": "README.md 已儲存，但無法更新個人資料摘要：{message}",
   "iuin_profile.readme.github_imported_with_files": "已從 GitHub 匯入 README.md 和 {count} 個相關檔案並儲存。",
   "iuin_profile.readme.github_url_error": "請輸入類似 https://github.com/owner/repo 的 GitHub 儲存庫網址。",
   "iuin_profile.readme.import": "匯入",
