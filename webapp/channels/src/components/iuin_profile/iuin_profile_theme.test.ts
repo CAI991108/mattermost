@@ -49,4 +49,18 @@ describe('IUIN active theme contract', () => {
         expect(contract).toContain('color: var(--iuin-theme-text);');
         expect(contract).toContain('border-color: var(--iuin-theme-border);');
     });
+
+    test('keeps shared profile code editors themed while focused', () => {
+        const contract = stylesheet.slice(stylesheet.indexOf(themeContractMarker));
+
+        expect(contract).toMatch(/\.iuin-profile-page--editor \.iuin-profile-editor__code-editor:focus\s*\{[^}]*background: var\(--iuin-theme-bg\);[^}]*color: var\(--iuin-theme-text\);/s);
+        expect(contract).toMatch(/\.iuin-profile-page--editor \.iuin-profile-editor__code-line-numbers\s*\{[^}]*background: var\(--iuin-theme-surface\);[^}]*color: var\(--iuin-theme-faint\);/s);
+    });
+
+    test('themes profile editor header actions at legacy selector specificity', () => {
+        const contract = stylesheet.slice(stylesheet.indexOf(themeContractMarker));
+
+        expect(contract).toMatch(/\.iuin-profile-page--editor \.iuin-profile-editor__actions \.iuin-profile-button\s*\{[^}]*background: var\(--iuin-theme-bg\) !important;[^}]*color: var\(--iuin-theme-text\) !important;/s);
+        expect(contract).toMatch(/\.iuin-profile-page--editor \.iuin-profile-editor__actions \.iuin-profile-button:disabled\s*\{[^}]*background: var\(--iuin-theme-surface\) !important;[^}]*color: var\(--iuin-theme-faint\) !important;/s);
+    });
 });

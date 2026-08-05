@@ -15211,6 +15211,68 @@ body.app__body #root .main-wrapper:has(.iuin-profile-display),
     --iuin-theme-shadow: rgba(var(--center-channel-color-rgb), 0.16);
 }
 
+/* Profile editor controls override fixed light legacy states at matching specificity. */
+.iuin-profile-page--editor .iuin-profile-editor__academic-content textarea,
+.iuin-profile-page--editor .iuin-profile-editor__basics input,
+.iuin-profile-page--editor .iuin-profile-editor__basics textarea,
+.iuin-profile-page--editor .iuin-profile-editor__settings-grid input,
+.iuin-profile-page--editor .iuin-profile-editor__settings-grid select,
+.iuin-profile-page--editor .iuin-profile-editor__code-editor {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-bg);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-page--editor .iuin-profile-editor__code-line-numbers {
+    border-color: var(--iuin-theme-border);
+    background: var(--iuin-theme-surface);
+    color: var(--iuin-theme-faint);
+}
+
+.iuin-profile-page--editor .iuin-profile-editor__academic-content textarea:focus,
+.iuin-profile-page--editor .iuin-profile-editor__basics input:focus,
+.iuin-profile-page--editor .iuin-profile-editor__basics textarea:focus,
+.iuin-profile-page--editor .iuin-profile-editor__settings-grid input:focus,
+.iuin-profile-page--editor .iuin-profile-editor__settings-grid select:focus {
+    border-color: var(--iuin-theme-accent);
+    background: var(--iuin-theme-bg);
+    box-shadow: 0 0 0 3px var(--iuin-theme-selected);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-page--editor .iuin-profile-editor__code-editor:focus {
+    border-color: var(--iuin-theme-border-strong);
+    background: var(--iuin-theme-bg);
+    box-shadow: 0 0 0 3px var(--iuin-theme-selected);
+    color: var(--iuin-theme-text);
+}
+
+.iuin-profile-page--editor .iuin-profile-editor__actions .iuin-profile-button {
+    border-color: var(--iuin-theme-border) !important;
+    background: var(--iuin-theme-bg) !important;
+    box-shadow: none !important;
+    color: var(--iuin-theme-text) !important;
+}
+
+.iuin-profile-page--editor .iuin-profile-editor__actions .iuin-profile-button:not(.iuin-profile-button--subtle):not(:disabled) {
+    border-color: var(--iuin-theme-accent) !important;
+    background: var(--iuin-theme-accent) !important;
+    color: var(--iuin-theme-accent-text) !important;
+}
+
+.iuin-profile-page--editor .iuin-profile-editor__actions .iuin-profile-button--subtle:not(:disabled):hover,
+.iuin-profile-page--editor .iuin-profile-editor__actions .iuin-profile-button--subtle:not(:disabled):focus {
+    border-color: var(--iuin-theme-border-strong) !important;
+    background: var(--iuin-theme-surface-hover) !important;
+    color: var(--iuin-theme-text) !important;
+}
+
+.iuin-profile-page--editor .iuin-profile-editor__actions .iuin-profile-button:disabled {
+    border-color: var(--iuin-theme-border) !important;
+    background: var(--iuin-theme-surface) !important;
+    color: var(--iuin-theme-faint) !important;
+}
+
 /* Profile avatar edit and status actions. */
 .iuin-profile-display .iuin-profile-avatar-upload,
 .iuin-profile-display .iuin-profile-avatar-status {
