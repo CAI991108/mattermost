@@ -379,10 +379,13 @@ export default class Root extends React.PureComponent<Props, State> {
                             <RootRedirect/>
                         </Switch>
                     </Route>
-                    <LoggedInHFTRoute
+                    {/* LZX修改：注释掉 /select_team 路由，禁止直接访问该页面。
+                        实际环境不存在无团队/频道的用户，不需要此页面。
+                        自动跳转已在 global_actions.tsx redirectUserToDefaultTeam() 中同步注释。 */}
+                    {/* <LoggedInHFTRoute
                         path={'/select_team'}
                         component={SelectTeam}
-                    />
+                    /> */}
                     <LoggedInHFTRoute
                         path={'/oauth/authorize'}
                         component={Authorize}
