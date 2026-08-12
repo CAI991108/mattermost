@@ -57,6 +57,22 @@ The Web UI/API username is `litangchao`. Its independent generated password is s
 
 Read it locally with `sudo`. The corresponding SHA-512 crypt hash is stored on the host at `/srv/iuin/secrets/mailpit_ui_auth` and mounted read-only in the container at `/run/secrets/mailpit_ui_auth`.
 
+## Subsequent production upgrades
+
+Keep the production checkout on the reviewed commit, with no tracked or untracked worktree changes. Record and inspect the exact commit before starting:
+
+```bash
+approved_commit=$(git rev-parse --verify HEAD)
+git show --stat --oneline "$approved_commit"
+sudo deploy/production/upgrade.sh --expected-commit "$approved_commit"
+```
+
+`upgrade.sh` is the production entry point after the first deployment. It requires the full lowercase 40-character commit ID, verifies that `HEAD` matches it and that the worktree is clean, hardens `.env`, and immediately copies its verified inode to a temporary root-owned mode-`0600` snapshot under `/run/iuin-upgrade`. Compose validation, backup, and deployment all use that same snapshot; the script revalidates the checkout, binds `deploy.sh` to the approved commit, and verifies that the running Mattermost build hash matches it. The snapshot is removed when the upgrade exits.
+
+The script intentionally lives in this repository so the production procedure and the code it deploys are reviewed and versioned together. Do not keep a second launcher or aggregate log in `/home/dell`. Progress and failures remain visible in the invoking terminal; the supervised backup and deployment work also remain available through the systemd journal.
+
+Because a new or modified `upgrade.sh` makes the worktree dirty, commit this file before using it for a real production upgrade.
+
 ## Operations
 
 ```bash

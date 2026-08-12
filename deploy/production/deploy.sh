@@ -4,7 +4,10 @@ set -Eeuo pipefail
 SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=lib.sh
 source "$SCRIPT_DIR/lib.sh"
+# shellcheck source=deploy-arguments.sh
+source "$SCRIPT_DIR/deploy-arguments.sh"
 require_root
+parse_deploy_arguments "$@"
 if [[ "${IUIN_MAINTENANCE_SUPERVISED:-0}" != 1 ]]; then
     run_supervised_maintenance iuin-deploy "$SCRIPT_DIR/deploy.sh" "$@"
     exit $?
@@ -13,18 +16,6 @@ load_env
 require_compose
 require_repo
 
-resume_superseded_deploy=false
-case $# in
-    0) ;;
-    1)
-        [[ "$1" == --resume-superseded-deploy ]] \
-            || die "unsupported deployment argument: $1"
-        resume_superseded_deploy=true
-        ;;
-    *)
-        die "usage: $0 [--resume-superseded-deploy]"
-        ;;
-esac
 superseded_marker_archive=
 
 legacy_compat_name=1101c2a4a3470c5155c2e149c5267ceac573a6f2-6a7a6e1244ab44a17e06adcfc127ccec
@@ -783,6 +774,7 @@ finalize_backup_runtime() {
 
 export BUILD_HASH
 BUILD_HASH=$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" rev-parse --verify HEAD)
+validate_expected_deploy_commit "$BUILD_HASH"
 [[ -z "$(git -c "safe.directory=$REPO_ROOT" -C "$REPO_ROOT" status --porcelain --untracked-files=normal)" ]] \
     || die "refusing to deploy a dirty Git worktree; commit or remove all tracked and untracked changes first"
 activation_id=$(openssl rand -hex 16)
