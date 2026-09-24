@@ -15,17 +15,37 @@ export default function MobileViewWatcher(props: Props) {
     const tabletMediaQuery = useRef(window.matchMedia(`(min-width: ${Constants.MOBILE_SCREEN_WIDTH + 1}px) and (max-width: ${Constants.TABLET_SCREEN_WIDTH}px)`));
     const mobileMediaQuery = useRef(window.matchMedia(`(max-width: ${Constants.MOBILE_SCREEN_WIDTH}px)`));
 
+    const previousIsMobileView = useRef<boolean | null>(null);
+
     const updateWindowSize = useCallback(() => {
+        let windowSize;
         if (desktopMediaQuery.current.matches) {
-            props.emitBrowserWindowResized(WindowSizes.DESKTOP_VIEW);
+            windowSize = WindowSizes.DESKTOP_VIEW;
         } else if (smallDesktopMediaQuery.current.matches) {
-            props.emitBrowserWindowResized(WindowSizes.SMALL_DESKTOP_VIEW);
+            windowSize = WindowSizes.SMALL_DESKTOP_VIEW;
         } else if (tabletMediaQuery.current.matches) {
-            props.emitBrowserWindowResized(WindowSizes.TABLET_VIEW);
+            windowSize = WindowSizes.TABLET_VIEW;
         } else if (mobileMediaQuery.current.matches) {
-            props.emitBrowserWindowResized(WindowSizes.MOBILE_VIEW);
+            windowSize = WindowSizes.MOBILE_VIEW;
         }
-    }, []);
+
+        if (!windowSize) {
+            return;
+        }
+
+        // Crossing the narrow-screen threshold closes the right-hand panel: it is a
+        // full-width overlay below the threshold and a docked column above it, so the
+        // open state of one presentation cannot carry into the other (KTD5, R9).
+        // A single crossing writes once: the media query ranges do not overlap, and the
+        // change handler only reacts to queries that started matching.
+        const isMobileView = windowSize === WindowSizes.MOBILE_VIEW;
+        if (previousIsMobileView.current !== null && previousIsMobileView.current !== isMobileView) {
+            props.closeRightHandSide();
+        }
+        previousIsMobileView.current = isMobileView;
+
+        props.emitBrowserWindowResized(windowSize);
+    }, [props.emitBrowserWindowResized, props.closeRightHandSide]);
 
     useLayoutEffect(() => {
         updateWindowSize();

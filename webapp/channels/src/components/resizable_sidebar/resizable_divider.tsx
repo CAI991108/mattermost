@@ -260,6 +260,25 @@ function ResizableDivider({
         setWidth(null);
     };
 
+    // Crossing into the narrow shell cancels an in-progress drag. The divider is not
+    // rendered there, so the imperative state written while dragging (the width override
+    // on the container and the parent's own override, plus the `layout-changing` class on
+    // the body) would otherwise outlive it. The interrupted width is deliberately not
+    // persisted, so the wide shell falls back to its default width (KTD5, R9).
+    useEffect(() => {
+        if (!isMobileView || !isActive) {
+            return;
+        }
+
+        const interruptedWidth = containerRef.current?.getBoundingClientRect().width ?? 0;
+
+        containerRef.current?.style.removeProperty(cssVarKey);
+        onResizeEnd?.(interruptedWidth, cssVarKey, `${interruptedWidth}px`);
+        document.body.classList.remove('layout-changing');
+        reset();
+        setIsActive(false);
+    }, [isMobileView, isActive]);
+
     if (disabled || isMobileView) {
         return null;
     }

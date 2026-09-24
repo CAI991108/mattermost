@@ -5,11 +5,13 @@ import {connect} from 'react-redux';
 import type {ConnectedProps} from 'react-redux';
 
 import {emitBrowserWindowResized} from 'actions/views/browser';
+import {closeRightHandSide} from 'actions/views/rhs';
 
 import MobileViewWatcher from './mobile_view_watcher';
 
 const mapDispatchToProps = {
     emitBrowserWindowResized,
+    closeRightHandSide,
 };
 
 const connector = connect(null, mapDispatchToProps);
