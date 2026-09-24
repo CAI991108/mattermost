@@ -66,4 +66,12 @@
         pointer-events: none;
         visibility: hidden;
     }
+
+    // The on-screen keyboard owns the bottom of the viewport while the composer is
+    // focused, so the bar yields. The space it occupies stays reserved: the yield must
+    // not change the composer's available space or the message list scroll position (R12).
+    &--keyboard {
+        pointer-events: none;
+        visibility: hidden;
+    }
 }

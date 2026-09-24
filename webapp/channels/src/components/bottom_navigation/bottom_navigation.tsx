@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
 import classNames from 'classnames';
@@ -9,6 +9,8 @@ import {Link, useLocation} from 'react-router-dom';
 import {AccountMultipleOutlineIcon, BellOutlineIcon, GlobeIcon, MessageTextOutlineIcon} from '@mattermost/compass-icons/components';
 
 import NotifyCounts from 'components/notify_counts/notify_counts';
+
+import useKeyboardYield from './use_keyboard_yield';
 
 import type {PropsFromRedux} from './index';
 
@@ -57,6 +59,7 @@ export function getSelectedEntry(pathname: string, teamName: string): EntryId | 
 export default function BottomNavigation(props: PropsFromRedux) {
     const {formatMessage} = useIntl();
     const {pathname} = useLocation();
+    const keyboardYield = useKeyboardYield();
 
     if (!props.isMobileView) {
         return null;
@@ -97,7 +100,10 @@ export default function BottomNavigation(props: PropsFromRedux) {
 
     return (
         <nav
-            className={classNames('bottom-navigation', {'bottom-navigation--yielded': props.lhsOpen})}
+            className={classNames('bottom-navigation', {
+                'bottom-navigation--yielded': props.lhsOpen,
+                'bottom-navigation--keyboard': keyboardYield,
+            })}
             aria-label={formatMessage({id: 'bottom_navigation.ariaLabel', defaultMessage: 'Narrow screen navigation'})}
             data-testid='bottomNavigation'
         >

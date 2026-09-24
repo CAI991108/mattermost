@@ -4,7 +4,7 @@
 import {createMemoryHistory} from 'history';
 import React from 'react';
 
-import {renderWithContext, screen} from 'tests/react_testing_utils';
+import {act, fireEvent, renderWithContext, screen} from 'tests/react_testing_utils';
 import {WindowSizes} from 'utils/constants';
 import {TestHelper} from 'utils/test_helper';
 
@@ -64,6 +64,49 @@ function renderAt(pathname: string, windowSize: WindowSizes, options?: {lhsOpen?
     return renderWithContext(
         <BottomNavigation/>,
         buildState(windowSize, options),
+        {history: createMemoryHistory({initialEntries: [pathname]})},
+    );
+}
+
+type VisualViewportMock = {
+    height: number;
+    offsetTop: number;
+    emitResize: () => void;
+};
+
+// jsdom has no visual viewport, so the test drives the one the keyboard yield reads.
+function mockVisualViewport(initialHeight: number): VisualViewportMock {
+    const listeners = new Set<() => void>();
+    const viewport = {
+        height: initialHeight,
+        offsetTop: 0,
+        addEventListener: (type: string, listener: () => void) => {
+            if (type === 'resize') {
+                listeners.add(listener);
+            }
+        },
+        removeEventListener: (type: string, listener: () => void) => {
+            if (type === 'resize') {
+                listeners.delete(listener);
+            }
+        },
+        emitResize: () => listeners.forEach((listener) => listener()),
+    };
+
+    Object.defineProperty(window, 'visualViewport', {configurable: true, value: viewport});
+
+    return viewport;
+}
+
+function renderComposerAndBar(pathname: string) {
+    return renderWithContext(
+        <>
+            <div id='post-create'>
+                <textarea data-testid='composer'/>
+            </div>
+            <BottomNavigation/>
+        </>,
+        buildState(WindowSizes.MOBILE_VIEW),
         {history: createMemoryHistory({initialEntries: [pathname]})},
     );
 }
@@ -130,5 +173,78 @@ describe('components/bottom_navigation', () => {
         renderAt('/test-team/channels/town-square', WindowSizes.MOBILE_VIEW, {lhsOpen: true});
 
         expect(screen.getByTestId('bottomNavigation')).toHaveClass('bottom-navigation--yielded');
+    });
+
+    describe('keyboard yield', () => {
+        afterEach(() => {
+            delete (window as {visualViewport?: unknown}).visualViewport;
+        });
+
+        it('yields only once the composer is focused and the visual viewport is compressed', () => {
+            const viewport = mockVisualViewport(window.innerHeight);
+            renderComposerAndBar('/test-team/channels/town-square');
+
+            const bar = screen.getByTestId('bottomNavigation');
+            const composer = screen.getByTestId('composer');
+
+            fireEvent.focus(composer);
+            expect(bar).not.toHaveClass('bottom-navigation--keyboard');
+
+            viewport.height = window.innerHeight - 300;
+            act(() => viewport.emitResize());
+            expect(bar).toHaveClass('bottom-navigation--keyboard');
+        });
+
+        it('does not yield when the composer is focused without a keyboard', () => {
+            mockVisualViewport(window.innerHeight);
+            renderComposerAndBar('/test-team/channels/town-square');
+
+            fireEvent.focus(screen.getByTestId('composer'));
+
+            expect(screen.getByTestId('bottomNavigation')).not.toHaveClass('bottom-navigation--keyboard');
+        });
+
+        it('does not yield when the keyboard is up but the composer is not focused', () => {
+            const viewport = mockVisualViewport(window.innerHeight - 300);
+            renderComposerAndBar('/test-team/channels/town-square');
+
+            act(() => viewport.emitResize());
+
+            expect(screen.getByTestId('bottomNavigation')).not.toHaveClass('bottom-navigation--keyboard');
+        });
+
+        it('restores when the keyboard is hidden without a blur', () => {
+            const viewport = mockVisualViewport(window.innerHeight);
+            renderComposerAndBar('/test-team/channels/town-square');
+
+            const bar = screen.getByTestId('bottomNavigation');
+            const composer = screen.getByTestId('composer');
+
+            fireEvent.focus(composer);
+            viewport.height = window.innerHeight - 300;
+            act(() => viewport.emitResize());
+            expect(bar).toHaveClass('bottom-navigation--keyboard');
+
+            viewport.height = window.innerHeight;
+            act(() => viewport.emitResize());
+
+            expect(bar).not.toHaveClass('bottom-navigation--keyboard');
+        });
+
+        it('restores when the composer loses focus', () => {
+            const viewport = mockVisualViewport(window.innerHeight - 300);
+            renderComposerAndBar('/test-team/channels/town-square');
+
+            const bar = screen.getByTestId('bottomNavigation');
+            const composer = screen.getByTestId('composer');
+
+            fireEvent.focus(composer);
+            act(() => viewport.emitResize());
+            expect(bar).toHaveClass('bottom-navigation--keyboard');
+
+            fireEvent.blur(composer);
+
+            expect(bar).not.toHaveClass('bottom-navigation--keyboard');
+        });
     });
 });
