@@ -3,7 +3,7 @@
 @use "utils/variables";
 
 .sidebar--right--width-holder {
-    @media screen and (max-width: 768px) {
+    @media screen and (max-width: 1020px) {
         display: none;
     }
 
@@ -313,7 +313,7 @@
 }
 
 // global header style adjustments
-@media screen and (min-width: 769px) {
+@media screen and (min-width: 1021px) {
     // adjust RHS position and height
     #sidebar-right {
         // If this is changed, the interaction with the App Bar icons must be tested

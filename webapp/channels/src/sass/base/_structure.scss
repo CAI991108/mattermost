@@ -231,7 +231,7 @@ body.app__body #root {
         top: 0;
         right: 0;
 
-        @media screen and (min-width: 768px) {
+        @media screen and (min-width: 1021px) {
             position: absolute;
         }
     }
@@ -241,7 +241,7 @@ body.app__body #root {
     }
 
     &:not(.console__root) {
-        @media screen and (max-width: 768px) {
+        @media screen and (max-width: 1020px) {
             padding-bottom: 0;
             padding-right: 0;
             z-index: 17;
@@ -285,7 +285,7 @@ body.app__body #root {
         }
     }
 
-    @media screen and (min-width: 768px) and (max-width: 1200px) {
+    @media screen and (min-width: 1021px) and (max-width: 1200px) {
         &.rhs-open-expanded {
             .sidebar--right--width-holder {
                 display: none;

@@ -17,7 +17,7 @@ $sidebarOpacityAnimationDuration: 0.15s;
     background-color: var(--sidebar-bg);
     overflow-x: visible;
 
-    @media screen and (min-width: 769px) {
+    @media screen and (min-width: 1021px) {
         width: var(--overrideLhsWidth, 264px);
         min-width: 200px;
         max-width: 264px;
@@ -1286,7 +1286,7 @@ $sidebarOpacityAnimationDuration: 0.15s;
 }
 
 // global header style adjustments
-@media screen and (min-width: 769px) {
+@media screen and (min-width: 1021px) {
 
     // adjust height of sidebar to account for global header
     #SidebarContainer {

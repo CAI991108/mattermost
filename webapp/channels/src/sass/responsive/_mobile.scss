@@ -2,7 +2,7 @@
 @use "utils/mixins";
 @use "utils/variables";
 
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 1020px) {
     #navbar_wrapper {
         .navbar-default {
             .navbar-brand {

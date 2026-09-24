@@ -113,8 +113,8 @@
     }
 }
 
-// Tablet and desktop
-@media screen and (min-width: 769px) {
+// Desktop
+@media screen and (min-width: 1021px) {
     .search-help-popover {
         width: 274px;
     }
