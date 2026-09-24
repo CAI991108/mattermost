@@ -38,6 +38,10 @@ const Recaps = makeAsyncComponent('Recaps', lazy(() => import('components/recaps
 );
 const PermalinkView = makeAsyncComponent('PermalinkView', lazy(() => import('components/permalink_view')));
 const PlaybookRunner = makeAsyncComponent('PlaybookRunner', lazy(() => import('components/channel_layout/playbook_runner')));
+const ChannelListView = makeAsyncComponent('ChannelListView', lazy(() => import('components/bottom_navigation/entry_views/channel_list_view')));
+const MemberView = makeAsyncComponent('MemberView', lazy(() => import('components/bottom_navigation/entry_views/member_view')));
+const MentionView = makeAsyncComponent('MentionView', lazy(() => import('components/bottom_navigation/entry_views/mention_view')));
+const ChannelEntryRouter = makeAsyncComponent('ChannelEntryRouter', lazy(() => import('components/bottom_navigation/entry_views/channel_entry_router')));
 
 type Props = PropsFromRedux & OwnProps;
 
@@ -86,6 +90,27 @@ export default class CenterChannel extends React.PureComponent<Props, State> {
                 {isMobileView && <MobileChannelHeader/>}
                 <div className='row main'>
                     <Switch>
+                        <Route
+                            exact={true}
+                            path={`/:team(${TEAM_NAME_PATH_PATTERN})/channels`}
+                            component={ChannelListView}
+                        />
+                        <Route
+                            path={`/:team(${TEAM_NAME_PATH_PATTERN})/channels/:identifier(${IDENTIFIER_PATH_PATTERN})/members`}
+                            render={(props) => (
+                                <ChannelEntryRouter {...props}>
+                                    <MemberView/>
+                                </ChannelEntryRouter>
+                            )}
+                        />
+                        <Route
+                            path={`/:team(${TEAM_NAME_PATH_PATTERN})/channels/:identifier(${IDENTIFIER_PATH_PATTERN})/mentions`}
+                            render={(props) => (
+                                <ChannelEntryRouter {...props}>
+                                    <MentionView/>
+                                </ChannelEntryRouter>
+                            )}
+                        />
                         <Route
                             path={`${url}/pl/:postid(${ID_PATH_PATTERN})`}
                             render={(props) => (

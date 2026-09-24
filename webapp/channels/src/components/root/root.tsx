@@ -1,4 +1,4 @@
-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+﻿// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
 import classNames from 'classnames';
@@ -16,6 +16,7 @@ import {temporarilySetPageLoadContext} from 'actions/telemetry_actions.jsx';
 import BrowserStore from 'stores/browser_store';
 
 import {makeAsyncComponent, makeAsyncPluggableComponent} from 'components/async_load';
+import BottomNavigation from 'components/bottom_navigation';
 import GlobalClassificationBanner from 'components/global_classification_banner';
 import GlobalHeader from 'components/global_header/global_header';
 import {HFRoute} from 'components/header_footer_route/header_footer_route';
@@ -379,9 +380,9 @@ export default class Root extends React.PureComponent<Props, State> {
                             <RootRedirect/>
                         </Switch>
                     </Route>
-                    {/* LZX修改：注释掉 /select_team 路由，禁止直接访问该页面。
-                        实际环境不存在无团队/频道的用户，不需要此页面。
-                        自动跳转已在 global_actions.tsx redirectUserToDefaultTeam() 中同步注释。 */}
+                    {/* LZX淇敼锛氭敞閲婃帀 /select_team 璺敱锛岀姝㈢洿鎺ヨ闂椤甸潰銆?
+                        瀹為檯鐜涓嶅瓨鍦ㄦ棤鍥㈤槦/棰戦亾鐨勭敤鎴凤紝涓嶉渶瑕佹椤甸潰銆?
+                        鑷姩璺宠浆宸插湪 global_actions.tsx redirectUserToDefaultTeam() 涓悓姝ユ敞閲娿€?*/}
                     {/* <LoggedInHFTRoute
                         path={'/select_team'}
                         component={SelectTeam}
@@ -535,6 +536,7 @@ export default class Root extends React.PureComponent<Props, State> {
                                 />
                                 <RootRedirect/>
                             </Switch>
+                            <BottomNavigation/>
                             <SidebarRight/>
                         </div>
                         <GlobalClassificationBanner position='bottom'/>

@@ -1,4 +1,4 @@
-@use "utils/functions";
+﻿@use "utils/functions";
 @use "utils/mixins";
 @use "utils/variables";
 
@@ -2022,5 +2022,13 @@ label {
     textarea,
     input {
         font-size: 16px;
+    }
+}
+
+// The narrow shell's bottom navigation is a persistent bar inside the shell, so the shell
+// reserves its height: the message list and the input stay clear of it (R4, R5).
+@media screen and (max-width: 1020px) {
+    body.app__body #root .main-wrapper:has(.bottom-navigation) {
+        padding-bottom: 56px;
     }
 }
