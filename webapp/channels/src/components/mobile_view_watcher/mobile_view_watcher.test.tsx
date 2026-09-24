@@ -1,6 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import fs from 'fs';
+import path from 'path';
+
 import {render} from '@testing-library/react';
 import React from 'react';
 
@@ -111,5 +114,62 @@ describe('window.matchMedia', () => {
         // Both sizes belong to the wide shell, so the panel state carries over.
         expect(baseProps.closeRightHandSide).not.toHaveBeenCalled();
         expect(baseProps.emitBrowserWindowResized).toHaveBeenCalledTimes(2);
+    });
+
+    describe('narrow-screen breakpoint', () => {
+        test('should judge 1020px as narrow and leave 1021px to the wide shell', () => {
+            render(<MobileViewWatcher {...baseProps}/>);
+
+            const queries = matchMedia.getMediaQueries();
+            const narrowQuery = queries.find((query) => query.startsWith('(max-width'));
+
+            // The agreed boundary: the narrow judgement is inclusive at 1020px.
+            expect(Constants.MOBILE_SCREEN_WIDTH).toBe(1020);
+            expect(narrowQuery).toBe(`(max-width: ${Constants.MOBILE_SCREEN_WIDTH}px)`);
+
+            // One pixel above it is the lower bound the wide shell branches ask about, so the
+            // two judgements meet without a gap or an overlap.
+            expect(queries.find((query) => query.startsWith(`(min-width: ${Constants.MOBILE_SCREEN_WIDTH + 1}px)`))).toBeDefined();
+        });
+
+        test('should take the narrow boundary in the shell stylesheets from the same number', () => {
+            // Only the shell boundary is covered: component-owned breakpoints keep their own
+            // values (KTD3), and the global header carries one of its own.
+            const read = (stylesheet: string) => fs.readFileSync(path.join(__dirname, '../../', stylesheet), 'utf8').replace(/^\s*\/\/.*$/gm, '');
+
+            const narrowStylesheets = [
+                'sass/responsive/_mobile.scss',
+                'sass/responsive/_tablet.scss',
+                'sass/base/_structure.scss',
+                'sass/layout/_sidebar-right.scss',
+                'components/app_bar/app_bar.scss',
+            ];
+            const wideStylesheets = [
+                'sass/responsive/_tablet.scss',
+                'sass/base/_structure.scss',
+                'sass/layout/_sidebar-left.scss',
+                'sass/layout/_sidebar-right.scss',
+                'sass/layout/_team-sidebar.scss',
+            ];
+            const shellStylesheets = [...new Set([...narrowStylesheets, ...wideStylesheets])];
+
+            // Every collapsing shell stylesheet names the boundary, and names the same one.
+            narrowStylesheets.forEach((stylesheet) => {
+                expect(read(stylesheet)).toContain(`(max-width: ${Constants.MOBILE_SCREEN_WIDTH}px)`);
+            });
+            wideStylesheets.forEach((stylesheet) => {
+                expect(read(stylesheet)).toContain(`(min-width: ${Constants.MOBILE_SCREEN_WIDTH + 1}px)`);
+            });
+
+            // No second boundary competes with it anywhere in those stylesheets.
+            const boundaries = shellStylesheets.flatMap((stylesheet) => {
+                const queries = read(stylesheet).match(/@media[^{]*/g) ?? [];
+                return queries.flatMap((query) => [...query.matchAll(/\((max|min)-width:\s*(\d+)px\)/g)]).
+                    map((match) => Number(match[2])).
+                    filter((width) => width > 1000 && width < 1100);
+            });
+
+            expect([...new Set(boundaries)].sort((a, b) => a - b)).toEqual([Constants.MOBILE_SCREEN_WIDTH, Constants.MOBILE_SCREEN_WIDTH + 1]);
+        });
     });
 });
