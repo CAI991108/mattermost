@@ -1,0 +1,43 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`components/HeaderFooterTemplate should match snapshot with children 1`] = `
+<div>
+  <div
+    class="inner-wrap"
+  >
+    <div
+      class="row content"
+    >
+      <p>
+        test
+      </p>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`components/HeaderFooterTemplate should match snapshot without children 1`] = `
+<div>
+  <div
+    class="inner-wrap"
+  >
+    <div
+      class="row content"
+    />
+  </div>
+</div>
+`;
+
+exports[`components/HeaderFooterTemplate should set classes on body and #root on mount and unset on unmount 1`] = `
+<div>
+  <div
+    class="inner-wrap"
+  >
+    <div
+      class="row content"
+    />
+  </div>
+</div>
+`;
+
+exports[`components/HeaderFooterTemplate should set classes on body and #root on mount and unset on unmount 2`] = `<div />`;

@@ -1,0 +1,33 @@
+[Unit]
+Description=IUIN temporary local backup
+Requires=docker.service
+Wants=iuin-backup-recover.service
+After=docker.service iuin-backup-recover.service
+OnFailure=iuin-backup-recover.service
+ConditionPathExists=/opt/iuin/deploy/current/backup.sh
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=/etc/iuin/backup.env
+EnvironmentFile=/etc/iuin/recovery.env
+ExecStart=/usr/local/sbin/iuin-backup-launcher
+UMask=0077
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+CPUSchedulingPolicy=batch
+TimeoutStartSec=12h
+TimeoutStopSec=25min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native

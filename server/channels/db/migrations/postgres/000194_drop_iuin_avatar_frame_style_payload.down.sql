@@ -1,0 +1,1 @@
+-- No-op. Legacy CSS-backed honor style columns are intentionally not restored.

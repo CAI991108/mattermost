@@ -1,0 +1,15 @@
+[Unit]
+Description=IUIN Docker published-port firewall (Mattermost, Calls, and Mailpit UI)
+Requires=docker.service
+After=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/iuin/firewall.env
+ExecStart=/usr/local/sbin/iuin-docker-firewall apply
+RemainAfterExit=yes
+
+[Install]
+WantedBy=docker.service
+WantedBy=multi-user.target

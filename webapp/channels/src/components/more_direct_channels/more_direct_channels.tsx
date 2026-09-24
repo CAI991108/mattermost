@@ -1,0 +1,326 @@
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
+
+import debounce from 'lodash/debounce';
+import React from 'react';
+import {FormattedMessage} from 'react-intl';
+
+import {GenericModal} from '@mattermost/components';
+import type {UserProfile} from '@mattermost/types/users';
+
+import type {ActionResult} from 'mattermost-redux/types/actions';
+
+import type MultiSelect from 'components/multiselect/multiselect';
+
+import {focusElement} from 'utils/a11y_utils';
+import {getHistory} from 'utils/browser_history';
+import Constants from 'utils/constants';
+
+import List from './list';
+import './more_direct_channels.scss';
+import {optionValue} from './types';
+import type {OptionValue} from './types';
+
+export type Props = {
+    currentUserId: string;
+    searchTerm: string;
+    users: UserProfile[];
+
+    /*
+    * List of current channel members of existing channel
+    */
+    currentChannelMembers?: UserProfile[];
+
+    /*
+    * Whether the modal is for existing channel or not
+    */
+    isExistingChannel: boolean;
+
+    /*
+    * The mode by which direct messages are restricted, if at all.
+    */
+    restrictDirectMessage?: string;
+    onModalDismissed?: () => void;
+    onExited?: () => void;
+    actions: {
+        loadProfilesMissingStatus: (users: UserProfile[]) => void;
+        loadStatusesForProfilesList: (users: UserProfile[]) => void;
+        openDirectChannelToUserId: (userId: string) => Promise<ActionResult>;
+        searchProfiles: (term: string, options: any) => Promise<ActionResult<UserProfile[]>>;
+        setModalSearchTerm: (term: string) => void;
+        canUserDirectMessage: (userId: string, otherUserId: string) => Promise<ActionResult<{can_dm: boolean}>>;
+    };
+    focusOriginElement: string;
+}
+
+type State = {
+    values: OptionValue[];
+    show: boolean;
+    search: boolean;
+    saving: boolean;
+    loadingUsers: boolean;
+    directMessageCapabilityCache: Record<string, boolean>;
+}
+
+export default class MoreDirectChannels extends React.PureComponent<Props, State> {
+    searchTimeoutId: any;
+    exitToChannel?: string;
+    multiselect: React.RefObject<MultiSelect<OptionValue>>;
+    selectedItemRef: React.RefObject<HTMLDivElement>;
+
+    constructor(props: Props) {
+        super(props);
+
+        this.searchTimeoutId = 0;
+        this.multiselect = React.createRef();
+        this.selectedItemRef = React.createRef();
+
+        const values: OptionValue[] = [];
+        if (props.currentChannelMembers) {
+            for (let i = 0; i < props.currentChannelMembers.length; i++) {
+                const user = Object.assign({}, props.currentChannelMembers[i]);
+                if (user.id === props.currentUserId) {
+                    continue;
+                }
+                values.push(optionValue(user));
+            }
+        }
+
+        this.state = {
+            values,
+            show: true,
+            search: false,
+            saving: false,
+            loadingUsers: false,
+            directMessageCapabilityCache: {},
+        };
+    }
+
+    loadModalData = () => {
+        this.props.actions.loadProfilesMissingStatus(this.props.users);
+        this.checkDMCapabilities(this.props.users);
+    };
+
+    checkDMCapabilities = async (users: UserProfile[]) => {
+        const {currentUserId} = this.props;
+        const {directMessageCapabilityCache} = this.state;
+        const usersToCheck = users.filter((user) =>
+            user.id !== currentUserId &&
+            user.remote_id &&
+            !(user.id in directMessageCapabilityCache),
+        );
+
+        if (usersToCheck.length === 0) {
+            return;
+        }
+
+        const promises = usersToCheck.map(async (user) => {
+            try {
+                const result = await this.props.actions.canUserDirectMessage(currentUserId, user.id);
+                return {userId: user.id, canDM: result.data?.can_dm ?? false};
+            } catch {
+                return {userId: user.id, canDM: false};
+            }
+        });
+
+        const results = await Promise.all(promises);
+        const newCache = {...directMessageCapabilityCache};
+        results.forEach(({userId, canDM}) => {
+            newCache[userId] = canDM;
+        });
+
+        this.setState({directMessageCapabilityCache: newCache});
+    };
+
+    updateFromProps(prevProps: Props) {
+        if (prevProps.searchTerm !== this.props.searchTerm) {
+            clearTimeout(this.searchTimeoutId);
+
+            const searchTerm = this.props.searchTerm;
+            if (searchTerm === '') {
+                this.resetPaging();
+            } else {
+                this.searchTimeoutId = setTimeout(
+                    async () => {
+                        this.setUsersLoadingState(true);
+                        const {data: profilesData} = await this.props.actions.searchProfiles(searchTerm, {});
+                        if (profilesData) {
+                            this.props.actions.loadStatusesForProfilesList(profilesData);
+                        }
+                        this.resetPaging();
+                        this.setUsersLoadingState(false);
+                    },
+                    Constants.SEARCH_TIMEOUT_MILLISECONDS,
+                );
+            }
+        }
+
+        if (prevProps.users.length !== this.props.users.length) {
+            this.props.actions.loadProfilesMissingStatus(this.props.users);
+            this.checkDMCapabilities(this.props.users);
+        }
+    }
+
+    componentDidUpdate(prevProps: Props) {
+        this.updateFromProps(prevProps);
+    }
+
+    setUsersLoadingState = (loadingState: boolean) => {
+        this.setState({loadingUsers: loadingState});
+    };
+
+    handleHide = () => {
+        this.props.actions.setModalSearchTerm('');
+        this.setState({show: false});
+    };
+
+    handleExit = () => {
+        this.props.onExited?.();
+        this.props.onModalDismissed?.();
+
+        if (this.exitToChannel) {
+            getHistory().push(this.exitToChannel);
+        } else if (this.props.focusOriginElement) {
+            setTimeout(() => {
+                focusElement(this.props.focusOriginElement, true);
+            }, 0);
+        }
+    };
+
+    handleSubmit = (values = this.state.values) => {
+        const {actions} = this.props;
+
+        if (this.state.saving) {
+            return;
+        }
+
+        const userIds = values.map((v) => v.id);
+        if (userIds.length === 0) {
+            return;
+        }
+
+        this.setState({saving: true});
+
+        const done = (result: any) => {
+            const {error} = result;
+            this.setState({saving: false});
+
+            if (!error) {
+                // LZX: 全局私信路由，跳转到 /direct_messages/@username
+                const targetUsername = values[0]?.username;
+                if (targetUsername) {
+                    this.exitToChannel = `/direct_messages/@${targetUsername}`;
+                }
+                this.handleHide();
+            }
+        };
+
+        // LZX: 只允许1对1私信，禁止多人群聊
+        actions.openDirectChannelToUserId(userIds[0]).then(done);
+    };
+
+    addValue = (value: OptionValue) => {
+        const values = [...this.state.values];
+        if (!values.includes(value)) {
+            values.push(value);
+        }
+        this.setState({values});
+    };
+
+    resetPaging = () => {
+        this.multiselect.current?.resetPaging();
+    };
+
+    search = debounce((term: string) => {
+        this.props.actions.setModalSearchTerm(term);
+    }, 250);
+
+    handleDelete = (values: OptionValue[]) => {
+        this.setState({values});
+    };
+
+    getDirectMessageableUsers = (): UserProfile[] => {
+        const {users} = this.props;
+        const {directMessageCapabilityCache} = this.state;
+
+        return users.filter((user) => {
+            // For remote users, check if they can be DMed
+            if (user.remote_id) {
+                // If we haven't checked this user yet, hide them until we have the result
+                if (!(user.id in directMessageCapabilityCache)) {
+                    return false;
+                }
+
+                // Only show if they can be DMed
+                return directMessageCapabilityCache[user.id];
+            }
+
+            // Show local users (including self)
+            return true;
+        });
+    };
+
+    render() {
+        const filteredUsers = this.getDirectMessageableUsers();
+        const body = (
+            <List
+                addValue={this.addValue}
+                currentUserId={this.props.currentUserId}
+                handleDelete={this.handleDelete}
+                handleSubmit={this.handleSubmit}
+                handleHide={this.handleHide}
+                isExistingChannel={this.props.isExistingChannel}
+                loading={this.state.loadingUsers}
+                saving={this.state.saving}
+                search={this.search}
+                searchTerm={this.props.searchTerm}
+                selectedItemRef={this.selectedItemRef}
+                users={filteredUsers}
+                values={this.state.values}
+            />
+        );
+
+        const modalHeaderText = (
+            <FormattedMessage
+                id='more_direct_channels.title'
+                defaultMessage='Direct Messages'
+            />
+        );
+
+        const modalSubheaderText = (
+            <div
+                className='channel-switcher__hint more-direct-channels__hint'
+                id='moreDmHint'
+            >
+                <FormattedMessage
+                    id='more_direct_channels.help'
+                    defaultMessage='Type to find a user. Use <b>UP/DOWN</b> to browse, <b>ENTER</b> to select, <b>ESC</b> to dismiss.'
+                    values={{
+                        b: (chunks) => <b>{chunks}</b>,
+                    }}
+                />
+            </div>
+        );
+
+        return (
+            <GenericModal
+                id='moreDmModal'
+                className='a11y__modal more-modal more-direct-channels more-direct-channels-generic-modal'
+                show={this.state.show}
+                modalHeaderText={modalHeaderText}
+                modalSubheaderText={modalSubheaderText}
+                onExited={this.handleExit}
+                onHide={this.handleExit}
+                compassDesign={true}
+                bodyPadding={false}
+                onEntered={this.loadModalData}
+                modalLocation={'top'}
+                delayFocusTrap={true}
+            >
+                <div role='application'>
+                    {body}
+                </div>
+            </GenericModal>
+        );
+    }
+}

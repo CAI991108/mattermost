@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS IuinRecentEmojis;
+DROP TABLE IF EXISTS IuinUserStickers;
+DROP TABLE IF EXISTS IuinStickers;

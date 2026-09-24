@@ -1,0 +1,334 @@
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
+
+import debounce from 'lodash/debounce';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import {FormattedMessage, useIntl} from 'react-intl';
+import {useHistory} from 'react-router-dom';
+
+import type {Channel} from '@mattermost/types/channels';
+import type {UserProfile} from '@mattermost/types/users';
+
+import {ProfilesInChannelSortBy} from 'mattermost-redux/actions/users';
+
+import AlertBanner from 'components/alert_banner';
+import ChannelInviteModal from 'components/channel_invite_modal';
+import useAccessControlAttributes, {EntityType} from 'components/common/hooks/useAccessControlAttributes';
+import ExternalLink from 'components/external_link';
+import AlertTag from 'components/widgets/tag/alert_tag';
+import TagGroup from 'components/widgets/tag/tag_group';
+
+import {isMembershipPolicyEnforced} from 'utils/channel_utils';
+import Constants, {ModalIdentifiers} from 'utils/constants';
+import {formatAttributeName} from 'utils/format_attribute_name';
+
+import type {ModalData} from 'types/actions';
+
+import ActionBar from './action_bar';
+import Header from './header';
+import MemberList, {ListItemType} from './member_list';
+import type {ChannelMember, ListItem} from './member_list';
+import SearchBar from './search';
+
+import './channel_members_rhs.scss';
+
+const USERS_PER_PAGE = 100;
+
+export interface Props {
+    channel: Channel;
+    currentUserIsChannelAdmin: boolean;
+    membersCount: number;
+    searchTerms: string;
+    canGoBack: boolean;
+    teamId: string;
+    channelMembers: ChannelMember[];
+    canManageMembers: boolean;
+    editing: boolean;
+
+    actions: {
+        openModal: <P>(modalData: ModalData<P>) => void;
+        openDirectChannelToUserId: (userId: string) => Promise<{data: Channel}>;
+        closeRightHandSide: () => void;
+        goBack: () => void;
+        setChannelMembersRhsSearchTerm: (terms: string) => void;
+        loadProfilesAndReloadChannelMembers: (page: number, perParge: number, channelId: string, sort: string) => void;
+        loadMyChannelMemberAndRole: (channelId: string) => void;
+        setEditChannelMembers: (active: boolean) => void;
+        searchProfilesAndChannelMembers: (term: string, options: any) => Promise<{data: UserProfile[]}>;
+        fetchRemoteClusterInfo: (remoteId: string, includeDeleted?: boolean, forceRefresh?: boolean) => void;
+        // LZX: DM 场景下加载全团队成员
+        getProfilesInTeam: (teamId: string, page: number, perPage?: number) => Promise<any>;
+    };
+}
+
+export default function ChannelMembersRHS({
+    channel,
+    currentUserIsChannelAdmin,
+    searchTerms,
+    membersCount,
+    canGoBack,
+    teamId,
+    channelMembers,
+    canManageMembers,
+    editing = false,
+    actions,
+}: Props) {
+    const history = useHistory();
+
+    const [list, setList] = useState<ListItem[]>([]);
+
+    const [page, setPage] = useState(0);
+    const [isNextPageLoading, setIsNextPageLoading] = useState(false);
+    const {formatMessage} = useIntl();
+
+    // Only channels whose policy controls membership surface attribute
+    // tags in the RHS — a permission-only policy (e.g. file upload) has
+    // no bearing on who can be a member.
+    const isMembershipPolicy = isMembershipPolicyEnforced(channel);
+    const {structuredAttributes, loading} = useAccessControlAttributes(
+        EntityType.Channel,
+        channel.id,
+        isMembershipPolicy,
+    );
+
+    // Memoise the rendered access-control tags so they don't re-render on
+    // every unrelated state change in the centre channel.
+    const accessControlTags = useMemo(() => {
+        if (structuredAttributes.length === 0) {
+            return null;
+        }
+        return (
+            <TagGroup>
+                {structuredAttributes.flatMap((attribute) =>
+                    attribute.values.map((value) => {
+                        const attributeLabel = formatAttributeName(attribute.name);
+                        return (
+                            <AlertTag
+                                key={`${attribute.name}-${value}`}
+                                tooltipTitle={attributeLabel}
+                                text={`${attributeLabel}: ${value}`}
+                            />
+                        );
+                    }),
+                )}
+            </TagGroup>
+        );
+    }, [structuredAttributes]);
+
+    const searching = searchTerms !== '';
+
+    const isDefaultChannel = channel.name === Constants.DEFAULT_CHANNEL;
+
+    // show search if there's more than 20 or if the user have an active search.
+    const showSearch = searching || membersCount >= 20;
+
+    useEffect(() => {
+        return () => {
+            actions.setChannelMembersRhsSearchTerm('');
+        };
+    }, []);
+
+    useEffect(() => {
+        const listcp: ListItem[] = [];
+        let memberDone = false;
+
+        for (let i = 0; i < channelMembers.length; i++) {
+            const member = channelMembers[i];
+            if (listcp.length === 0) {
+                let text = null;
+                if (member.membership?.scheme_admin === true) {
+                    text = (
+                        <FormattedMessage
+                            id='channel_members_rhs.list.channel_admin_title'
+                            defaultMessage='CHANNEL ADMINS'
+                        />
+                    );
+                } else {
+                    text = (
+                        <FormattedMessage
+                            id='channel_members_rhs.list.channel_members_title'
+                            defaultMessage='MEMBERS'
+                        />
+                    );
+                    memberDone = true;
+                }
+
+                listcp.push({
+                    type: ListItemType.FirstSeparator,
+                    data: <div className='channel-members-rhs__member-list-separator channel-members-rhs__member-list-separator--first'>{text}</div>,
+                });
+            } else if (!memberDone && member.membership?.scheme_admin === false) {
+                listcp.push({
+                    type: ListItemType.Separator,
+                    data: <div className='channel-members-rhs__member-list-separator'>
+                        <FormattedMessage
+                            id='channel_members_rhs.list.channel_members_title'
+                            defaultMessage='MEMBERS'
+                        />
+                    </div>,
+                });
+                memberDone = true;
+            }
+
+            listcp.push({type: ListItemType.Member, data: member});
+        }
+        if (JSON.stringify(list) !== JSON.stringify(listcp)) {
+            setList(listcp);
+        }
+    }, [channelMembers]);
+
+    useEffect(() => {
+        // LZX: DM 场景不关闭 RHS，直接加载全团队成员（由 mapStateToProps 中 getTeamProfiles 提供数据）
+        // 对于 DM 频道，只需重置搜索词，团队成员数据已经在 store 中（DataPrefetch 提前加载）
+        // 若非 DM 频道，走原有的频道成员加载逻辑
+        if (channel.type === Constants.DM_CHANNEL) {
+            setPage(0);
+            setIsNextPageLoading(false);
+            actions.setChannelMembersRhsSearchTerm('');
+            // 触发加载全团队成员。DM channel 通常没有 team_id，所以使用当前团队 id。
+            if (teamId) {
+                actions.getProfilesInTeam(teamId, 0, USERS_PER_PAGE);
+            }
+            return;
+        }
+
+        setPage(0);
+        setIsNextPageLoading(false);
+        actions.setChannelMembersRhsSearchTerm('');
+        actions.loadProfilesAndReloadChannelMembers(0, USERS_PER_PAGE, channel.id, ProfilesInChannelSortBy.Admin);
+        actions.loadMyChannelMemberAndRole(channel.id);
+    }, [channel.id, channel.type, teamId]);
+
+    const setSearchTerms = async (terms: string) => {
+        actions.setChannelMembersRhsSearchTerm(terms);
+    };
+
+    const doSearch = useCallback(debounce(async (terms: string) => {
+        await actions.searchProfilesAndChannelMembers(terms, {in_team_id: teamId || channel.team_id, in_channel_id: channel.id});
+    }, Constants.SEARCH_TIMEOUT_MILLISECONDS), [actions.searchProfilesAndChannelMembers, channel.id, channel.team_id, teamId]);
+
+    useEffect(() => {
+        if (searchTerms) {
+            doSearch(searchTerms);
+        }
+    }, [searchTerms]);
+
+    const inviteMembers = () => {
+        return actions.openModal({
+            modalId: ModalIdentifiers.CHANNEL_INVITE,
+            dialogType: ChannelInviteModal,
+            dialogProps: {channel},
+        });
+    };
+
+    const openDirectMessage = useCallback(async (user: UserProfile) => {
+        // we first prepare the DM channel...
+        await actions.openDirectChannelToUserId(user.id);
+
+        // ... and then redirect to it
+        history.push(`/direct_messages/@${user.username}`);
+
+        if (channel.type !== Constants.DM_CHANNEL) {
+            await actions.closeRightHandSide();
+        }
+    }, [actions.openDirectChannelToUserId, history, channel.type, actions.closeRightHandSide]);
+
+    const loadMore = useCallback(async () => {
+        setIsNextPageLoading(true);
+
+        await actions.loadProfilesAndReloadChannelMembers(page + 1, USERS_PER_PAGE, channel.id, ProfilesInChannelSortBy.Admin);
+        setPage(page + 1);
+
+        setIsNextPageLoading(false);
+    }, [actions.loadProfilesAndReloadChannelMembers, page, channel.id],
+    );
+
+    return (
+        <div
+            id='rhsContainer'
+            className='sidebar-right__body channel-members-rhs'
+        >
+
+            <Header
+                channel={channel}
+            />
+            {/* Show banner only for channels whose policy gates membership. */}
+            {isMembershipPolicy && (
+                <div className='channel-members-rhs__alert-container policy-enforced'>
+                    <AlertBanner
+                        mode='info'
+                        variant='app'
+                        title={channel.type === Constants.OPEN_CHANNEL ? formatMessage({
+                            id: 'channel_members_rhs.policy_recommended_description',
+                            defaultMessage: 'This channel has recommended members based on user attributes',
+                        }) : formatMessage({
+                            id: 'channel_members_rhs.policy_enforced_restrictions',
+                            defaultMessage: 'Channel access is restricted by user attributes',
+                        })}
+                    >
+                        {accessControlTags}
+                        {loading && <span className='loading-indicator'>{'Loading...'}</span>}
+                    </AlertBanner>
+                </div>
+            )}
+
+            <ActionBar
+                channelType={channel.type}
+                membersCount={membersCount}
+                canManageMembers={canManageMembers}
+                editing={editing}
+                actions={{
+                    startEditing: () => actions.setEditChannelMembers(true),
+                    stopEditing: () => actions.setEditChannelMembers(false),
+                    inviteMembers,
+                }}
+            />
+
+            {/* Users with user management permissions have special restrictions in the default channel */}
+            {(editing && isDefaultChannel && !currentUserIsChannelAdmin) && (
+                <div className='channel-members-rhs__alert-container'>
+                    <AlertBanner
+                        mode='info'
+                        variant='app'
+                        message={formatMessage({
+                            id: 'channel_members_rhs.default_channel_moderation_restrictions',
+                            defaultMessage: 'In this channel, you can only remove guests. Only <link>channel admins</link> can manage other members.',
+                        }, {
+                            link: (msg: React.ReactNode) => (
+                                <ExternalLink
+                                    href='https://docs.mattermost.com/welcome/about-user-roles.html#channel-admin'
+                                    location='channel_members_rhs'
+                                >
+                                    {msg}
+                                </ExternalLink>
+                            ),
+                        })}
+                    />
+                </div>
+            )}
+
+            {showSearch && (
+                <SearchBar
+                    terms={searchTerms}
+                    onInput={setSearchTerms}
+                />
+            )}
+
+            <div className='channel-members-rhs__members-container'>
+                {channelMembers.length > 0 && (
+                    <MemberList
+                        searchTerms={searchTerms}
+                        members={list}
+                        editing={editing}
+                        channel={channel}
+                        openDirectMessage={openDirectMessage}
+                        fetchRemoteClusterInfo={actions.fetchRemoteClusterInfo}
+                        loadMore={loadMore}
+                        hasNextPage={channelMembers.length < membersCount}
+                        isNextPageLoading={isNextPageLoading}
+                    />
+                )}
+            </div>
+        </div>
+    );
+}

@@ -1,0 +1,27 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`components/onboarding_tasklist/onboarding_tasklist_completed.tsx should match snapshot 1`] = `
+<div>
+  <div
+    class="CompletedWrapper-byXeYZ caqIuy"
+  >
+    <img
+      alt="completed tasks image"
+      src=""
+    />
+    <h2>
+      Well done. You’ve completed all of the tasks!
+    </h2>
+    <span
+      class="completed-subtitle"
+    >
+      We hope the workspace is more familiar now.
+    </span>
+    <button
+      class="got-it-button"
+    >
+      Got it
+    </button>
+  </div>
+</div>
+`;

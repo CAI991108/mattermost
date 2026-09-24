@@ -1,0 +1,171 @@
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
+
+import React from 'react';
+import {FormattedMessage, useIntl} from 'react-intl';
+import {useSelector} from 'react-redux';
+
+import {
+    PlusIcon,
+    AccountPlusOutlineIcon,
+    AccountMultiplePlusOutlineIcon,
+    GlobeIcon,
+} from '@mattermost/compass-icons/components';
+
+import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
+
+import {getSidebarBrowseOrAddChannelMenuPluginComponents} from 'selectors/plugins';
+
+import * as Menu from 'components/menu';
+import {OnboardingTourSteps} from 'components/tours';
+import {useShowOnboardingTutorialStep, CreateAndJoinChannelsTour, InvitePeopleTour} from 'components/tours/onboarding_tour';
+
+export const ELEMENT_ID_FOR_BROWSE_OR_ADD_CHANNEL_MENU = 'browserOrAddChannelMenu';
+export const ELEMENT_ID_FOR_BROWSE_OR_ADD_CHANNEL_MENU_BUTTON = 'browseOrAddChannelMenuButton';
+
+type Props = {
+    canCreateChannel: boolean;
+    onCreateNewChannelClick: () => void;
+    canJoinPublicChannel: boolean;
+    onBrowseChannelClick: () => void;
+    canCreateCustomGroups: boolean;
+    onCreateNewUserGroupClick: () => void;
+    unreadFilterEnabled: boolean;
+    onInvitePeopleClick: () => void;
+};
+
+export default function SidebarBrowserOrAddChannelMenu(props: Props) {
+    const {formatMessage} = useIntl();
+    const currentTeamId = useSelector(getCurrentTeamId);
+    const pluginMenuItems = useSelector(getSidebarBrowseOrAddChannelMenuPluginComponents);
+
+    const showCreateAndJoinChannelsTutorialTip = useShowOnboardingTutorialStep(OnboardingTourSteps.CREATE_AND_JOIN_CHANNELS);
+    const showInvitePeopleTutorialTip = useShowOnboardingTutorialStep(OnboardingTourSteps.INVITE_PEOPLE);
+
+    let createNewChannelMenuItem: JSX.Element | null = null;
+    if (props.canCreateChannel) {
+        createNewChannelMenuItem = (
+            <Menu.Item
+                id='createNewChannelMenuItem'
+                onClick={props.onCreateNewChannelClick}
+                leadingElement={<PlusIcon size={18}/>}
+                labels={(
+                    <FormattedMessage
+                        id='sidebarLeft.browserOrCreateChannelMenu.createNewChannelMenuItem.primaryLabel'
+                        defaultMessage='Create new channel'
+                    />
+                )}
+                trailingElements={showCreateAndJoinChannelsTutorialTip && <CreateAndJoinChannelsTour/>}
+                aria-haspopup='true'
+            />
+        );
+    }
+
+    let browseChannelsMenuItem: JSX.Element | null = null;
+    if (props.canJoinPublicChannel) {
+        browseChannelsMenuItem = (
+            <Menu.Item
+                id='browseChannelsMenuItem'
+                onClick={props.onBrowseChannelClick}
+                leadingElement={<GlobeIcon size={18}/>}
+                labels={(
+                    <FormattedMessage
+                        id='sidebarLeft.browserOrCreateChannelMenu.browseChannelsMenuItem.primaryLabel'
+                        defaultMessage='Browse channels'
+                    />
+                )}
+                aria-haspopup='true'
+            />
+        );
+    }
+
+    // LZX: 移除「Open a direct message」菜单项，私信入口已改为左侧边栏「私信」静态入口
+    let createUserGroupMenuItem: JSX.Element | null = null;
+    if (props.canCreateCustomGroups) {
+        createUserGroupMenuItem = (
+            <Menu.Item
+                id='createUserGroupMenuItem'
+                onClick={props.onCreateNewUserGroupClick}
+                leadingElement={<AccountMultiplePlusOutlineIcon size={18}/>}
+                labels={(
+                    <FormattedMessage
+                        id='sidebarLeft.browserOrCreateChannelMenu.createUserGroupMenuItem.primaryLabel'
+                        defaultMessage='Create new user group'
+                    />
+                )}
+                aria-haspopup='true'
+            />
+        );
+    }
+
+    const invitePeopleMenuItem = (
+        <Menu.Item
+            id='invitePeopleMenuItem'
+            onClick={props.onInvitePeopleClick}
+            leadingElement={<AccountPlusOutlineIcon size={18}/>}
+            labels={(
+                <>
+                    <FormattedMessage
+                        id='sidebarLeft.browserOrCreateChannelMenu.invitePeopleMenuItem.primaryLabel'
+                        defaultMessage='Invite people'
+                    />
+                    <FormattedMessage
+                        id='sidebarLeft.browserOrCreateChannelMenu.invitePeopleMenuItem.secondaryLabel'
+                        defaultMessage='Add people to the team'
+                    />
+                </>
+            )}
+            trailingElements={showInvitePeopleTutorialTip && <InvitePeopleTour/>}
+            aria-haspopup='true'
+        />
+    );
+
+    let pluggableMenuItems: JSX.Element[] = [];
+    if (pluginMenuItems) {
+        pluggableMenuItems = pluginMenuItems.map((item) => {
+            const handlePluginItemClick = () => {
+                if (item.action) {
+                    item.action(currentTeamId);
+                }
+            };
+
+            return (
+                <Menu.Item
+                    id={item.id + '_pluginmenuitem'}
+                    key={item.id + '_pluginmenuitem'}
+                    onClick={handlePluginItemClick}
+                    leadingElement={item.icon}
+                    labels={<span>{item.text}</span>}
+                />
+            );
+        });
+    }
+
+    return (
+        <Menu.Container
+            menuButton={{
+                id: ELEMENT_ID_FOR_BROWSE_OR_ADD_CHANNEL_MENU_BUTTON,
+                'aria-label': formatMessage({
+                    id: 'sidebarLeft.browserOrCreateChannelMenuButton.label',
+                    defaultMessage: 'Browse or create channels',
+                }),
+                class: 'btn btn-icon btn-sm btn-tertiary btn-inverted btn-round',
+                children: <PlusIcon size={18}/>,
+            }}
+            menuButtonTooltip={{
+                text: formatMessage({id: 'sidebarLeft.browserOrCreateChannelMenuButton.label', defaultMessage: 'Browse or create channels'}),
+            }}
+            menu={{
+                id: 'browserOrAddChannelMenu',
+                'aria-labelledby': ELEMENT_ID_FOR_BROWSE_OR_ADD_CHANNEL_MENU_BUTTON,
+            }}
+        >
+            {createNewChannelMenuItem}
+            {browseChannelsMenuItem}
+            {createUserGroupMenuItem}
+            {pluggableMenuItems}
+            <Menu.Separator/>
+            {invitePeopleMenuItem}
+        </Menu.Container>
+    );
+}

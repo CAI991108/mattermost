@@ -1,0 +1,436 @@
+name: ${COMPOSE_PROJECT_NAME:-iuin}
+
+x-logging: &default-logging
+  driver: local
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+services:
+  gateway:
+    image: ${GATEWAY_IMAGE:-iuin-gateway:1.30.4}
+    build:
+      context: ../..
+      dockerfile: deploy/production/Dockerfile.gateway
+    platform: linux/amd64
+    container_name: iuin-gateway
+    restart: ${IUIN_RESTART_POLICY:-unless-stopped}
+    init: true
+    user: "101:101"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    cpus: ${GATEWAY_CPUS:-2.0}
+    mem_limit: ${GATEWAY_MEMORY:-1g}
+    stop_signal: SIGQUIT
+    stop_grace_period: 30s
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=128m,uid=101,gid=101,mode=700
+    ports:
+      - ${BIND_ADDRESS:-10.22.111.16}:8065:8065/tcp
+    depends_on:
+      iuin-server:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          /usr/bin/wget -q -T 5 -O /dev/null http://127.0.0.1:8065/_gateway/health
+          && /usr/bin/wget -q -T 5 -O /dev/null http://iuin-server:8065/api/v4/system/ping
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+    logging: *default-logging
+    networks:
+      web: {}
+      gateway_publish:
+        gw_priority: 1
+
+  postgres:
+    image: postgres:17.10-alpine3.24@sha256:af194ccf3e2d7fe367012c7b88ce8b816c5c889b18a5b316799a1f0d7eac746a
+    platform: linux/amd64
+    container_name: iuin-postgres
+    restart: ${IUIN_RESTART_POLICY:-unless-stopped}
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    cpus: ${POSTGRES_CPUS:-8.0}
+    mem_limit: ${POSTGRES_MEMORY:-8g}
+    shm_size: 1g
+    stop_grace_period: 2m
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mattermost}
+      POSTGRES_USER: ${POSTGRES_USER:-mattermost}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_INITDB_ARGS: --data-checksums --auth-host=scram-sha-256
+      TZ: ${TZ:-Asia/Shanghai}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=2GB
+      - -c
+      - effective_cache_size=6GB
+      - -c
+      - maintenance_work_mem=512MB
+      - -c
+      - max_connections=400
+      - -c
+      - log_min_duration_statement=1000
+      - -c
+      - log_checkpoints=on
+    secrets:
+      - postgres_password
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT:-/srv/iuin}/postgres
+        target: /var/lib/postgresql/data
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=256m,mode=1777
+      - /run/postgresql:rw,nosuid,nodev,size=16m,uid=70,gid=70,mode=775
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" -h 127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    logging: *default-logging
+    networks:
+      - backend
+
+  minio:
+    image: ${MINIO_IMAGE:-iuin-minio:RELEASE.2025-10-15T17-29-55Z}
+    build:
+      context: ../..
+      dockerfile: deploy/production/Dockerfile.minio
+    platform: linux/amd64
+    container_name: iuin-minio
+    restart: ${IUIN_RESTART_POLICY:-unless-stopped}
+    init: true
+    user: "1000:1000"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 1024
+    cpus: ${MINIO_CPUS:-8.0}
+    mem_limit: ${MINIO_MEMORY:-8g}
+    stop_grace_period: 2m
+    environment:
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+      MINIO_BROWSER: "off"
+      MINIO_REGION_NAME: ${MINIO_REGION:-us-east-1}
+      TZ: ${TZ:-Asia/Shanghai}
+    command: ["server", "/data", "--address", ":9000", "--console-address", ":9001"]
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT:-/srv/iuin}/minio
+        target: /data
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=256m,mode=1777
+    expose:
+      - "9000"
+      - "9001"
+    healthcheck:
+      test: ["CMD", "/usr/bin/wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    logging: *default-logging
+    networks:
+      - backend
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z@sha256:eb4ea9884b77704230e2423e9004d2fa738dc272876b9cc41a297d29443b8780
+    platform: linux/amd64
+    profiles: ["ops"]
+    user: "0:0"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    entrypoint: ["/bin/sh", "/opt/iuin/minio-ops.sh"]
+    command: ["init"]
+    environment:
+      MINIO_BUCKET: ${MINIO_BUCKET:-mattermost}
+    secrets:
+      - minio_root_user
+      - minio_root_password
+      - mattermost_s3_access_key
+      - mattermost_s3_secret_key
+    volumes:
+      - type: bind
+        source: ./minio-ops.sh
+        target: /opt/iuin/minio-ops.sh
+        read_only: true
+      - type: bind
+        source: ${IUIN_SEED_ROOT:-${DATA_ROOT:-/srv/iuin}/seed}/profile/honors
+        target: /seed/profile/honors
+        read_only: true
+      - type: bind
+        source: ${DATA_ROOT:-/srv/iuin}/backups
+        target: /backups
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+      - /root/.mc:rw,noexec,nosuid,nodev,size=16m,mode=700
+    depends_on:
+      minio:
+        condition: service_healthy
+    logging: *default-logging
+    networks:
+      - backend
+
+  mailpit:
+    image: axllent/mailpit:v1.30.4@sha256:5a49a77c5bdbe7c5474450b4f46348d09949df3695257729c93a30369382d4f6
+    platform: linux/amd64
+    container_name: iuin-mailpit
+    restart: ${IUIN_RESTART_POLICY:-unless-stopped}
+    init: true
+    user: "3000:3000"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    cpus: ${MAILPIT_CPUS:-2.0}
+    mem_limit: ${MAILPIT_MEMORY:-1g}
+    stop_grace_period: 30s
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_UI_BIND_ADDR: 0.0.0.0:8025
+      MP_SMTP_BIND_ADDR: ${SMTP_PRIVATE_ADDRESS:-172.30.0.2}:1025
+      MP_UI_AUTH_FILE: /run/secrets/mailpit_ui_auth
+      MP_DISABLE_VERSION_CHECK: "true"
+      MP_LABEL: IUIN-SMTP-Capture
+      MP_MAX_MESSAGES: ${MAILPIT_MAX_MESSAGES:-1000}
+      MP_MAX_AGE: ${MAILPIT_MAX_AGE:-14d}
+      MP_MAX_MESSAGE_SIZE: ${MAILPIT_MAX_MESSAGE_SIZE:-25}
+      MP_SMTP_MAX_RECIPIENTS: ${MAILPIT_SMTP_MAX_RECIPIENTS:-50}
+      MP_SMTP_DISABLE_RDNS: "true"
+      MP_BLOCK_REMOTE_CSS_AND_FONTS: "true"
+      MP_ALLOW_INTERNAL_HTTP_REQUESTS: "false"
+      TZ: ${TZ:-Asia/Shanghai}
+    secrets:
+      - mailpit_ui_auth
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT:-/srv/iuin}/mailpit
+        target: /data
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+    expose:
+      - "1025"
+    ports:
+      - ${BIND_ADDRESS:-10.22.111.16}:8025:8025/tcp
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    logging: *default-logging
+    networks:
+      mail:
+        ipv4_address: ${SMTP_PRIVATE_ADDRESS:-172.30.0.2}
+      mail_ui: {}
+
+  iuin-server:
+    image: ${SERVER_IMAGE:-iuin-server:11.8.3}
+    build:
+      context: ../..
+      dockerfile: deploy/production/Dockerfile
+      args:
+        BUILD_HASH: ${BUILD_HASH:-unknown}
+    platform: linux/amd64
+    container_name: iuin-server
+    restart: ${IUIN_RESTART_POLICY:-unless-stopped}
+    init: true
+    user: "2000:2000"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 4096
+    cpus: ${SERVER_CPUS:-16.0}
+    mem_limit: ${SERVER_MEMORY:-16g}
+    stop_grace_period: 2m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    environment:
+      MM_CONFIG: /mattermost/config/config.json
+      MM_INSTALL_TYPE: docker
+      MM_SERVICESETTINGS_SITEURL: ${SITE_URL:-http://10.22.111.16:8065}
+      MM_SERVICESETTINGS_ENABLEDESKTOPLANDINGPAGE: "false"
+      MM_SERVICESETTINGS_LISTENADDRESS: :8065
+      MM_SERVICESETTINGS_TRUSTEDPROXYIPHEADER: X-Forwarded-For
+      MM_SERVICESETTINGS_ENABLELOCALMODE: "true"
+      MM_SERVICESETTINGS_ENABLEDEVELOPER: "false"
+      MM_SERVICESETTINGS_ENABLETESTING: "false"
+      MM_ANNOUNCEMENTSETTINGS_ADMINNOTICESENABLED: "false"
+      MM_ANNOUNCEMENTSETTINGS_USERNOTICESENABLED: "false"
+      MM_TEAMSETTINGS_SITENAME: ${SITE_NAME:-SAI-NET}
+      MM_TEAMSETTINGS_ENABLEOPENSERVER: "false"
+      MM_TEAMSETTINGS_ENABLEUSERCREATION: "true"
+      MM_EMAILSETTINGS_SENDEMAILNOTIFICATIONS: "true"
+      MM_EMAILSETTINGS_ENABLEPREVIEWMODEBANNER: "false"
+      MM_EMAILSETTINGS_SMTPSERVER: ${SMTP_HOST:-mailpit}
+      MM_EMAILSETTINGS_SMTPPORT: ${SMTP_PORT:-1025}
+      MM_EMAILSETTINGS_ENABLESMTPAUTH: "false"
+      MM_EMAILSETTINGS_CONNECTIONSECURITY: ""
+      MM_EMAILSETTINGS_SKIPSERVERCERTIFICATEVERIFICATION: "false"
+      MM_EMAILSETTINGS_SMTPSERVERTIMEOUT: "10"
+      MM_EMAILSETTINGS_FEEDBACKNAME: ${SMTP_FROM_NAME:-IUIN}
+      MM_EMAILSETTINGS_FEEDBACKEMAIL: ${SMTP_FROM_ADDRESS:-mattermost@iuin.test}
+      MM_EMAILSETTINGS_REPLYTOADDRESS: ${SMTP_REPLY_TO_ADDRESS:-no-reply@iuin.test}
+      MM_SUPPORTSETTINGS_SUPPORTEMAIL: ${SMTP_SUPPORT_ADDRESS:-support@iuin.test}
+      MM_LOGSETTINGS_ENABLECONSOLE: "true"
+      MM_LOGSETTINGS_CONSOLELEVEL: INFO
+      MM_LOGSETTINGS_ENABLEFILE: "false"
+      MM_LOGSETTINGS_ENABLEDIAGNOSTICS: "false"
+      MM_SQLSETTINGS_DRIVERNAME: postgres
+      MM_SQLSETTINGS_DATASOURCE_FILE: /run/secrets/mattermost_db_password
+      MM_SQLSETTINGS_MAXOPENCONNS: "300"
+      MM_SQLSETTINGS_MAXIDLECONNS: "50"
+      POSTGRES_DB: ${POSTGRES_DB:-mattermost}
+      POSTGRES_USER: ${POSTGRES_USER:-mattermost}
+      MM_FILESETTINGS_DRIVERNAME: amazons3
+      MM_FILESETTINGS_AMAZONS3ACCESSKEYID_FILE: /run/secrets/mattermost_s3_access_key
+      MM_FILESETTINGS_AMAZONS3SECRETACCESSKEY_FILE: /run/secrets/mattermost_s3_secret_key
+      MM_FILESETTINGS_AMAZONS3BUCKET: ${MINIO_BUCKET:-mattermost}
+      MM_FILESETTINGS_AMAZONS3REGION: ${MINIO_REGION:-us-east-1}
+      MM_FILESETTINGS_AMAZONS3ENDPOINT: minio:9000
+      MM_FILESETTINGS_AMAZONS3SSL: "false"
+      MM_FILESETTINGS_AMAZONS3SIGNV2: "false"
+      MM_FILESETTINGS_AMAZONS3SSE: "false"
+      MM_FILESETTINGS_ENABLEPUBLICLINK: "false"
+      MM_PLUGINSETTINGS_ENABLE: "true"
+      MM_PLUGINSETTINGS_ENABLEUPLOADS: "false"
+      MM_PLUGINSETTINGS_REQUIREPLUGINSIGNATURE: "true"
+      MM_PLUGINSETTINGS_AUTOMATICPREPACKAGEDPLUGINS: "true"
+      MM_PLUGINSETTINGS_ENABLEMARKETPLACE: "false"
+      MM_PLUGINSETTINGS_ENABLEREMOTEMARKETPLACE: "false"
+      MM_PLUGINSETTINGS_PLUGINSTATES: '{"com.mattermost.calls":{"Enable":true}}'
+      MM_CALLS_UDP_SERVER_ADDRESS: 0.0.0.0
+      MM_CALLS_TCP_SERVER_ADDRESS: 0.0.0.0
+      MM_CALLS_UDP_SERVER_PORT: "8443"
+      MM_CALLS_TCP_SERVER_PORT: "8443"
+      MM_CALLS_ICE_HOST_OVERRIDE: ${BIND_ADDRESS:-10.22.111.16}
+      MM_CALLS_ICE_SERVERS_CONFIGS: "[]"
+      MM_CALLS_DEFAULT_ENABLED: "true"
+      MM_CALLS_MAX_CALL_PARTICIPANTS: "50"
+      MM_CALLS_ALLOW_SCREEN_SHARING: "true"
+      TZ: ${TZ:-Asia/Shanghai}
+    secrets:
+      - mattermost_db_password
+      - mattermost_s3_access_key
+      - mattermost_s3_secret_key
+    volumes:
+      - type: bind
+        source: ${DATA_ROOT:-/srv/iuin}/mattermost/config
+        target: /mattermost/config
+      - type: bind
+        source: ${DATA_ROOT:-/srv/iuin}/mattermost/logs
+        target: /mattermost/logs
+      - type: bind
+        source: ${DATA_ROOT:-/srv/iuin}/mattermost/plugins
+        target: /mattermost/plugins
+      - type: bind
+        source: ${DATA_ROOT:-/srv/iuin}/mattermost/client-plugins
+        target: /mattermost/client/plugins
+      - type: bind
+        source: ${DATA_ROOT:-/srv/iuin}/mattermost/data
+        target: /mattermost/data
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=1g,mode=1777
+      - /var/tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+    expose:
+      - "8065"
+    ports:
+      - ${BIND_ADDRESS:-10.22.111.16}:8443:8443/tcp
+      - ${BIND_ADDRESS:-10.22.111.16}:8443:8443/udp
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/usr/bin/curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8065/api/v4/system/ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 90s
+    logging: *default-logging
+    networks:
+      - backend
+      - egress
+      - mail
+      - web
+
+secrets:
+  postgres_password:
+    file: ${DATA_ROOT:-/srv/iuin}/secrets/postgres_password
+  mattermost_db_password:
+    file: ${DATA_ROOT:-/srv/iuin}/secrets/mattermost_db_password
+  minio_root_user:
+    file: ${DATA_ROOT:-/srv/iuin}/secrets/minio_root_user
+  minio_root_password:
+    file: ${DATA_ROOT:-/srv/iuin}/secrets/minio_root_password
+  mattermost_s3_access_key:
+    file: ${DATA_ROOT:-/srv/iuin}/secrets/mattermost_s3_access_key
+  mattermost_s3_secret_key:
+    file: ${DATA_ROOT:-/srv/iuin}/secrets/mattermost_s3_secret_key
+  mailpit_ui_auth:
+    file: ${DATA_ROOT:-/srv/iuin}/secrets/mailpit_ui_auth
+
+networks:
+  web:
+    internal: true
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-iuin-web
+  gateway_publish:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-iuin-gwpub
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+  backend:
+    internal: true
+  egress: {}
+  mail:
+    internal: true
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-iuin-mail
+    ipam:
+      config:
+        - subnet: ${SMTP_PRIVATE_SUBNET:-172.30.0.0/24}
+  mail_ui:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-iuin-mailui
+      com.docker.network.bridge.enable_ip_masquerade: "false"

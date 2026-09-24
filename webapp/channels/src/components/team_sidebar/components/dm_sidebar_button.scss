@@ -1,0 +1,25 @@
+.dm-sidebar-button-wrapper {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    padding: 4px 0 8px;
+    border-bottom: 1px solid rgba(var(--sidebar-text-rgb), 0.16);
+    margin-bottom: 8px;
+}
+
+.dm-sidebar-button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &__icon {
+        color: rgba(var(--sidebar-text-rgb), 0.64);
+    }
+
+    &__unread-badge {
+        position: absolute;
+        top: -2px;
+        right: -5px;
+    }
+}

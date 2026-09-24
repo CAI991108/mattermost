@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <meta name='robots' content='noindex, nofollow'>
+    <meta name='referrer' content='no-referrer'>
+
+    <title>SAI-NET</title>
+
+    <meta name='mobile-web-app-capable' content='yes'>
+    <meta name='application-name' content='SAI-NET'>
+    <meta name='format-detection' content='telephone=no'>
+
+    <link rel="icon" type="image/png" href="/static/images/favicon/favicon-default-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="/static/images/favicon/favicon-default-24x24.png" sizes="24x24">
+    <link rel="icon" type="image/png" href="/static/images/favicon/favicon-default-32x32.png" sizes="32x32">
+    <link rel="icon" type="image/png" href="/static/images/favicon/favicon-default-64x64.png" sizes="64x64">
+    <link rel="icon" type="image/png" href="/static/images/favicon/favicon-default-96x96.png" sizes="96x96">
+
+    <!-- Initialize subpath empty script for subpath support which will be replaced by server/channels/utils/subpath.go -->
+    <script id="publicPathInWindowScript"></script>
+    <script>
+        (function() {
+            var staticRecoveryKey = 'iuin_static_bundle_recovery_at';
+            var staticRecoveryCooldownMs = 2 * 60 * 1000;
+
+            function shouldAttemptStaticRecovery() {
+                var now = Date.now();
+
+                try {
+                    var lastRecovery = Number(window.sessionStorage.getItem(staticRecoveryKey) || 0);
+
+                    if (lastRecovery && now - lastRecovery < staticRecoveryCooldownMs) {
+                        return false;
+                    }
+
+                    window.sessionStorage.setItem(staticRecoveryKey, String(now));
+                } catch (e) {
+                    // If sessionStorage is unavailable, still try one recovery for this page load.
+                }
+
+                return true;
+            }
+
+            function clearBrowserBundleStateAndReload(params) {
+                var tasks = [];
+
+                if ('caches' in window) {
+                    tasks.push(window.caches.keys().then(function(keys) {
+                        return Promise.all(keys.map(function(key) {
+                            return window.caches.delete(key);
+                        }));
+                    }));
+                }
+
+                if ('serviceWorker' in navigator) {
+                    tasks.push(navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                        return Promise.all(registrations.map(function(registration) {
+                            return registration.unregister();
+                        }));
+                    }));
+                }
+
+                Promise.allSettled(tasks).then(function() {
+                    params.set('cache_bust', String(Date.now()));
+
+                    window.location.replace(window.location.pathname + '?' + params.toString() + window.location.hash);
+                });
+            }
+
+            function getStaticAssetURL(target) {
+                if (!target || target === window) {
+                    return '';
+                }
+
+                if (target.tagName === 'SCRIPT') {
+                    return target.src || '';
+                }
+
+                if (target.tagName === 'LINK' && target.rel === 'stylesheet') {
+                    return target.href || '';
+                }
+
+                return '';
+            }
+
+            function isRecoverableStaticAssetFailure(event) {
+                var assetURL = getStaticAssetURL(event.target);
+
+                if (!assetURL) {
+                    return false;
+                }
+
+                try {
+                    var parsedURL = new URL(assetURL, window.location.href);
+
+                    if (parsedURL.origin !== window.location.origin || parsedURL.pathname.indexOf('/static/') === -1) {
+                        return false;
+                    }
+
+                    return (/\.js$|\.css$/).test(parsedURL.pathname);
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            window.addEventListener('error', function(event) {
+                if (!isRecoverableStaticAssetFailure(event) || !shouldAttemptStaticRecovery()) {
+                    return;
+                }
+
+                event.preventDefault();
+                clearBrowserBundleStateAndReload(new URLSearchParams(window.location.search));
+            }, true);
+
+            var params = new URLSearchParams(window.location.search);
+
+            if (params.has('clear_site')) {
+                params.delete('clear_site');
+                clearBrowserBundleStateAndReload(params);
+            }
+        }());
+    </script>
+
+    <!--
+        This "empty" link element is used as a dynamic inject placeholder for the syntax highlighting css styles:
+        1. The highlight.js lib finds this element by its 'code_theme' class.
+        2. The lib dynamically defines the 'href' attribute and its value to load the required CSS for the detected language by its detection logic.
+        3. This allows it to do at runtime theme switching without having to modify the DOM structure.
+        4. The 'href' attribute is empty to prevent unnecessary HTTP requests.
+    -->
+    <link rel='stylesheet' class='code_theme'>
+</head>
+<body class='font--open_sans enable-animations'>
+    <%= require('html-loader!./components/initial_loading_screen/initial_loading_screen_template.html').default %>
+    <div id='root'></div>
+    <div id='root-portal'></div>
+    <%= require('html-loader!./components/no_script/no_script_template.html').default %>
+</body>
+</html>

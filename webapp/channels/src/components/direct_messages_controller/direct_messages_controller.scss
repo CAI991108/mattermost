@@ -1,0 +1,15 @@
+.direct-messages-controller {
+    display: flex;
+    flex: 1;
+    height: 100%;
+    overflow: hidden;
+
+    // Center area takes all remaining space
+    .inner-wrap {
+        display: flex;
+        flex: 1;
+        min-width: 0;
+        flex-direction: column;
+        overflow: hidden;
+    }
+}
