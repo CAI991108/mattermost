@@ -285,6 +285,22 @@ body.app__body #root {
         }
     }
 
+    // Narrow shell: the single column replaces the desktop chrome, so the global
+    // header must not render. The rule is anchored to the shell tree that owns
+    // `.main-wrapper` instead of to the global header itself: the standalone profile
+    // route (`/u/:username`) renders that same component as its only platform
+    // navigation, so a component-level rule would remove it there as well
+    // (see 开发文档/提交开发文档/14-9cfc73dcb0-profile-global-header.md). The team
+    // sidebar and the app bar already collapse at this width through
+    // responsive/_mobile.scss and components/app_bar/app_bar.scss.
+    &:has(.main-wrapper):not(.console__root) {
+        @media screen and (max-width: 1020px) {
+            #global-header {
+                display: none;
+            }
+        }
+    }
+
     @media screen and (min-width: 1021px) and (max-width: 1200px) {
         &.rhs-open-expanded {
             .sidebar--right--width-holder {

@@ -6,6 +6,7 @@ import type {MouseEvent, KeyboardEvent} from 'react';
 
 import CustomStatusEmoji from 'components/custom_status/custom_status_emoji';
 import CustomStatusModal from 'components/custom_status/custom_status_modal';
+import TeamSwitcher from 'components/team_sidebar/team_switcher';
 
 import {ModalIdentifiers} from 'utils/constants';
 
@@ -32,6 +33,7 @@ export default function MobileSidebarHeader(props: Props) {
     return (
         <div className='mobileSidebarHeader'>
             <h1>{props.teamDisplayName}</h1>
+            <TeamSwitcher/>
             <div className='mobileSidebarHeader__username'>
                 <span>{'@' + props.username}</span>
                 <CustomStatusEmoji
