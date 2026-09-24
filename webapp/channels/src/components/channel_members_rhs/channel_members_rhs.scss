@@ -85,6 +85,14 @@
         }
     }
 
+    // A touch screen has no hover, so the button hover would reveal stays visible (R6).
+    &__member--touch {
+        .channel-members-rhs__send-message {
+            display: block;
+            flex: 0 0 auto;
+        }
+    }
+
     &__avatar-popover {
         display: flex;
         flex: 0 0 auto;

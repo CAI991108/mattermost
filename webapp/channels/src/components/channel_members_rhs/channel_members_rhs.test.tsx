@@ -9,6 +9,8 @@ import {renderWithContext, screen} from 'tests/react_testing_utils';
 import Constants from 'utils/constants';
 
 import ChannelMembersRHS from './channel_members_rhs';
+import type {ChannelMember, ListItem} from './member_list';
+import MemberList, {ListItemType} from './member_list';
 
 // Mock the Redux connected component
 jest.mock('react-redux', () => ({
@@ -186,6 +188,34 @@ describe('channel_members_rhs/channel_members_rhs', () => {
         );
 
         expect(screen.queryByTestId('search-bar')).not.toBeInTheDocument();
+    });
+
+    test('should group admins first and hand the list every name in full', () => {
+        const longName = 'Alexandra The Third Of Her Name';
+        const props = {
+            ...baseProps,
+            channelMembers: [
+                {...baseProps.channelMembers[0], displayName: longName},
+                baseProps.channelMembers[1],
+            ],
+        };
+
+        renderWithContext(
+            <ChannelMembersRHS
+                {...props as any}
+            />,
+        );
+
+        // The last render carries the built list; the first one is still empty.
+        const calls = (MemberList as unknown as jest.Mock).mock.calls;
+        const {members} = calls[calls.length - 1][0];
+
+        expect(members.map((item: ListItem) => (item.type === ListItemType.Member ? (item.data as ChannelMember).displayName : item.type))).toEqual([
+            ListItemType.FirstSeparator,
+            longName,
+            ListItemType.Separator,
+            'User Two',
+        ]);
     });
 
     test('should show alert banner for default channel when editing and not channel admin', () => {

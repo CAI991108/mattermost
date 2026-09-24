@@ -41,3 +41,64 @@
 .entry-view--sidebar .entry-view__header {
     color: rgba(var(--sidebar-text-rgb), 0.64);
 }
+
+.member-sections {
+    display: flex;
+    flex: 0 0 auto;
+    padding: 0 12px 8px;
+    gap: 4px;
+
+    &__tab {
+        display: flex;
+        overflow: hidden;
+        flex: 1 1 0;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 12px;
+        border: 0;
+        border-radius: 4px;
+        background: rgba(var(--center-channel-color-rgb), 0.08);
+        color: rgba(var(--center-channel-color-rgb), 0.75);
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        &--selected {
+            background: rgba(var(--button-bg-rgb), 0.12);
+            color: var(--button-bg);
+        }
+    }
+}
+
+// The member entry renders the views the right-hand panel would otherwise show in a panel, so
+// those views get the column layout the panel scopes to itself and scroll their own lists.
+// The panel's own header is not repeated: the entry carries the header of the current section
+// and the panel's expand control has no meaning here (R6, R7, R11).
+.member-view {
+    .entry-view__body {
+        display: flex;
+        overflow: hidden;
+        flex-direction: column;
+    }
+
+    .sidebar--right__header {
+        display: none;
+    }
+
+    .channel-members-rhs,
+    .SearchResults {
+        display: flex;
+        overflow: hidden;
+        height: 100%;
+        min-height: 0;
+        flex: 1 1 auto;
+        flex-direction: column;
+    }
+
+    [data-simplebar] {
+        min-height: 0;
+        flex: 1 1 auto;
+    }
+}

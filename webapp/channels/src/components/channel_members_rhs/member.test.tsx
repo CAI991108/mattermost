@@ -7,6 +7,9 @@ import type {ChannelType} from '@mattermost/types/channels';
 import type {UserProfile} from '@mattermost/types/users';
 
 import {renderWithContext, screen, waitFor, userEvent} from 'tests/react_testing_utils';
+import {WindowSizes} from 'utils/constants';
+
+import type {GlobalState} from 'types/store';
 
 import Member from './member';
 import type {ChannelMember} from './member_list';
@@ -129,6 +132,11 @@ describe('components/channel_members_rhs/Member', () => {
         },
     };
 
+    const mobileState = {
+        ...initialState,
+        views: {browser: {windowSize: WindowSizes.MOBILE_VIEW, focused: true}},
+    } as unknown as GlobalState;
+
     test('should render local user without shared indicator', () => {
         const localMember = {
             ...baseMember,
@@ -250,6 +258,70 @@ describe('components/channel_members_rhs/Member', () => {
         );
 
         expect(screen.getByText('Guest')).toBeInTheDocument();
+    });
+
+    test('should open the direct message from the row and the profile popover from the avatar on a touch screen', async () => {
+        const openDirectMessage = jest.fn();
+
+        renderWithContext(
+            <>
+                <div id='root-portal'/>
+                <Member
+                    {...baseProps}
+                    actions={{...baseProps.actions, openDirectMessage}}
+                    member={baseMember}
+                />
+            </>,
+            mobileState,
+        );
+
+        const avatar = document.querySelector('.channel-members-rhs__avatar-popover');
+        expect(avatar).not.toBeNull();
+
+        // The whole row opens the direct message...
+        const rowButton = screen.getByText('Test User').closest('button');
+        expect(rowButton).not.toBeNull();
+        await userEvent.click(rowButton as Element);
+        expect(openDirectMessage).toHaveBeenCalledWith(mockUser);
+
+        // ...while the avatar is the separate way into the profile popover.
+        await userEvent.click(avatar as Element);
+        expect(document.querySelector('.user-profile-popover-floating-overlay')).toBeInTheDocument();
+        expect(openDirectMessage).toHaveBeenCalledTimes(1);
+    });
+
+    test('should keep the desktop row contract on a wide screen', () => {
+        renderWithContext(
+            <Member
+                {...baseProps}
+                member={baseMember}
+            />,
+            initialState,
+        );
+
+        expect(screen.getByTestId('memberline-user_id')).not.toHaveClass('channel-members-rhs__member--touch');
+        expect(document.querySelector('.channel-members-rhs__avatar-popover')).toBeNull();
+        expect(document.querySelector('.profileSpan_userInfo')).not.toBeNull();
+    });
+
+    test('should keep the send button and the whole member name reachable on a touch screen', () => {
+        const longNameMember: ChannelMember = {
+            ...baseMember,
+            displayName: 'Alexandra The Third Of Her Name',
+            user: {...mockUser, nickname: 'Alexandra The Third Of Her Name'},
+        };
+
+        renderWithContext(
+            <Member
+                {...baseProps}
+                member={longNameMember}
+            />,
+            mobileState,
+        );
+
+        expect(screen.getByTestId('memberline-user_id')).toHaveClass('channel-members-rhs__member--touch');
+        expect(screen.getByRole('button', {name: 'Send message'})).toBeInTheDocument();
+        expect(screen.getByText('Alexandra The Third Of Her Name')).toBeInTheDocument();
     });
 
     afterEach(() => {

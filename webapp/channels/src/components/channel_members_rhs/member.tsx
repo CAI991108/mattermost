@@ -4,6 +4,7 @@
 import classNames from 'classnames';
 import React, {useEffect} from 'react';
 import {FormattedMessage, useIntl} from 'react-intl';
+import {useSelector} from 'react-redux';
 
 import {WithTooltip} from '@mattermost/shared/components/tooltip';
 import type {Channel} from '@mattermost/types/channels';
@@ -11,6 +12,8 @@ import type {UserProfile} from '@mattermost/types/users';
 
 import {Client4} from 'mattermost-redux/client';
 import {isGuest} from 'mattermost-redux/utils/user_utils';
+
+import {getIsMobileView} from 'selectors/views/browser';
 
 import ChannelMembersDropdown from 'components/channel_members_dropdown';
 import CustomStatusEmoji from 'components/custom_status/custom_status_emoji';
@@ -37,6 +40,7 @@ interface Props {
 
 const Member = ({channel, member, index, totalUsers, editing, actions}: Props) => {
     const {formatMessage} = useIntl();
+    const isMobileView = useSelector(getIsMobileView);
 
     // Fetch remote info when component mounts for remote users
     useEffect(() => {
@@ -46,7 +50,11 @@ const Member = ({channel, member, index, totalUsers, editing, actions}: Props) =
     }, [member.user.remote_id]);
 
     const userProfileSrc = Client4.getProfilePictureUrl(member.user.id, member.user.last_picture_update);
-    const canOpenDirectMessageFromMemberInfo = channel.type === Constants.DM_CHANNEL && !editing;
+
+    // A touch screen has no hover and no room for two separate affordances, so tapping the row
+    // opens the direct message while the avatar alone opens the profile popover. Direct
+    // message channels already behaved that way; the narrow shell extends it to every channel.
+    const rowOpensDirectMessage = !editing && (isMobileView || channel.type === Constants.DM_CHANNEL);
     const dmUnreadCount = member.dmUnreadCount || 0;
 
     const memberInfo = (
@@ -83,12 +91,14 @@ const Member = ({channel, member, index, totalUsers, editing, actions}: Props) =
 
     return (
         <div
-            className='channel-members-rhs__member'
+            className={classNames('channel-members-rhs__member', {
+                'channel-members-rhs__member--touch': isMobileView,
+            })}
             style={{height: '48px'}}
             data-testid={`memberline-${member.user.id}`}
         >
             <span className='ProfileSpan'>
-                {canOpenDirectMessageFromMemberInfo ? (
+                {rowOpensDirectMessage ? (
                     <>
                         <ProfilePopover
                             triggerComponentClass='channel-members-rhs__avatar-popover'
@@ -187,6 +197,10 @@ const Member = ({channel, member, index, totalUsers, editing, actions}: Props) =
                     <button
                         className='channel-members-rhs__send-message'
                         onClick={() => actions.openDirectMessage(member.user)}
+                        aria-label={formatMessage({
+                            id: 'channel_members_rhs.member.send_message',
+                            defaultMessage: 'Send message',
+                        })}
                     >
                         <i className='icon icon-send'/>
                     </button>
