@@ -74,6 +74,21 @@ describe('components/resizable_sidebar/resizable_divider', () => {
         document.body.classList.remove('layout-changing');
     });
 
+    test('should not render the drag handle in the narrow shell, and render it in the wide shell', () => {
+        const narrow = renderWithContext(
+            <TestHarness onResizeEnd={jest.fn()}/>,
+            stateWithWindowSize(WindowSizes.MOBILE_VIEW),
+        );
+        expect(narrow.container.querySelector('#resizableTestDivider')).toBeNull();
+        narrow.unmount();
+
+        renderWithContext(
+            <TestHarness onResizeEnd={jest.fn()}/>,
+            stateWithWindowSize(WindowSizes.SMALL_DESKTOP_VIEW),
+        );
+        expect(document.getElementById('resizableTestDivider')).not.toBeNull();
+    });
+
     test('should cancel an in-progress drag when the window crosses into the narrow shell', () => {
         const onResizeEnd = jest.fn();
         const {store} = renderWithContext(

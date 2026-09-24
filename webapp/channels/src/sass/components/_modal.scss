@@ -456,7 +456,7 @@
                 flex-direction: column;
                 border-radius: 8px;
 
-                @media screen and (max-width: 768px) {
+                @media screen and (max-width: 1020px) {
                     height: calc(100vh - 108px);
                     border-radius: 0;
 

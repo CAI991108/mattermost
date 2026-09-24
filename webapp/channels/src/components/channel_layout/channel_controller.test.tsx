@@ -7,7 +7,9 @@ import {Provider} from 'react-redux';
 
 import * as actions from 'actions/status_actions';
 
-import {renderWithContext} from 'tests/react_testing_utils';
+import {getIsMobileView} from 'selectors/views/browser';
+
+import {renderWithContext, screen, waitFor} from 'tests/react_testing_utils';
 import mockStore from 'tests/test_store';
 import Constants from 'utils/constants';
 import {TestHelper} from 'utils/test_helper';
@@ -25,6 +27,7 @@ jest.mock('components/loading_screen', () => () => <div/>);
 jest.mock('components/unreads_status_handler', () => () => <div/>);
 jest.mock('components/product_notices_modal', () => () => <div/>);
 jest.mock('components/feature_toast/features/mark_all_as_read_toast', () => () => <div/>);
+jest.mock('components/mobile_sidebar_right', () => () => <div data-testid='mobile-sidebar-right'/>);
 jest.mock('plugins/pluggable', () => () => <div/>);
 
 jest.mock('actions/status_actions', () => ({
@@ -36,7 +39,7 @@ jest.mock('mattermost-redux/selectors/entities/general', () => ({
 }));
 
 jest.mock('selectors/views/browser', () => ({
-    getIsMobileView: () => false,
+    getIsMobileView: jest.fn(() => false),
 }));
 
 describe('ChannelController', () => {
@@ -88,6 +91,32 @@ describe('ChannelController', () => {
         });
 
         expect(actions.addVisibleUsersInCurrentChannelAndSelfToStatusPoll).not.toHaveBeenCalled();
+    });
+
+    it('renders the mobile side panel in the narrow shell only', async () => {
+        jest.mocked(getIsMobileView).mockReturnValue(true);
+        const store = mockStore(mockState);
+
+        const narrow = renderWithContext(
+            <Provider store={store}>
+                <ChannelController shouldRenderCenterChannel={true}/>
+            </Provider>,
+        );
+
+        expect(await screen.findByTestId('mobile-sidebar-right')).toBeInTheDocument();
+        narrow.unmount();
+
+        jest.mocked(getIsMobileView).mockReturnValue(false);
+
+        renderWithContext(
+            <Provider store={store}>
+                <ChannelController shouldRenderCenterChannel={true}/>
+            </Provider>,
+        );
+
+        await waitFor(() => {
+            expect(screen.queryByTestId('mobile-sidebar-right')).not.toBeInTheDocument();
+        });
     });
 });
 

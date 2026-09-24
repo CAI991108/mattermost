@@ -10,7 +10,7 @@
     color: white;
     grid-template-columns: 1fr auto 1fr;
 
-    @media screen and (max-width: 768px) {
+    @media screen and (max-width: 1020px) {
         display: flex;
         height: 44px;
         justify-content: flex-start;

@@ -73,7 +73,7 @@
             opacity: 0.7;
             white-space: nowrap;
 
-            @media (max-width: 768px) {
+            @media (max-width: 1020px) {
                 padding-left: 28px !important;
 
                 .mobile-main-menu & {
@@ -138,7 +138,7 @@
                 }
 
                 .icon {
-                    @media (max-width: 768px) {
+                    @media (max-width: 1020px) {
                         top: 10px;
                     }
                 }
