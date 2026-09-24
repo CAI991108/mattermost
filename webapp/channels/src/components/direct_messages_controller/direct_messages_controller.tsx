@@ -10,13 +10,12 @@ import {fetchAllMyChannelMembers, fetchAllMyTeamsChannels} from 'mattermost-redu
 
 import {getIsLhsOpen} from 'selectors/lhs';
 import {getIsRhsOpen} from 'selectors/rhs';
+import {getIsMobileView} from 'selectors/views/browser';
 
 import ResizableLhs from 'components/resizable_sidebar/resizable_lhs';
 
 import DirectMessagesCenter from './direct_messages_center';
 import DirectMessagesSidebar from './direct_messages_sidebar';
-
-import './direct_messages_controller.scss';
 
 type Props = RouteComponentProps<{identifier?: string}>;
 
@@ -31,6 +30,7 @@ export default function DirectMessagesController(props: Props) {
     const dispatch = useDispatch();
     const lhsOpen = useSelector(getIsLhsOpen);
     const rhsOpen = useSelector(getIsRhsOpen);
+    const isMobileView = useSelector(getIsMobileView);
     const [channelsLoaded, setChannelsLoaded] = useState(false);
 
     useEffect(() => {
@@ -64,7 +64,10 @@ export default function DirectMessagesController(props: Props) {
 
     return (
         <>
-            <ResizableLhs id='SidebarContainer'>
+            <ResizableLhs
+                id='SidebarContainer'
+                className={classNames({'move--right': lhsOpen && isMobileView})}
+            >
                 <DirectMessagesSidebar/>
             </ResizableLhs>
             <div

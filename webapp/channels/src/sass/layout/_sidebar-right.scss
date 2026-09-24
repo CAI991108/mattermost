@@ -21,7 +21,7 @@
         min-width: 400px;
 
         &.sidebar--right--width-holder {
-            @media screen and (min-width: 901px) and (max-width: 1200px) {
+            @media screen and (min-width: 1021px) and (max-width: 1200px) {
                 min-width: 304px;
                 max-width: 304px;
             }
@@ -31,7 +31,7 @@
             min-width: unset;
         }
 
-        @media screen and (min-width: 901px) {
+        @media screen and (min-width: 1021px) {
             min-width: 304px;
             max-width: 400px;
         }
@@ -309,6 +309,27 @@
         transition-duration: 250ms;
         transition-property: width, z-index, box-shadow;
         transition-timing-function: ease-in-out;
+    }
+}
+
+// Narrow shell: the right-hand panel is a full-width overlay, so its inner layout is a
+// single column that fills the panel. The 44px tab bar is not part of that form, and
+// neither are the member, pinned-post and file branches it leads to: in the narrow shell
+// those three are reached through the member entry's own segments instead (KTD8).
+@media screen and (max-width: 1020px) {
+    #sidebar-right {
+        .sidebar-right-container-wrapper {
+            height: 100%;
+        }
+
+        .sidebar-right-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        .rhs-tab-bar {
+            display: none;
+        }
     }
 }
 
