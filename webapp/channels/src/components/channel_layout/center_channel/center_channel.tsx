@@ -3,7 +3,7 @@
 
 import classNames from 'classnames';
 import React, {lazy} from 'react';
-import {Route, Switch, Redirect} from 'react-router-dom';
+import {Route, Switch, Redirect, matchPath} from 'react-router-dom';
 
 import {makeAsyncComponent} from 'components/async_load';
 import ChannelIdentifierRouter from 'components/channel_layout/channel_identifier_router';
@@ -45,6 +45,20 @@ const ChannelEntryRouter = makeAsyncComponent('ChannelEntryRouter', lazy(() => i
 
 type Props = PropsFromRedux & OwnProps;
 
+// The narrow shell's entries (the channel list, the member list, the mention list) are pages of
+// their own: each carries its own header, and the shell's bottom bar is their navigation. The
+// channel header is drawn over the content for the message view, so on an entry page it would
+// cover the page's own first rows and repeat a title the entry already shows.
+const ENTRY_PATHS = [
+    `/:team(${TEAM_NAME_PATH_PATTERN})/channels`,
+    `/:team(${TEAM_NAME_PATH_PATTERN})/:path(channels)/:identifier(${IDENTIFIER_PATH_PATTERN})/members`,
+    `/:team(${TEAM_NAME_PATH_PATTERN})/:path(channels)/:identifier(${IDENTIFIER_PATH_PATTERN})/mentions`,
+];
+
+function isEntryPage(pathname: string) {
+    return ENTRY_PATHS.some((path) => matchPath(pathname, {path, exact: true}) !== null);
+}
+
 type State = {
     returnTo: string;
     lastReturnTo: string;
@@ -77,6 +91,7 @@ export default class CenterChannel extends React.PureComponent<Props, State> {
     render() {
         const {lastChannelPath, isCollapsedThreadsEnabled, isMobileView} = this.props;
         const url = this.props.match.url;
+        const showChannelHeader = isMobileView && !isEntryPage(this.props.location.pathname);
 
         return (
             <div
@@ -87,16 +102,22 @@ export default class CenterChannel extends React.PureComponent<Props, State> {
                     'move--left-small': this.props.rhsMenuOpen,
                 })}
             >
-                {isMobileView && <MobileChannelHeader/>}
+                {showChannelHeader && <MobileChannelHeader/>}
                 <div className='row main'>
                     <Switch>
+                        {/*
+                            The channel list entry only exists for the narrow shell, where it replaces
+                            the off-canvas left sidebar. On a wide screen the sidebar is already on
+                            screen, so this URL would show the same list twice; send it to the channel
+                            the user last read instead.
+                        */}
                         <Route
                             exact={true}
                             path={`/:team(${TEAM_NAME_PATH_PATTERN})/channels`}
-                            component={ChannelListView}
+                            render={() => (isMobileView ? <ChannelListView/> : <Redirect to={lastChannelPath}/>)}
                         />
                         <Route
-                            path={`/:team(${TEAM_NAME_PATH_PATTERN})/channels/:identifier(${IDENTIFIER_PATH_PATTERN})/members`}
+                            path={`/:team(${TEAM_NAME_PATH_PATTERN})/:path(channels)/:identifier(${IDENTIFIER_PATH_PATTERN})/members`}
                             render={(props) => (
                                 <ChannelEntryRouter {...props}>
                                     <MemberView/>
@@ -104,7 +125,7 @@ export default class CenterChannel extends React.PureComponent<Props, State> {
                             )}
                         />
                         <Route
-                            path={`/:team(${TEAM_NAME_PATH_PATTERN})/channels/:identifier(${IDENTIFIER_PATH_PATTERN})/mentions`}
+                            path={`/:team(${TEAM_NAME_PATH_PATTERN})/:path(channels)/:identifier(${IDENTIFIER_PATH_PATTERN})/mentions`}
                             render={(props) => (
                                 <ChannelEntryRouter {...props}>
                                     <MentionView/>

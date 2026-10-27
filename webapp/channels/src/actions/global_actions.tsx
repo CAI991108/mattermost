@@ -36,6 +36,7 @@ import {closeRightHandSide, closeMenu as closeRhsMenu, updateRhsState, showChann
 import * as WebsocketActions from 'actions/websocket_actions';
 import {getCurrentLocale} from 'selectors/i18n';
 import {getIsRhsOpen, getPreviousRhsState, getRhsState} from 'selectors/rhs';
+import {getIsMobileView} from 'selectors/views/browser';
 import BrowserStore from 'stores/browser_store';
 import LocalStorageStore from 'stores/local_storage_store';
 import store from 'stores/redux_store';
@@ -123,13 +124,18 @@ export function emitChannelClickEvent(channel: Channel) {
         // LZX: 进入频道/DM 时默认打开 RHS Tab
         // - 普通频道：默认打开成员 Tab
         // - DM/GM：默认打开置顶 Tab（详情功能保留，但不再作为 RHS TabBar 入口）
+        // 底部导航的入口页（成员/通知/频道）在挂载时会抑制 RHS，此时不要自动打开，
+        // 否则窄屏下整屏的 RHS 会盖住入口页本身。
         const currentRhsState = getRhsState(state);
         const isChannelTabView = currentRhsState === RHSStates.CHANNEL_INFO ||
             currentRhsState === RHSStates.CHANNEL_MEMBERS ||
             currentRhsState === RHSStates.PIN ||
             currentRhsState === RHSStates.CHANNEL_FILES;
 
-        if (!isRHSOpened || isChannelTabView) {
+        // LZX: 窄屏（底部导航壳）不自动打开 RHS。窄屏下 RHS 是整屏覆盖层，
+        // 一打开就把聊天/入口页全盖住，且没有直观的退出路径；成员、置顶、文件
+        // 改由底部 Members 入口页的三个标签承载。
+        if ((!isRHSOpened || isChannelTabView) && !state.views.rhsSuppressed && !getIsMobileView(state)) {
             // LZX: DM/GM 进入时默认打开置顶 Tab（成员/详情 Tab 在 DM 下不作为入口显示）
             // 普通频道进入时默认打开成员 Tab
             if (isDirectOrGroupMessage) {

@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {act} from '@testing-library/react';
+import {createMemoryHistory} from 'history';
 import React from 'react';
 import {Provider} from 'react-redux';
 
@@ -21,7 +22,8 @@ import ChannelController, {getClassnamesForBody} from './channel_controller';
 let mockState: GlobalState;
 
 jest.mock('components/reset_status_modal', () => () => <div/>);
-jest.mock('components/sidebar', () => () => <div/>);
+
+jest.mock('components/sidebar', () => () => <div data-testid='sidebar'/>);
 jest.mock('components/channel_layout/center_channel', () => () => <div/>);
 jest.mock('components/loading_screen', () => () => <div/>);
 jest.mock('components/unreads_status_handler', () => () => <div/>);
@@ -116,6 +118,38 @@ describe('ChannelController', () => {
 
         await waitFor(() => {
             expect(screen.queryByTestId('mobile-sidebar-right')).not.toBeInTheDocument();
+        });
+    });
+
+    describe('channel list ownership', () => {
+        const renderAt = (pathname: string) => {
+            const history = createMemoryHistory({initialEntries: [pathname]});
+            renderWithContext(
+                <ChannelController shouldRenderCenterChannel={true}/>,
+                {},
+                {history},
+            );
+        };
+
+        it('leaves the sidebar list to the channels entry in the narrow shell', () => {
+            jest.mocked(getIsMobileView).mockReturnValue(true);
+            renderAt('/cai/channels');
+
+            expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument();
+        });
+
+        it('keeps the sidebar in the narrow shell outside the channels entry', () => {
+            jest.mocked(getIsMobileView).mockReturnValue(true);
+            renderAt('/cai/channels/town-square');
+
+            expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+        });
+
+        it('keeps the sidebar outside the narrow shell', () => {
+            jest.mocked(getIsMobileView).mockReturnValue(false);
+            renderAt('/cai/channels');
+
+            expect(screen.getByTestId('sidebar')).toBeInTheDocument();
         });
     });
 });

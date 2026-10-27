@@ -4,6 +4,7 @@
 import classNames from 'classnames';
 import React, {lazy, useEffect} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
+import {matchPath, useLocation} from 'react-router-dom';
 
 import {cleanUpStatusAndProfileFetchingPoll} from 'mattermost-redux/actions/status_profile_polling';
 import {getIsUserStatusesConfigEnabled} from 'mattermost-redux/selectors/entities/common';
@@ -38,6 +39,13 @@ export default function ChannelController(props: Props) {
     const enabledUserStatuses = useSelector(getIsUserStatusesConfigEnabled);
     const enableMarkAllReadShortcut = useGetFeatureFlagValue('EnableShiftEscapeToMarkAllRead') === 'true';
     const dispatch = useDispatch();
+
+    // In the narrow shell the "channels" entry renders the channel list itself, in the only column
+    // the shell has, and the entry owns the header, so nothing can open the off-canvas sidebar on
+    // that page. Mounting it anyway would give the page a second copy of the list, its ids and its
+    // drop targets.
+    const {pathname} = useLocation();
+    const channelListEntryOwnsSidebar = isMobileView && Boolean(matchPath(pathname, {path: '/:team/channels', exact: true}));
 
     useEffect(() => {
         const {navigator} = window;
@@ -74,7 +82,7 @@ export default function ChannelController(props: Props) {
         <>
             <CRTPostsChannelResetWatcher/>
             <QueryParamActionController/>
-            <Sidebar/>
+            {!channelListEntryOwnsSidebar && <Sidebar/>}
             <div
                 id='channel_view'
                 className='channel-view'

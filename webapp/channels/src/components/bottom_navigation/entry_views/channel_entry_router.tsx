@@ -10,7 +10,11 @@ import {onChannelByIdentifierEnter} from 'components/channel_layout/channel_iden
 export type EntryRouteParams = {
     identifier: string;
     team: string;
-    path?: string;
+
+    // The channel routes carry the same `channels` path segment the message routes do, so the
+    // identifier resolves through the shared channel-identifier actions (see
+    // channel_layout/center_channel/center_channel.tsx).
+    path: string;
 };
 
 type Props = RouteComponentProps<EntryRouteParams> & {

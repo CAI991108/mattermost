@@ -4,7 +4,10 @@
 $sidebarHeightTransitionDuration: 0.18s;
 $sidebarOpacityAnimationDuration: 0.15s;
 
-#SidebarContainer {
+// The narrow shell's channel list entry mounts the list outside the sidebar, so it takes the same
+// styles through a class instead of the sidebar's id (see entry_views.scss for the width overrides).
+#SidebarContainer,
+.SidebarContainer--inline {
     position: relative;
     z-index: 16;
     left: 0;

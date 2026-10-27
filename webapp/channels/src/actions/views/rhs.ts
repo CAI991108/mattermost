@@ -114,10 +114,20 @@ export function goBack(): ActionFuncAsync<boolean> {
         const channel = getCurrentChannel(state);
         const isDirectOrGroupMessage = channel?.type === Constants.DM_CHANNEL || channel?.type === Constants.GM_CHANNEL;
         const defaultTab = isDirectOrGroupMessage ? RHSStates.PIN : RHSStates.CHANNEL_MEMBERS;
+        const nextState = prevState || defaultTab;
+
+        // When the state to return to is the one already showing there is nowhere to go back to,
+        // so the control would be a no-op. Closing the panel is what the back control means at
+        // that point, and in the narrow shell the panel covers the whole app, which makes it the
+        // only way out of it.
+        if (nextState === getRhsState(state)) {
+            dispatch(closeRightHandSide());
+            return {data: true};
+        }
 
         dispatch({
             type: ActionTypes.RHS_GO_BACK,
-            state: prevState || defaultTab,
+            state: nextState,
         });
 
         return {data: true};
