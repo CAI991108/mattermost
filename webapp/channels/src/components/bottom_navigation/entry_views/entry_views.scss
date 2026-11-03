@@ -40,48 +40,121 @@
     color: rgba(var(--sidebar-text-rgb), 0.64);
 }
 
-// The channel list and its navigator are styled by the rules scoped to the sidebar's container, so
-// the entry mounts them under the same contract (SidebarContainer--inline) and only widens them:
-// the page fills the one column the narrow shell has, where that container is a 240px drawer.
-.channel-list-view > .SidebarContainer--inline {
-    overflow: hidden;
-    width: 100%;
-    height: auto;
-    min-width: 0;
-    max-width: none;
-    min-height: 0;
-    flex: 1 1 auto;
-    margin-top: 8px;
-}
-
-.member-sections {
+// Both second level selectors in the entry layer - the member sections and the chat list filters -
+// are the same control, so they share one set of rules instead of drifting apart (R7, R9).
+.member-sections,
+.chat-list__filters {
     display: flex;
     flex: 0 0 auto;
     padding: 0 12px 8px;
     gap: 4px;
+}
 
-    &__tab {
+.member-sections__tab,
+.chat-list__filter {
+    display: flex;
+    overflow: hidden;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 4px;
+    background: rgba(var(--center-channel-color-rgb), 0.08);
+    color: rgba(var(--center-channel-color-rgb), 0.75);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.member-sections__tab--selected,
+.chat-list__filter--selected {
+    background: rgba(var(--button-bg-rgb), 0.12);
+    color: var(--button-bg);
+}
+
+// One list of conversations: a row is a link, its name takes the room the badge and the mute
+// marker do not need, and a muted row keeps its place and its contrast instead of being hidden.
+.chat-list__body {
+    padding-bottom: 16px;
+}
+
+.chat-list-row {
+    display: flex;
+    min-height: 48px;
+    align-items: center;
+    padding: 0 16px;
+    color: rgba(var(--center-channel-color-rgb), 0.9);
+    gap: 10px;
+    text-decoration: none;
+
+    &:hover,
+    &:focus {
+        background: rgba(var(--center-channel-color-rgb), 0.04);
+        text-decoration: none;
+    }
+
+    &__icon {
         display: flex;
+        flex: 0 0 auto;
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+    }
+
+    &__name {
         overflow: hidden;
-        flex: 1 1 0;
-        align-items: center;
-        justify-content: center;
-        padding: 6px 12px;
-        border: 0;
-        border-radius: 4px;
-        background: rgba(var(--center-channel-color-rgb), 0.08);
-        color: rgba(var(--center-channel-color-rgb), 0.75);
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: 600;
+        flex: 1 1 auto;
+        font-size: 14px;
         text-overflow: ellipsis;
         white-space: nowrap;
-
-        &--selected {
-            background: rgba(var(--button-bg-rgb), 0.12);
-            color: var(--button-bg);
-        }
     }
+
+    &__muted {
+        display: flex;
+        flex: 0 0 auto;
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+    }
+
+    &__badge {
+        min-width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
+        padding: 0 6px;
+        border-radius: 10px;
+        background: var(--button-bg);
+        color: var(--button-color);
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 20px;
+        text-align: center;
+    }
+
+    &--muted &__name {
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+    }
+}
+
+.chat-list__empty {
+    padding: 24px 16px;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: 13px;
+    text-align: center;
+}
+
+.chat-list__browse {
+    display: flex;
+    width: 100%;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 8px;
+    border: 0;
+    background: transparent;
+    color: var(--button-bg);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
 }
 
 // The member entry renders the views the right-hand panel would otherwise show in a panel, so

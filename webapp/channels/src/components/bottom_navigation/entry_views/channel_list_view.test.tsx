@@ -3,45 +3,85 @@
 
 import React from 'react';
 
-import {fetchMyCategories} from 'mattermost-redux/actions/channel_categories';
-
-import {renderWithContext, screen} from 'tests/react_testing_utils';
+import {renderWithContext, screen, userEvent} from 'tests/react_testing_utils';
 import {TestHelper} from 'utils/test_helper';
 
 import ChannelListView from './channel_list_view';
 
 jest.mock('components/team_sidebar/team_switcher', () => () => <div data-testid='teamSwitcher'/>);
-jest.mock('components/sidebar/channel_navigator', () => () => <div data-testid='channelNavigator'/>);
-jest.mock('components/sidebar/sidebar_list', () => () => <div data-testid='sidebarList'/>);
-jest.mock('mattermost-redux/actions/channel_categories', () => ({
-    fetchMyCategories: jest.fn((teamId: string) => ({type: 'MOCK_FETCH_CATEGORIES', teamId})),
+jest.mock('components/browse_channels', () => () => <div data-testid='browseChannelsModal'/>);
+jest.mock('actions/views/modals', () => ({
+    openModal: jest.fn(() => ({type: 'MOCK_OPEN_MODAL'})),
 }));
 
 describe('components/bottom_navigation/entry_views/ChannelListView', () => {
+    const currentUserId = 'user1';
     const team = TestHelper.getTeamMock({id: 'team_id', name: 'cai'});
 
-    const initialState = {
-        entities: {
-            teams: {
-                currentTeamId: team.id,
-                teams: {[team.id]: team},
+    const alpha = TestHelper.getChannelMock({id: 'channel-alpha', type: 'O', name: 'alpha', display_name: 'Alpha', team_id: team.id, last_post_at: 100});
+    const dm = TestHelper.getChannelMock({id: 'channel-dm', type: 'D', name: `${currentUserId}__user2`, team_id: '', last_post_at: 300});
+
+    function buildState(channels = [alpha, dm]) {
+        const channelMap: Record<string, typeof alpha> = {};
+        const members: Record<string, ReturnType<typeof TestHelper.getChannelMembershipMock>> = {};
+
+        channels.forEach((channel) => {
+            channelMap[channel.id] = channel;
+            members[channel.id] = TestHelper.getChannelMembershipMock({channel_id: channel.id, user_id: currentUserId});
+        });
+
+        return {
+            entities: {
+                channels: {channels: channelMap, myMembers: members},
+                users: {
+                    currentUserId,
+                    profiles: {
+                        [currentUserId]: TestHelper.getUserMock({id: currentUserId, username: 'me'}),
+                        user2: TestHelper.getUserMock({id: 'user2', username: 'alice'}),
+                    },
+                },
+                teams: {currentTeamId: team.id, teams: {[team.id]: team}},
             },
-        },
-    };
+        };
+    }
 
-    test('carries the channel list the narrow shell shows in its one column', () => {
-        renderWithContext(<ChannelListView/>, initialState);
+    test('lists every conversation in one column, newest activity first', () => {
+        renderWithContext(<ChannelListView/>, buildState());
 
-        expect(screen.getByTestId('channelListView')).toBeInTheDocument();
-        expect(screen.getByText('Channels')).toBeInTheDocument();
+        expect(screen.getByTestId('chatListView')).toBeInTheDocument();
         expect(screen.getByTestId('teamSwitcher')).toBeInTheDocument();
-        expect(screen.getByTestId('channelNavigator')).toBeInTheDocument();
-        expect(screen.getAllByTestId('sidebarList')).toHaveLength(1);
+
+        const rows = screen.getAllByTestId(/^chatListRow-/);
+        expect(rows.map((row) => row.textContent)).toEqual(['alice', 'Alpha']);
     });
 
-    test('loads the categories the list is grouped by, since the sidebar does not mount here', () => {
-        renderWithContext(<ChannelListView/>, initialState);
+    test('narrows the same list with the filter instead of switching pages', async () => {
+        renderWithContext(<ChannelListView/>, buildState());
 
-        expect(fetchMyCategories).toHaveBeenCalledWith(team.id);
+        await userEvent.click(screen.getByTestId('chatFilter-channels'));
+
+        expect(screen.getAllByTestId(/^chatListRow-/)).toHaveLength(1);
+        expect(screen.getByText('Alpha')).toBeInTheDocument();
+        expect(screen.queryByText('alice')).not.toBeInTheDocument();
+        expect(screen.getByTestId('chatFilter-channels')).toHaveAttribute('aria-selected', 'true');
+    });
+
+    test('shows the empty state when the filter has nothing to show', async () => {
+        renderWithContext(<ChannelListView/>, buildState([alpha]));
+
+        await userEvent.click(screen.getByTestId('chatFilter-direct'));
+
+        expect(screen.getByTestId('chatListEmpty')).toBeInTheDocument();
+        expect(screen.queryAllByTestId(/^chatListRow-/)).toHaveLength(0);
+    });
+
+    test('keeps a way to join more channels at the end of the list', async () => {
+        const {openModal} = jest.requireMock('actions/views/modals');
+
+        renderWithContext(<ChannelListView/>, buildState());
+
+        await userEvent.click(screen.getByTestId('chatListBrowseChannels'));
+
+        expect(openModal).toHaveBeenCalledWith(expect.objectContaining({modalId: 'more_channels'}));
     });
 });
