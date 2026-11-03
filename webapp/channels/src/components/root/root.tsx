@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
 import classNames from 'classnames';
@@ -436,6 +436,14 @@ export default class Root extends React.PureComponent<Props, State> {
                                             component={IuinProfilePage}
                                         />
                                     </Switch>
+                                    {/*
+                                        The profile page renders outside the channel shell, so it
+                                        carries its own instance of the narrow bar. The two mounts
+                                        are mutually exclusive: this one only exists on the
+                                        profile branch, and the one below only on the shell branch
+                                        (KTD5, R14).
+                                    */}
+                                    <BottomNavigation/>
                                 </div>
                                 <GlobalClassificationBanner position='bottom'/>
                                 <Pluggable pluggableName='Global'/>

@@ -17,6 +17,16 @@
     grid-area: main;
 }
 
+// The profile page lives outside the channel shell, so it carries its own instance of the narrow
+// bar (KTD5, R14). That instance is pinned to the viewport rather than to this container: the page
+// stretches to a full viewport already and a banner above it would otherwise push the bar below the
+// fold. The shell's own scroller reserves 56px at its bottom edge, so the page takes no second one.
+@media screen and (max-width: 1020px) {
+    .iuin-profile-route-main .bottom-navigation {
+        position: fixed;
+    }
+}
+
 .iuin-profile-page--loading {
     display: flex;
     min-height: 320px;
