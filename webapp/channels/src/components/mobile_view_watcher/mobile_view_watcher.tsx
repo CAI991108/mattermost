@@ -12,7 +12,6 @@ type Props = PropsFromRedux;
 export default function MobileViewWatcher(props: Props) {
     const desktopMediaQuery = useRef(window.matchMedia(`(min-width: ${Constants.DESKTOP_SCREEN_WIDTH + 1}px)`));
     const smallDesktopMediaQuery = useRef(window.matchMedia(`(min-width: ${Constants.TABLET_SCREEN_WIDTH + 1}px) and (max-width: ${Constants.DESKTOP_SCREEN_WIDTH}px)`));
-    const tabletMediaQuery = useRef(window.matchMedia(`(min-width: ${Constants.MOBILE_SCREEN_WIDTH + 1}px) and (max-width: ${Constants.TABLET_SCREEN_WIDTH}px)`));
     const mobileMediaQuery = useRef(window.matchMedia(`(max-width: ${Constants.MOBILE_SCREEN_WIDTH}px)`));
 
     const previousIsMobileView = useRef<boolean | null>(null);
@@ -23,8 +22,6 @@ export default function MobileViewWatcher(props: Props) {
             windowSize = WindowSizes.DESKTOP_VIEW;
         } else if (smallDesktopMediaQuery.current.matches) {
             windowSize = WindowSizes.SMALL_DESKTOP_VIEW;
-        } else if (tabletMediaQuery.current.matches) {
-            windowSize = WindowSizes.TABLET_VIEW;
         } else if (mobileMediaQuery.current.matches) {
             windowSize = WindowSizes.MOBILE_VIEW;
         }
@@ -60,13 +57,11 @@ export default function MobileViewWatcher(props: Props) {
 
         desktopMediaQuery.current.addEventListener('change', handleMediaQueryChangeEvent);
         smallDesktopMediaQuery.current.addEventListener('change', handleMediaQueryChangeEvent);
-        tabletMediaQuery.current.addEventListener('change', handleMediaQueryChangeEvent);
         mobileMediaQuery.current.addEventListener('change', handleMediaQueryChangeEvent);
 
         return () => {
             desktopMediaQuery.current.removeEventListener('change', handleMediaQueryChangeEvent);
             smallDesktopMediaQuery.current.removeEventListener('change', handleMediaQueryChangeEvent);
-            tabletMediaQuery.current.removeEventListener('change', handleMediaQueryChangeEvent);
             mobileMediaQuery.current.removeEventListener('change', handleMediaQueryChangeEvent);
         };
     }, [updateWindowSize]);
