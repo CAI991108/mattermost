@@ -6,8 +6,10 @@ import type {ReactNode} from 'react';
 import React from 'react';
 import {useIntl} from 'react-intl';
 import {useSelector} from 'react-redux';
+import {Link} from 'react-router-dom';
 
 import ChevronDownIcon from '@mattermost/compass-icons/components/chevron-down';
+import DotsHorizontalIcon from '@mattermost/compass-icons/components/dots-horizontal';
 import type {UserProfile} from '@mattermost/types/users';
 
 import {
@@ -17,6 +19,7 @@ import {
     isCurrentChannelMuted,
 } from 'mattermost-redux/selectors/entities/channels';
 import {getLicense} from 'mattermost-redux/selectors/entities/general';
+import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
 import {
     getCurrentUser,
 } from 'mattermost-redux/selectors/entities/users';
@@ -52,6 +55,7 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
 
     const user = useSelector(getCurrentUser);
     const channel = useSelector(getCurrentChannel);
+    const team = useSelector(getCurrentTeam);
     const isDefault = useSelector(isCurrentChannelDefault);
     const isMuted = useSelector(isCurrentChannelMuted);
     const isLicensedForLDAPGroups = useSelector(getLicense).LDAPGroups === 'true';
@@ -104,41 +108,8 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
         });
     }
 
-    return (
-        <Menu.Container
-            menuButtonTooltip={{
-                text: channelTitle as string,
-            }}
-            menuButton={{
-                id: 'channelHeaderDropdownButton',
-                class: classNames('channel-header__trigger style--none'),
-                children: (
-                    <>
-                        {archivedIcon}
-                        <strong
-                            id='channelHeaderTitle'
-                            className='heading'
-                        >
-                            {channelTitle as string}
-                        </strong>
-                        {sharedIcon}
-                        <ChevronDownIcon size={16}/>
-                    </>
-                ),
-                'aria-label': ariaLabel.toLowerCase(),
-            }}
-            menu={{
-                id: 'channelHeaderDropdownMenu',
-            }}
-            transformOrigin={{
-                horizontal: 'left',
-                vertical: 'top',
-            }}
-            anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'left',
-            }}
-        >
+    const menuContent = (
+        <>
             {isDirect && (
                 <ChannelDirectMenu
                     channel={channel}
@@ -181,6 +152,98 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
                 pluginItems={pluginItems}
                 channel={channel}
             />
+        </>
+    );
+
+    // On a narrow screen the title is the only way into the conversation's information page, and
+    // the menu the title used to carry is still the only way to reach mute, leave, archive and the
+    // bookmarks. The title becomes the link; the menu moves to its own button beside it. Direct
+    // and group messages keep the title trigger, because their information page is still the
+    // channel info panel (KTD4, R10).
+    const isChannelConversation = !isDirect && !isGroup;
+
+    if (isMobile && isChannelConversation && team) {
+        return (
+            <>
+                <Link
+                    to={`/${team.name}/channels/${channel.name}/members`}
+                    className='channel-header__trigger channel-header__title-link style--none'
+                    data-testid='channelHeaderTitleLink'
+                    aria-label={ariaLabel.toLowerCase()}
+                >
+                    {archivedIcon}
+                    <strong
+                        id='channelHeaderTitle'
+                        className='heading'
+                    >
+                        {channelTitle as string}
+                    </strong>
+                    {sharedIcon}
+                </Link>
+                <Menu.Container
+                    menuButton={{
+                        id: 'channelHeaderDotMenuButton',
+                        class: classNames('channel-header__dot-menu', 'style--none'),
+                        children: <DotsHorizontalIcon size={18}/>,
+                        'aria-label': intl.formatMessage({
+                            id: 'channel_header.channel_menu',
+                            defaultMessage: 'Channel menu',
+                        }),
+                    }}
+                    menu={{
+                        id: 'channelHeaderDropdownMenu',
+                    }}
+                    transformOrigin={{
+                        horizontal: 'right',
+                        vertical: 'top',
+                    }}
+                    anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'right',
+                    }}
+                >
+                    {menuContent}
+                </Menu.Container>
+            </>
+        );
+    }
+
+    return (
+        <Menu.Container
+            menuButtonTooltip={{
+                text: channelTitle as string,
+            }}
+            menuButton={{
+                id: 'channelHeaderDropdownButton',
+                class: classNames('channel-header__trigger style--none'),
+                children: (
+                    <>
+                        {archivedIcon}
+                        <strong
+                            id='channelHeaderTitle'
+                            className='heading'
+                        >
+                            {channelTitle as string}
+                        </strong>
+                        {sharedIcon}
+                        <ChevronDownIcon size={16}/>
+                    </>
+                ),
+                'aria-label': ariaLabel.toLowerCase(),
+            }}
+            menu={{
+                id: 'channelHeaderDropdownMenu',
+            }}
+            transformOrigin={{
+                horizontal: 'left',
+                vertical: 'top',
+            }}
+            anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'left',
+            }}
+        >
+            {menuContent}
         </Menu.Container>
     );
 }

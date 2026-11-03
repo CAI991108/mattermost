@@ -2,10 +2,15 @@
 // See LICENSE.txt for license information.
 
 import React, {useEffect, useState} from 'react';
+import {useIntl} from 'react-intl';
 import {useDispatch, useSelector} from 'react-redux';
+import {Link} from 'react-router-dom';
+
+import ChevronLeftIcon from '@mattermost/compass-icons/components/chevron-left';
 
 import {getCurrentChannel} from 'mattermost-redux/selectors/entities/channels';
 import {getIsCrossTeamSearchEnabled} from 'mattermost-redux/selectors/entities/general';
+import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
 
 import {closeRightHandSide, showChannelFiles, showPinnedPosts} from 'actions/views/rhs';
 import {getIsRhsExpanded} from 'selectors/rhs';
@@ -16,7 +21,7 @@ import SearchResults from 'components/search_results';
 
 import {ActionTypes} from 'utils/constants';
 
-import MemberSectionsSelector, {MEMBER_SECTION_LABELS} from './member_sections_selector';
+import MemberSectionsSelector from './member_sections_selector';
 import type {MemberSection} from './member_sections_selector';
 
 import './entry_views.scss';
@@ -29,9 +34,11 @@ import './entry_views.scss';
  */
 export default function MemberView() {
     const dispatch = useDispatch();
+    const intl = useIntl();
     const [section, setSection] = useState<MemberSection>('members');
 
     const channel = useSelector(getCurrentChannel);
+    const team = useSelector(getCurrentTeam);
     const channelId = channel?.id;
     const channelDisplayName = channel?.display_name ?? '';
     const isRhsExpanded = useSelector(getIsRhsExpanded);
@@ -109,14 +116,30 @@ export default function MemberView() {
         }
     };
 
+    const backTo = channel && team ? `/${team.name}/channels/${channel.name}` : '/';
+
     return (
         <div
             className='entry-view member-view'
             data-testid='memberView'
         >
-            <div className='entry-view__header'>
+            <div className='entry-view__header entry-view__header--navigable'>
+                <Link
+                    to={backTo}
+                    className='entry-view__back'
+                    data-testid='memberViewBack'
+                    aria-label={intl.formatMessage({
+                        id: 'entry_view.back_to_conversation',
+                        defaultMessage: 'Back to conversation',
+                    })}
+                >
+                    <ChevronLeftIcon size={20}/>
+                </Link>
                 <span className='entry-view__title'>
-                    {MEMBER_SECTION_LABELS[section]}
+                    {intl.formatMessage({
+                        id: 'entry_view.conversation_info',
+                        defaultMessage: 'Conversation info',
+                    })}
                 </span>
             </div>
             <MemberSectionsSelector

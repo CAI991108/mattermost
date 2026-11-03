@@ -1,4 +1,4 @@
-﻿@use "utils/functions";
+@use "utils/functions";
 @use "utils/mixins";
 @use "utils/variables";
 
@@ -7,6 +7,35 @@
         .navbar-default {
             .navbar-brand {
                 margin-left: 0;
+
+                // The title leads to the conversation information page and the menu it used to
+                // carry moves to its own button beside it (KTD4, R10).
+                .channel-header__title-link {
+                    display: flex;
+                    overflow: hidden;
+                    min-width: 0;
+                    flex: 1 1 auto;
+                    align-items: center;
+                    color: inherit;
+                    text-decoration: none;
+
+                    .heading {
+                        min-width: 0;
+                    }
+                }
+
+                .channel-header__dot-menu {
+                    display: flex;
+                    width: 44px;
+                    height: 44px;
+                    flex: 0 0 44px;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0;
+                    border: 0;
+                    margin-left: 4px;
+                    background: transparent;
+                }
             }
 
             .navbar-header {

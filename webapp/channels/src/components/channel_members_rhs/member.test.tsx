@@ -302,6 +302,7 @@ describe('components/channel_members_rhs/Member', () => {
         expect(screen.getByTestId('memberline-user_id')).not.toHaveClass('channel-members-rhs__member--touch');
         expect(document.querySelector('.channel-members-rhs__avatar-popover')).toBeNull();
         expect(document.querySelector('.profileSpan_userInfo')).not.toBeNull();
+        expect(screen.getByText('@testuser')).toBeInTheDocument();
     });
 
     test('should keep the send button and the whole member name reachable on a touch screen', () => {
@@ -322,6 +323,10 @@ describe('components/channel_members_rhs/Member', () => {
         expect(screen.getByTestId('memberline-user_id')).toHaveClass('channel-members-rhs__member--touch');
         expect(screen.getByRole('button', {name: 'Send message'})).toBeInTheDocument();
         expect(screen.getByText('Alexandra The Third Of Her Name')).toBeInTheDocument();
+
+        // The username and the status emoji are dropped on a touch row so the name, its tag and
+        // the send button still fit (R11).
+        expect(screen.queryByText('@testuser')).not.toBeInTheDocument();
     });
 
     afterEach(() => {

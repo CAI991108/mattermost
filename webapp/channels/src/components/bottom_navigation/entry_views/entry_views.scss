@@ -21,6 +21,30 @@
         font-size: 15px;
         font-weight: 600;
         gap: 8px;
+
+        // A header that carries a way back keeps its title next to it instead of pushing the two
+        // apart (KTD4, R10).
+        &--navigable {
+            justify-content: flex-start;
+        }
+    }
+
+    &__back {
+        display: flex;
+        width: 44px;
+        height: 44px;
+        flex: 0 0 44px;
+        align-items: center;
+        justify-content: center;
+        margin: -8px 0 -8px -12px;
+        border-radius: var(--radius-s);
+        color: inherit;
+        text-decoration: none;
+
+        &:hover {
+            background: rgba(var(--center-channel-color-rgb), 0.08);
+            color: inherit;
+        }
     }
 
     &__title {

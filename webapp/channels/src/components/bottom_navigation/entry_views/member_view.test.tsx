@@ -91,6 +91,10 @@ describe('components/bottom_navigation/entry_views/MemberView', () => {
         expect(screen.getByTestId('memberSection-members')).toHaveAttribute('aria-selected', 'true');
         expect(screen.getByRole('tabpanel')).toHaveAccessibleName('Members');
 
+        // The page says what it is and offers the way back to the conversation (KTD4, R10).
+        expect(screen.getByText('Conversation info')).toBeInTheDocument();
+        expect(screen.getByTestId('memberViewBack')).toHaveAttribute('href', '/test-team/channels/town-square');
+
         // Nothing can be laid over the list while the entry is on screen (KTD8, R11).
         expect(store.getState().views.rhsSuppressed).toBe(true);
         expect(document.querySelector('#sidebar-right')).not.toBeInTheDocument();

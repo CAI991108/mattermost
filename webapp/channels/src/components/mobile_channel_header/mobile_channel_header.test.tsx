@@ -48,8 +48,9 @@ describe('components/ChannelHeaderMobile/ChannelHeaderMobile', () => {
             let menuItem = screen.getByText('Toggle sidebar');
             expect(menuItem).toBeInTheDocument();
 
-            menuItem = screen.getByLabelText('Info');
-            expect(menuItem).toBeInTheDocument();
+            // A channel conversation reaches its information page through the title, so the info
+            // button would be a second entry to the same page (KTD4, R10).
+            expect(screen.queryByLabelText('Info')).not.toBeInTheDocument();
 
             menuItem = screen.getByLabelText('Search');
             expect(menuItem).toBeInTheDocument();
@@ -59,6 +60,24 @@ describe('components/ChannelHeaderMobile/ChannelHeaderMobile', () => {
 
             const wrapper = screen.getByTestId('wrapper');
             expect(wrapper).toBeInTheDocument();
+        });
+
+        test('keeps the info button for a direct message', () => {
+            renderWithContext(
+                <div
+                    className='inner-wrap'
+                    data-testid='wrapper'
+                >
+                    <ChannelHeaderMobile
+                        channel={TestHelper.getChannelMock({type: 'D', id: 'dm_id', display_name: 'dm'})}
+                        isMobileView={false}
+                        user={user}
+                        actions={actions}
+                    />
+                </div>,
+            );
+
+            expect(screen.getByLabelText('Info')).toBeInTheDocument();
         });
 
         test('renders the component correctly, global threads', () => {

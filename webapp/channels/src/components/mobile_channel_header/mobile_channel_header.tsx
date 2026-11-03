@@ -17,6 +17,8 @@ import UnmuteChannelButton from './unmute_channel_button';
 import ChannelHeaderMenu from '../channel_header_menu/channel_header_menu';
 import MobileChannelHeaderPlugins from '../channel_header_menu/menu_items/mobile_channel_header_plugins';
 
+import Constants from 'utils/constants';
+
 type Props = {
     channel?: Channel;
 
@@ -59,6 +61,12 @@ export default class MobileChannelHeader extends React.PureComponent<Props> {
 
     render() {
         const {user, channel, isMuted, inGlobalThreads, inDrafts} = this.props;
+
+        // The title already leads to the conversation information page for a channel
+        // conversation, so the info button would be a second entry to the same page; direct and
+        // group messages keep it, because their information is still the channel info panel
+        // (KTD4, R10).
+        const showsInfoButton = channel && channel.type !== Constants.OPEN_CHANNEL && channel.type !== Constants.PRIVATE_CHANNEL;
 
         let heading;
         if (inGlobalThreads) {
@@ -107,7 +115,7 @@ export default class MobileChannelHeader extends React.PureComponent<Props> {
                                     {heading}
                                 </div>
                                 <div className='spacer'/>
-                                {channel && (
+                                {showsInfoButton && (
                                     <ChannelInfoButton
                                         channel={channel}
                                     />

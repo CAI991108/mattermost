@@ -85,11 +85,31 @@
         }
     }
 
-    // A touch screen has no hover, so the button hover would reveal stays visible (R6).
+    // A touch screen has no hover, so the button the hover would reveal stays visible, and it is
+    // sized to be a real target rather than a hint (KTD4, R11). The username and the status
+    // emoji are dropped here so the display name, its tag and the button still fit at 360px.
     &__member--touch {
+        padding: 6px 16px;
+
+        .channel-members-rhs__display-name {
+            overflow: hidden;
+            min-width: 0;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         .channel-members-rhs__send-message {
-            display: block;
-            flex: 0 0 auto;
+            display: flex;
+            width: 44px;
+            height: 44px;
+            flex: 0 0 44px;
+            align-items: center;
+            justify-content: center;
+            margin-left: 4px;
+
+            .icon {
+                font-size: 18px;
+            }
         }
     }
 

@@ -71,21 +71,25 @@ const Member = ({channel, member, index, totalUsers, editing, actions}: Props) =
                     </span>
                 )}
             </span>
-            {member.displayName === member.user.username ? null : <span className='channel-members-rhs__username'>{'@'}{member.user.username}</span>}
-            <CustomStatusEmoji
-                userID={member.user.id}
-                showTooltip={true}
-                emojiSize={16}
-                spanStyle={{
-                    display: 'flex',
-                    flex: '0 0 auto',
-                    alignItems: 'center',
-                }}
-                emojiStyle={{
-                    marginLeft: '8px',
-                    alignItems: 'center',
-                }}
-            />
+            {!isMobileView && member.displayName !== member.user.username && (
+                <span className='channel-members-rhs__username'>{'@'}{member.user.username}</span>
+            )}
+            {!isMobileView && (
+                <CustomStatusEmoji
+                    userID={member.user.id}
+                    showTooltip={true}
+                    emojiSize={16}
+                    spanStyle={{
+                        display: 'flex',
+                        flex: '0 0 auto',
+                        alignItems: 'center',
+                    }}
+                    emojiStyle={{
+                        marginLeft: '8px',
+                        alignItems: 'center',
+                    }}
+                />
+            )}
         </>
     );
 
@@ -94,7 +98,7 @@ const Member = ({channel, member, index, totalUsers, editing, actions}: Props) =
             className={classNames('channel-members-rhs__member', {
                 'channel-members-rhs__member--touch': isMobileView,
             })}
-            style={{height: '48px'}}
+            style={{height: isMobileView ? '56px' : '48px'}}
             data-testid={`memberline-${member.user.id}`}
         >
             <span className='ProfileSpan'>
