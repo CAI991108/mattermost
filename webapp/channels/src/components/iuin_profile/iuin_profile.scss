@@ -25,6 +25,10 @@
     .iuin-profile-route-main .bottom-navigation {
         position: fixed;
     }
+
+    .iuin-profile-shell {
+        padding-bottom: calc(56px + env(safe-area-inset-bottom));
+    }
 }
 
 .iuin-profile-page--loading {

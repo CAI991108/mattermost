@@ -2055,9 +2055,19 @@ label {
 }
 
 // The narrow shell's bottom navigation is a persistent bar inside the shell, so the shell
-// reserves its height: the message list and the input stay clear of it (R4, R5).
+// reserves its height: the message list and the input stay clear of it (R4, R5). The bar's own
+// background runs under the gesture area, so the reservation includes that inset (KTD6).
 @media screen and (max-width: 1020px) {
     body.app__body #root .main-wrapper:has(.bottom-navigation) {
-        padding-bottom: 56px;
+        padding-bottom: calc(56px + env(safe-area-inset-bottom));
+    }
+
+    // The narrow top bars reach into the notch instead of starting below it.
+    .navbar-brand {
+        padding-top: env(safe-area-inset-top);
+    }
+
+    .entry-view__header {
+        padding-top: calc(16px + env(safe-area-inset-top));
     }
 }

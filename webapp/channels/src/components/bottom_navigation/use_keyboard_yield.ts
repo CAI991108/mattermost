@@ -7,37 +7,38 @@ import {useEffect, useState} from 'react';
 // on-screen keyboard rather than as browser chrome.
 const KEYBOARD_MIN_OFFSET = 100;
 
-// The composer the on-screen keyboard belongs to.
-const COMPOSER_SELECTOR = '#post-create';
+// Anything the on-screen keyboard belongs to. The composer is a contenteditable div, and the
+// member and profile search boxes are inputs, so the rule is "an editable element was focused",
+// not "the composer was focused".
+const EDITABLE_SELECTOR = 'input:not([type="hidden"]), textarea, select, [contenteditable="true"]';
 
 /**
- * The bottom bar yields only while the composer is focused *and* the visual viewport is
- * compressed (KTD4). Focus alone is not enough: switching channels in the narrow shell
- * focuses the composer programmatically without a keyboard, and some systems hide the
- * keyboard without ever firing a blur, so the focus event is only what makes the bar a
- * candidate for yielding.
+ * The bottom bar yields while an editable element is focused *and* the visual viewport is
+ * compressed (KTD4). Focus alone is not enough: switching channels in the narrow shell focuses
+ * the composer programmatically without a keyboard, and some systems hide the keyboard without
+ * ever firing a blur, so focus only makes the bar a candidate for yielding.
  */
 export default function useKeyboardYield() {
     const [yielded, setYielded] = useState(false);
 
     useEffect(() => {
-        let composerFocused = false;
+        let editableFocused = false;
         const visualViewport = window.visualViewport;
 
         const update = () => {
             const keyboardOffset = visualViewport ? window.innerHeight - (visualViewport.height + visualViewport.offsetTop) : 0;
 
-            setYielded(composerFocused && keyboardOffset > KEYBOARD_MIN_OFFSET);
+            setYielded(editableFocused && keyboardOffset > KEYBOARD_MIN_OFFSET);
         };
 
         const handleFocusIn = (event: FocusEvent) => {
             const target = event.target as HTMLElement | null;
-            composerFocused = Boolean(target?.closest?.(COMPOSER_SELECTOR));
+            editableFocused = Boolean(target?.closest?.(EDITABLE_SELECTOR));
             update();
         };
 
         const handleFocusOut = () => {
-            composerFocused = false;
+            editableFocused = false;
             update();
         };
 

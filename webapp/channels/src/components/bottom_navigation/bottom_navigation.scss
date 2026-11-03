@@ -5,8 +5,14 @@
     bottom: 0;
     left: 0;
     display: flex;
+    // The background runs under the home indicator and the entries sit above it, so the bar
+    // keeps its 56px of tappable height on a device with a gesture area (R5, KTD6).
+    box-sizing: content-box;
     height: 56px;
     align-items: stretch;
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
     border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
     background: var(--center-channel-bg);
 
