@@ -51,11 +51,12 @@ type Props = PropsFromRedux & OwnProps;
 // cover the page's own first rows and repeat a title the entry already shows.
 const ENTRY_PATHS = [
     `/:team(${TEAM_NAME_PATH_PATTERN})/channels`,
+    `/:team(${TEAM_NAME_PATH_PATTERN})/mentions`,
     `/:team(${TEAM_NAME_PATH_PATTERN})/:path(channels)/:identifier(${IDENTIFIER_PATH_PATTERN})/members`,
     `/:team(${TEAM_NAME_PATH_PATTERN})/:path(channels)/:identifier(${IDENTIFIER_PATH_PATTERN})/mentions`,
 ];
 
-function isEntryPage(pathname: string) {
+export function isEntryPage(pathname: string) {
     return ENTRY_PATHS.some((path) => matchPath(pathname, {path, exact: true}) !== null);
 }
 
@@ -115,6 +116,17 @@ export default class CenterChannel extends React.PureComponent<Props, State> {
                             exact={true}
                             path={`/:team(${TEAM_NAME_PATH_PATTERN})/channels`}
                             render={() => (isMobileView ? <ChannelListView/> : <Redirect to={lastChannelPath}/>)}
+                        />
+                        {/*
+                            The notification entry is a team-level address: it must open even when
+                            no conversation has been visited yet, and it must survive a refresh or
+                            a deep link. On a wide screen the mentions panel is the place for it,
+                            so the address falls back to the conversation the user last read.
+                        */}
+                        <Route
+                            exact={true}
+                            path={`/:team(${TEAM_NAME_PATH_PATTERN})/mentions`}
+                            render={() => (isMobileView ? <MentionView/> : <Redirect to={lastChannelPath}/>)}
                         />
                         <Route
                             path={`/:team(${TEAM_NAME_PATH_PATTERN})/:path(channels)/:identifier(${IDENTIFIER_PATH_PATTERN})/members`}
