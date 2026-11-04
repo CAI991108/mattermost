@@ -11,6 +11,7 @@ import type {UserProfile} from '@mattermost/types/users';
 import ChannelInfoButton from './channel_info_button';
 import CollapseLhsButton from './collapse_lhs_button';
 import CollapseRhsButton from './collapse_rhs_button';
+import NotificationsButton from './notifications_button';
 import ShowSearchButton from './show_search_button';
 import UnmuteChannelButton from './unmute_channel_button';
 
@@ -127,6 +128,7 @@ export default class MobileChannelHeader extends React.PureComponent<Props> {
                                     />
                                 )}
                                 <ShowSearchButton/>
+                                <NotificationsButton/>
                                 <CollapseRhsButton/>
                             </div>
                         </div>

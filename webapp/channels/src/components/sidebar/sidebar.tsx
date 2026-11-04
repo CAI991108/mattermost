@@ -18,6 +18,7 @@ import type {ModalData} from 'types/actions';
 import type {RhsState} from 'types/store/rhs';
 
 import ChannelNavigator from './channel_navigator';
+import NarrowProfileRow from './narrow_profile_row';
 import SidebarList from './sidebar_list';
 
 const MobileSidebarHeader = makeAsyncComponent('MobileSidebarHeader', lazy(() => import('./mobile_sidebar_header')));
@@ -215,6 +216,7 @@ export default class Sidebar extends React.PureComponent<Props, State> {
                     onDragStart={this.onDragStart}
                     onDragEnd={this.onDragEnd}
                 />
+                {this.props.isMobileView && <NarrowProfileRow/>}
                 <DataPrefetch/>
                 {this.renderModals()}
             </ResizableLhs>
