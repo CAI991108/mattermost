@@ -16,7 +16,6 @@ import {temporarilySetPageLoadContext} from 'actions/telemetry_actions.jsx';
 import BrowserStore from 'stores/browser_store';
 
 import {makeAsyncComponent, makeAsyncPluggableComponent} from 'components/async_load';
-import BottomNavigation from 'components/bottom_navigation';
 import GlobalClassificationBanner from 'components/global_classification_banner';
 import GlobalHeader from 'components/global_header/global_header';
 import {HFRoute} from 'components/header_footer_route/header_footer_route';
@@ -436,14 +435,6 @@ export default class Root extends React.PureComponent<Props, State> {
                                             component={IuinProfilePage}
                                         />
                                     </Switch>
-                                    {/*
-                                        The profile page renders outside the channel shell, so it
-                                        carries its own instance of the narrow bar. The two mounts
-                                        are mutually exclusive: this one only exists on the
-                                        profile branch, and the one below only on the shell branch
-                                        (KTD5, R14).
-                                    */}
-                                    <BottomNavigation/>
                                 </div>
                                 <GlobalClassificationBanner position='bottom'/>
                                 <Pluggable pluggableName='Global'/>
@@ -544,7 +535,6 @@ export default class Root extends React.PureComponent<Props, State> {
                                 />
                                 <RootRedirect/>
                             </Switch>
-                            <BottomNavigation/>
                             <SidebarRight/>
                         </div>
                         <GlobalClassificationBanner position='bottom'/>

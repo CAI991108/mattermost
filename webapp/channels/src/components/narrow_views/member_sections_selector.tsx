@@ -8,37 +8,44 @@ import {FormattedMessage, useIntl} from 'react-intl';
 import Constants from 'utils/constants';
 import * as Keyboard from 'utils/keyboard';
 
-import './entry_views.scss';
+import './narrow_views.scss';
 
 const {KeyCodes} = Constants;
 
 /**
- * The three sections the member entry carries. They are the narrow shell's own member,
- * pinned-post and file views, so their meaning matches the right-hand panel's tab bar
- * (`components/rhs_tab_bar`), but the selection belongs to the entry view and is never
- * written back to the panel state (KTD6, KTD8).
+ * The four sections the conversation information page carries. Members, pinned posts and files
+ * are the right-hand panel's own views behind a second level selector, so their meaning matches
+ * the panel's tab bar (`components/rhs_tab_bar`); the selection belongs to the page and is never
+ * written back to the panel state. Settings carries the channel's own operations, which used to
+ * be the header's «⋯» menu (R8, R9, R10).
  */
-export type MemberSection = 'members' | 'pinned' | 'files';
+export type MemberSection = 'members' | 'pinned' | 'files' | 'settings';
 
-export const MEMBER_SECTIONS: MemberSection[] = ['members', 'pinned', 'files'];
+export const MEMBER_SECTIONS: MemberSection[] = ['members', 'pinned', 'files', 'settings'];
 
 export const MEMBER_SECTION_LABELS: Record<MemberSection, JSX.Element> = {
     members: (
         <FormattedMessage
-            id='bottom_navigation.memberSections.members'
+            id='narrow_views.sections.members'
             defaultMessage='Members'
         />
     ),
     pinned: (
         <FormattedMessage
-            id='bottom_navigation.memberSections.pinned'
-            defaultMessage='Pinned messages'
+            id='narrow_views.sections.pinned'
+            defaultMessage='Pinned'
         />
     ),
     files: (
         <FormattedMessage
-            id='bottom_navigation.memberSections.files'
+            id='narrow_views.sections.files'
             defaultMessage='Files'
+        />
+    ),
+    settings: (
+        <FormattedMessage
+            id='narrow_views.sections.settings'
+            defaultMessage='Settings'
         />
     ),
 };
@@ -49,9 +56,9 @@ type Props = {
 };
 
 /**
- * The member entry's second level selector. It mirrors the hand written selector the search
- * results use (`components/search_results/messages_or_files_selector`): a tab list with one
- * reachable tab, selection following the arrow keys, and the same selection semantics.
+ * The conversation information page's second level selector. It mirrors the hand written selector
+ * the search results use (`components/search_results/messages_or_files_selector`): a tab list with
+ * one reachable tab, selection following the arrow keys, and the same selection semantics.
  */
 export default function MemberSectionsSelector({selected, onChange}: Props) {
     const {formatMessage} = useIntl();
@@ -59,6 +66,7 @@ export default function MemberSectionsSelector({selected, onChange}: Props) {
         members: null,
         pinned: null,
         files: null,
+        settings: null,
     });
 
     const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, current: MemberSection) => {
@@ -82,8 +90,8 @@ export default function MemberSectionsSelector({selected, onChange}: Props) {
             className='member-sections'
             role='tablist'
             aria-label={formatMessage({
-                id: 'bottom_navigation.memberSections.label',
-                defaultMessage: 'Member view sections',
+                id: 'narrow_views.sections.label',
+                defaultMessage: 'Conversation info sections',
             })}
         >
             {MEMBER_SECTIONS.map((section) => {

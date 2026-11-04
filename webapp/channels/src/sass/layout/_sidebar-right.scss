@@ -324,9 +324,7 @@
 
         .sidebar-right-container {
             width: 100%;
-            // The narrow bar sits at the bottom of the same viewport, so the panel ends above it
-            // rather than under it (R5, KTD6).
-            height: calc(100% - 56px - env(safe-area-inset-bottom));
+            height: 100%;
         }
 
         .rhs-tab-bar {

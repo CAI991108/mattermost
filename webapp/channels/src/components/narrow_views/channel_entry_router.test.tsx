@@ -109,7 +109,7 @@ function renderEntry(initialEntry: string) {
     return {...result, history};
 }
 
-describe('components/bottom_navigation/entry_views/ChannelEntryRouter', () => {
+describe('components/narrow_views/ChannelEntryRouter', () => {
     it.each([
         ['members', '/test-team/channels/town-square/members'],
         ['mentions', '/test-team/channels/town-square/mentions'],

@@ -38,19 +38,18 @@ const Recaps = makeAsyncComponent('Recaps', lazy(() => import('components/recaps
 );
 const PermalinkView = makeAsyncComponent('PermalinkView', lazy(() => import('components/permalink_view')));
 const PlaybookRunner = makeAsyncComponent('PlaybookRunner', lazy(() => import('components/channel_layout/playbook_runner')));
-const ChannelListView = makeAsyncComponent('ChannelListView', lazy(() => import('components/bottom_navigation/entry_views/channel_list_view')));
-const MemberView = makeAsyncComponent('MemberView', lazy(() => import('components/bottom_navigation/entry_views/member_view')));
-const MentionView = makeAsyncComponent('MentionView', lazy(() => import('components/bottom_navigation/entry_views/mention_view')));
-const ChannelEntryRouter = makeAsyncComponent('ChannelEntryRouter', lazy(() => import('components/bottom_navigation/entry_views/channel_entry_router')));
+const MemberView = makeAsyncComponent('MemberView', lazy(() => import('components/narrow_views/member_view')));
+const MentionView = makeAsyncComponent('MentionView', lazy(() => import('components/narrow_views/mention_view')));
+const ChannelEntryRouter = makeAsyncComponent('ChannelEntryRouter', lazy(() => import('components/narrow_views/channel_entry_router')));
 
 type Props = PropsFromRedux & OwnProps;
 
-// The narrow shell's entries (the channel list, the member list, the mention list) are pages of
-// their own: each carries its own header, and the shell's bottom bar is their navigation. The
-// channel header is drawn over the content for the message view, so on an entry page it would
-// cover the page's own first rows and repeat a title the entry already shows.
+// The narrow shell's entry pages (the mention list and the conversation information page) are
+// pages of their own: each carries its own header and its own way back. The channel header is
+// drawn over the content for the message view, so on an entry page it would cover the page's own
+// first rows and repeat a title the entry already shows. `/{team}/channels` is not one of them any
+// more: without the bottom bar it redirects to the last conversation on every width (R1, R2).
 const ENTRY_PATHS = [
-    `/:team(${TEAM_NAME_PATH_PATTERN})/channels`,
     `/:team(${TEAM_NAME_PATH_PATTERN})/mentions`,
     `/:team(${TEAM_NAME_PATH_PATTERN})/:path(channels)/:identifier(${IDENTIFIER_PATH_PATTERN})/members`,
     `/:team(${TEAM_NAME_PATH_PATTERN})/:path(channels)/:identifier(${IDENTIFIER_PATH_PATTERN})/mentions`,
@@ -107,15 +106,15 @@ export default class CenterChannel extends React.PureComponent<Props, State> {
                 <div className='row main'>
                     <Switch>
                         {/*
-                            The channel list entry only exists for the narrow shell, where it replaces
-                            the off-canvas left sidebar. On a wide screen the sidebar is already on
-                            screen, so this URL would show the same list twice; send it to the channel
-                            the user last read instead.
+                            The narrow shell has no conversation list of its own any more: the left
+                            sidebar is the channel list on every width. A bookmark, a cold start or a
+                            back navigation that lands on this address therefore opens the channel the
+                            user last read, instead of a page that would only repeat the sidebar.
                         */}
                         <Route
                             exact={true}
                             path={`/:team(${TEAM_NAME_PATH_PATTERN})/channels`}
-                            render={() => (isMobileView ? <ChannelListView/> : <Redirect to={lastChannelPath}/>)}
+                            render={() => <Redirect to={lastChannelPath}/>}
                         />
                         {/*
                             The notification entry is a team-level address: it must open even when

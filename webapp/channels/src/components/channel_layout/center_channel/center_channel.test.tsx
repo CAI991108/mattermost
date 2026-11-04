@@ -57,7 +57,10 @@ describe('components/channel_layout/CenterChannel', () => {
         expect(isEntryPage('/test-team/mentions')).toBe(true);
         expect(isEntryPage('/test-team/mentions/')).toBe(true);
         expect(isEntryPage('/test-team/channels/town-square/members')).toBe(true);
-        expect(isEntryPage('/test-team/channels')).toBe(true);
+
+        // The channel list is gone, so the team-level channel address is no longer a page of its
+        // own: it redirects to the last channel and keeps the regular channel header (R2).
+        expect(isEntryPage('/test-team/channels')).toBe(false);
         expect(isEntryPage('/test-team/channels/town-square')).toBe(false);
         expect(isEntryPage('/test-team/messages/@user')).toBe(false);
     });

@@ -16,7 +16,9 @@ import {closeRightHandSide, showChannelFiles, showPinnedPosts} from 'actions/vie
 import {getIsRhsExpanded} from 'selectors/rhs';
 
 import ChannelMembersRHS from 'components/channel_members_rhs';
+import ChannelHeaderMenuItems from 'components/channel_header_menu/channel_header_menu_items';
 import useSearchResultsActions from 'components/common/hooks/use_search_results_actions';
+import {MenuContext} from 'components/menu/menu_context';
 import SearchResults from 'components/search_results';
 
 import {ActionTypes} from 'utils/constants';
@@ -24,7 +26,19 @@ import {ActionTypes} from 'utils/constants';
 import MemberSectionsSelector from './member_sections_selector';
 import type {MemberSection} from './member_sections_selector';
 
-import './entry_views.scss';
+import './narrow_views.scss';
+
+/**
+ * The settings section renders the channel menu's item list outside a menu. An item there acts
+ * on the first click, so the list supplies the context a menu would otherwise supply: the
+ * "menu closed" callback runs at once, which is what makes the item's action run (a menu that
+ * is not there never closes, and an item that waits for that would never act).
+ */
+const ITEM_ACTING_CONTEXT = {
+    isOpen: true,
+    addOnClosedListener: (listener: () => void) => listener(),
+    handleClosed: () => {},
+};
 
 /**
  * The view the "members" entry leads to. Its member list, pinned posts and files are the
@@ -110,6 +124,20 @@ export default function MemberView() {
                     searchType={'files'}
                     crossTeamSearchEnabled={crossTeamSearchEnabled}
                 />
+            );
+        case 'settings':
+            return (
+                <div className='channel-settings-list'>
+                    <MenuContext.Provider value={ITEM_ACTING_CONTEXT}>
+                        <ChannelHeaderMenuItems
+                            isMobile={true}
+
+                            // Pinned posts are a section of their own on this page, so the
+                            // menu's shortcut to them would open the same list twice (R9).
+                            showPinnedPosts={false}
+                        />
+                    </MenuContext.Provider>
+                </div>
             );
         default:
             return <ChannelMembersRHS/>;

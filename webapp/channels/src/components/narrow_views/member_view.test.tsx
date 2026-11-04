@@ -5,7 +5,7 @@ import React from 'react';
 
 import {closeRightHandSide, showChannelFiles, showPinnedPosts} from 'actions/views/rhs';
 
-import {renderWithContext, screen, userEvent} from 'tests/react_testing_utils';
+import {renderWithContext, screen, userEvent, waitFor} from 'tests/react_testing_utils';
 import {WindowSizes} from 'utils/constants';
 import {TestHelper} from 'utils/test_helper';
 
@@ -20,6 +20,13 @@ jest.mock('actions/views/rhs', () => ({
 }));
 
 jest.mock('components/channel_members_rhs', () => () => <div data-testid='channelMembersRHS'/>);
+
+jest.mock('components/channel_header_menu/channel_header_menu_items', () => (props: {showPinnedPosts: boolean}) => (
+    <div
+        data-testid='channelMenuItems'
+        data-pinned={String(props.showPinnedPosts)}
+    />
+));
 
 jest.mock('components/search_results', () => (props: {isPinnedPosts: boolean; isChannelFiles: boolean}) => (
     <div
@@ -82,7 +89,7 @@ function buildState() {
     } as unknown as GlobalState;
 }
 
-describe('components/bottom_navigation/entry_views/MemberView', () => {
+describe('components/narrow_views/MemberView', () => {
     it('opens on the member list with the panel suppressed', () => {
         const {store} = renderWithContext(<MemberView/>, buildState());
 
@@ -122,6 +129,23 @@ describe('components/bottom_navigation/entry_views/MemberView', () => {
         expect(store.getState().views.rhsSuppressed).toBe(true);
     });
 
+    it('carries the channel menu as its settings section', async () => {
+        const {store} = renderWithContext(<MemberView/>, buildState());
+
+        await userEvent.click(screen.getByTestId('memberSection-settings'));
+
+        // The section is the channel menu's own item list, so every operation the header used to
+        // offer is still one reach away (R9). Pinned posts have a section of their own, so the
+        // menu's shortcut to them is not repeated here.
+        expect(screen.getByTestId('channelMenuItems')).toBeInTheDocument();
+        expect(screen.getByTestId('channelMenuItems')).toHaveAttribute('data-pinned', 'false');
+        expect(screen.getByRole('tabpanel')).toHaveAccessibleName('Settings');
+        expect(screen.queryByTestId('channelMembersRHS')).not.toBeInTheDocument();
+
+        // The panel stays suppressed: the page never renders the same list the panel would.
+        expect(store.getState().views.rhsSuppressed).toBe(true);
+    });
+
     it('moves between the sections with the arrow keys', async () => {
         renderWithContext(<MemberView/>, buildState());
 
@@ -142,8 +166,8 @@ describe('components/bottom_navigation/entry_views/MemberView', () => {
 
         // The selection wraps back to the last section from the first one.
         await userEvent.keyboard('{ArrowLeft}');
-        expect(screen.getByTestId('memberSection-files')).toHaveFocus();
-        expect(screen.getByTestId('searchResults')).toHaveAttribute('data-files', 'true');
+        await waitFor(() => expect(screen.getByTestId('memberSection-settings')).toHaveFocus());
+        expect(screen.getByTestId('channelMenuItems')).toBeInTheDocument();
     });
 
     it('releases the panel and closes it when the entry is left', () => {

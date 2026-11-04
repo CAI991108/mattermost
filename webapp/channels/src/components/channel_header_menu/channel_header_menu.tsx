@@ -9,38 +9,19 @@ import {useSelector} from 'react-redux';
 import {Link} from 'react-router-dom';
 
 import ChevronDownIcon from '@mattermost/compass-icons/components/chevron-down';
-import DotsHorizontalIcon from '@mattermost/compass-icons/components/dots-horizontal';
 import type {UserProfile} from '@mattermost/types/users';
 
-import {
-    isChannelAutotranslated as isChannelAutotranslatedSelector,
-    getCurrentChannel,
-    isCurrentChannelDefault,
-    isCurrentChannelMuted,
-} from 'mattermost-redux/selectors/entities/channels';
-import {getLicense} from 'mattermost-redux/selectors/entities/general';
+import {getCurrentChannel} from 'mattermost-redux/selectors/entities/channels';
 import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
-import {
-    getCurrentUser,
-} from 'mattermost-redux/selectors/entities/users';
 
-import {getChannelHeaderMenuPluginComponents} from 'selectors/plugins';
-
-import {getIsChannelBookmarksEnabled} from 'components/channel_bookmarks/utils';
 import * as Menu from 'components/menu';
 
 import {Constants} from 'utils/constants';
 
-import type {GlobalState} from 'types/store';
-
-import ChannelDirectMenu from './channel_header_menu_items/channel_header_direct_menu';
-import ChannelGroupMenu from './channel_header_menu_items/channel_header_group_menu';
-import ChannelHeaderMobileMenu from './channel_header_menu_items/channel_header_mobile_menu';
-import ChannelPublicPrivateMenu from './channel_header_menu_items/channel_header_public_private_menu';
+import ChannelHeaderMenuItems from './channel_header_menu_items';
 
 import ChannelHeaderTitleDirect from '../channel_header/channel_header_title_direct';
 import ChannelHeaderTitleGroup from '../channel_header/channel_header_title_group';
-import {usePluginVisibilityInSharedChannel} from '../common/hooks/usePluginVisibilityInSharedChannel';
 
 type Props = {
     dmUser?: UserProfile;
@@ -53,18 +34,8 @@ type Props = {
 export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archivedIcon, sharedIcon}: Props): JSX.Element | null {
     const intl = useIntl();
 
-    const user = useSelector(getCurrentUser);
     const channel = useSelector(getCurrentChannel);
     const team = useSelector(getCurrentTeam);
-    const isDefault = useSelector(isCurrentChannelDefault);
-    const isMuted = useSelector(isCurrentChannelMuted);
-    const isLicensedForLDAPGroups = useSelector(getLicense).LDAPGroups === 'true';
-    const pluginMenuItems = useSelector(getChannelHeaderMenuPluginComponents);
-    const isChannelBookmarksEnabled = useSelector(getIsChannelBookmarksEnabled);
-    const pluginItemsVisible = usePluginVisibilityInSharedChannel(channel?.id);
-    const isChannelAutotranslated = useSelector((state: GlobalState) => (channel?.id ? isChannelAutotranslatedSelector(state, channel.id) : false));
-
-    const isReadonly = false;
 
     if (!channel) {
         return null;
@@ -87,124 +58,29 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
         displayName: channel.display_name,
     });
 
-    let pluginItems: JSX.Element[] = [];
-
-    if (pluginItemsVisible) {
-        pluginItems = pluginMenuItems.map((item) => {
-            const handlePluginItemClick = () => {
-                if (item.action) {
-                    item.action(channel.id);
-                }
-            };
-
-            return (
-                <Menu.Item
-                    id={item.id + '_pluginmenuitem'}
-                    key={item.id + '_pluginmenuitem'}
-                    onClick={handlePluginItemClick}
-                    labels={<span>{item.text}</span>}
-                />
-            );
-        });
-    }
-
-    const menuContent = (
-        <>
-            {isDirect && (
-                <ChannelDirectMenu
-                    channel={channel}
-                    user={user}
-                    isMuted={isMuted}
-                    pluginItems={pluginItems}
-                    isMobile={isMobile || false}
-                    isChannelBookmarksEnabled={isChannelBookmarksEnabled}
-                    isChannelAutotranslated={isChannelAutotranslated}
-                />
-            )}
-            {isGroup && (
-                <ChannelGroupMenu
-                    channel={channel}
-                    user={user}
-                    isMuted={isMuted}
-                    pluginItems={pluginItems}
-                    isMobile={isMobile || false}
-                    isChannelBookmarksEnabled={isChannelBookmarksEnabled}
-                    isChannelAutotranslated={isChannelAutotranslated}
-                />
-            )}
-            {(!isDirect && !isGroup) && (
-                <ChannelPublicPrivateMenu
-                    channel={channel}
-                    user={user}
-                    isMuted={isMuted}
-                    pluginItems={pluginItems}
-                    isMobile={isMobile || false}
-                    isDefault={isDefault}
-                    isReadonly={isReadonly}
-                    isLicensedForLDAPGroups={isLicensedForLDAPGroups}
-                    isChannelBookmarksEnabled={isChannelBookmarksEnabled}
-                    isChannelAutotranslated={isChannelAutotranslated}
-                />
-            )}
-
-            <ChannelHeaderMobileMenu
-                isMobile={isMobile || false}
-                pluginItems={pluginItems}
-                channel={channel}
-            />
-        </>
-    );
-
-    // On a narrow screen the title is the only way into the conversation's information page, and
-    // the menu the title used to carry is still the only way to reach mute, leave, archive and the
-    // bookmarks. The title becomes the link; the menu moves to its own button beside it. Direct
-    // and group messages keep the title trigger, because their information page is still the
-    // channel info panel (KTD4, R10).
+    // On a narrow screen the title is the way into the conversation's information page. The menu
+    // the title used to carry is not next to it any more: the page's settings section carries the
+    // same operations, so a second entry to them would be a duplicate (R9, R10). Direct and group
+    // messages keep the title trigger, because their information page is the channel info panel.
     const isChannelConversation = !isDirect && !isGroup;
 
     if (isMobile && isChannelConversation && team) {
         return (
-            <>
-                <Link
-                    to={`/${team.name}/channels/${channel.name}/members`}
-                    className='channel-header__trigger channel-header__title-link style--none'
-                    data-testid='channelHeaderTitleLink'
-                    aria-label={ariaLabel.toLowerCase()}
+            <Link
+                to={`/${team.name}/channels/${channel.name}/members`}
+                className='channel-header__trigger channel-header__title-link style--none'
+                data-testid='channelHeaderTitleLink'
+                aria-label={ariaLabel.toLowerCase()}
+            >
+                {archivedIcon}
+                <strong
+                    id='channelHeaderTitle'
+                    className='heading'
                 >
-                    {archivedIcon}
-                    <strong
-                        id='channelHeaderTitle'
-                        className='heading'
-                    >
-                        {channelTitle as string}
-                    </strong>
-                    {sharedIcon}
-                </Link>
-                <Menu.Container
-                    menuButton={{
-                        id: 'channelHeaderDotMenuButton',
-                        class: classNames('channel-header__dot-menu', 'style--none'),
-                        children: <DotsHorizontalIcon size={18}/>,
-                        'aria-label': intl.formatMessage({
-                            id: 'channel_header.channel_menu',
-                            defaultMessage: 'Channel menu',
-                        }),
-                    }}
-                    menu={{
-                        id: 'channelHeaderDropdownMenu',
-                    }}
-                    transformOrigin={{
-                        horizontal: 'right',
-                        vertical: 'top',
-                    }}
-                    anchorOrigin={{
-                        vertical: 'bottom',
-                        horizontal: 'right',
-                    }}
-                >
-                    {menuContent}
-                </Menu.Container>
-            </>
+                    {channelTitle as string}
+                </strong>
+                {sharedIcon}
+            </Link>
         );
     }
 
@@ -243,7 +119,7 @@ export default function ChannelHeaderMenu({dmUser, gmMembers, isMobile, archived
                 horizontal: 'left',
             }}
         >
-            {menuContent}
+            <ChannelHeaderMenuItems isMobile={isMobile}/>
         </Menu.Container>
     );
 }

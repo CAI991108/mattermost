@@ -38,9 +38,10 @@ interface Props extends Menu.FirstMenuItemProps {
     pluginItems: ReactNode[];
     isChannelBookmarksEnabled: boolean;
     isChannelAutotranslated: boolean;
+    showPinnedPosts?: boolean;
 }
 
-const ChannelHeaderPublicMenu = ({channel, user, isMuted, isDefault, isMobile, isLicensedForLDAPGroups, pluginItems, isChannelBookmarksEnabled, isChannelAutotranslated, ...rest}: Props) => {
+const ChannelHeaderPublicMenu = ({channel, user, isMuted, isDefault, isMobile, isLicensedForLDAPGroups, pluginItems, isChannelBookmarksEnabled, isChannelAutotranslated, showPinnedPosts = true, ...rest}: Props) => {
     const isGroupConstrained = channel?.group_constrained === true;
     const isArchived = channel.delete_at !== 0;
     const isPrivate = channel?.type === Constants.PRIVATE_CHANNEL;
@@ -79,7 +80,7 @@ const ChannelHeaderPublicMenu = ({channel, user, isMuted, isDefault, isMobile, i
                     channel={channel}
                 />
             )}
-            {isMobile && (
+            {isMobile && showPinnedPosts && (
                 <MenuItemViewPinnedPosts
                     channelID={channel.id}
                 />

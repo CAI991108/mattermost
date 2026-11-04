@@ -78,7 +78,7 @@ function buildState() {
     } as unknown as GlobalState;
 }
 
-describe('components/bottom_navigation/entry_views/MentionView', () => {
+describe('components/narrow_views/MentionView', () => {
     it('opens the mentions list with the panel suppressed', () => {
         const {store} = renderWithContext(<MentionView/>, buildState());
 
@@ -88,6 +88,14 @@ describe('components/bottom_navigation/entry_views/MentionView', () => {
 
         expect(showMentions).toHaveBeenCalled();
         expect(store.getState().views.rhsSuppressed).toBe(true);
+    });
+
+    it('carries its own way back to the conversation', () => {
+        renderWithContext(<MentionView/>, buildState());
+
+        // The page is reached from the channel header, over a view that has no header of its
+        // own, so the way back belongs to the page (R5).
+        expect(screen.getByTestId('mentionViewBack')).toHaveAttribute('href', '/test-team/channels');
     });
 
     it('releases the panel and closes it when the entry is left', () => {

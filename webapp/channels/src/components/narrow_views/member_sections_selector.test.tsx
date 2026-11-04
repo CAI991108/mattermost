@@ -19,12 +19,12 @@ function ControlledSelector() {
     );
 }
 
-describe('components/bottom_navigation/entry_views/MemberSectionsSelector', () => {
+describe('components/narrow_views/MemberSectionsSelector', () => {
     it('marks the selected section and keeps only it reachable by tab', async () => {
         renderWithContext(<ControlledSelector/>);
 
-        expect(screen.getByRole('tablist')).toHaveAccessibleName('Member view sections');
-        expect(screen.getAllByRole('tab')).toHaveLength(3);
+        expect(screen.getByRole('tablist')).toHaveAccessibleName('Conversation info sections');
+        expect(screen.getAllByRole('tab')).toHaveLength(4);
 
         expect(screen.getByTestId('memberSection-members')).toHaveAttribute('aria-selected', 'true');
         expect(screen.getByTestId('memberSection-members')).toHaveAttribute('tabIndex', '0');
@@ -32,11 +32,13 @@ describe('components/bottom_navigation/entry_views/MemberSectionsSelector', () =
         expect(screen.getByTestId('memberSection-pinned')).toHaveAttribute('tabIndex', '-1');
         expect(screen.getByTestId('memberSection-files')).toHaveAttribute('aria-selected', 'false');
         expect(screen.getByTestId('memberSection-files')).toHaveAttribute('tabIndex', '-1');
+        expect(screen.getByTestId('memberSection-settings')).toHaveAttribute('aria-selected', 'false');
+        expect(screen.getByTestId('memberSection-settings')).toHaveAttribute('tabIndex', '-1');
 
-        await userEvent.click(screen.getByTestId('memberSection-files'));
+        await userEvent.click(screen.getByTestId('memberSection-settings'));
 
-        expect(screen.getByTestId('memberSection-files')).toHaveAttribute('aria-selected', 'true');
-        expect(screen.getByTestId('memberSection-files')).toHaveAttribute('tabIndex', '0');
+        expect(screen.getByTestId('memberSection-settings')).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByTestId('memberSection-settings')).toHaveAttribute('tabIndex', '0');
         expect(screen.getByTestId('memberSection-members')).toHaveAttribute('aria-selected', 'false');
         expect(screen.getByTestId('memberSection-members')).toHaveAttribute('tabIndex', '-1');
     });
@@ -47,6 +49,7 @@ describe('components/bottom_navigation/entry_views/MemberSectionsSelector', () =
         expect(screen.getByTestId('memberSection-members')).toHaveAttribute('aria-controls', 'member-sections-panel-members');
         expect(screen.getByTestId('memberSection-pinned')).toHaveAttribute('aria-controls', 'member-sections-panel-pinned');
         expect(screen.getByTestId('memberSection-files')).toHaveAttribute('aria-controls', 'member-sections-panel-files');
+        expect(screen.getByTestId('memberSection-settings')).toHaveAttribute('aria-controls', 'member-sections-panel-settings');
     });
 
     it('moves the selection and the focus with the arrow keys', async () => {
@@ -63,11 +66,15 @@ describe('components/bottom_navigation/entry_views/MemberSectionsSelector', () =
         expect(screen.getByTestId('memberSection-files')).toHaveAttribute('aria-selected', 'true');
 
         await userEvent.keyboard('{ArrowRight}');
+        expect(screen.getByTestId('memberSection-settings')).toHaveFocus();
+        expect(screen.getByTestId('memberSection-settings')).toHaveAttribute('aria-selected', 'true');
+
+        await userEvent.keyboard('{ArrowRight}');
         expect(screen.getByTestId('memberSection-members')).toHaveFocus();
         expect(screen.getByTestId('memberSection-members')).toHaveAttribute('aria-selected', 'true');
 
         await userEvent.keyboard('{ArrowLeft}');
-        expect(screen.getByTestId('memberSection-files')).toHaveFocus();
-        expect(screen.getByTestId('memberSection-files')).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByTestId('memberSection-settings')).toHaveFocus();
+        expect(screen.getByTestId('memberSection-settings')).toHaveAttribute('aria-selected', 'true');
     });
 });

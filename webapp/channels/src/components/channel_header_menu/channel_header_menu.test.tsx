@@ -51,7 +51,7 @@ function buildState(channelType: string) {
 }
 
 describe('components/channel_header_menu', () => {
-    test('leads a narrow channel conversation to its information page and keeps the menu on its own button', () => {
+    test('leads a narrow channel conversation to its information page without a menu of its own', () => {
         renderWithContext(
             <ChannelHeaderMenu isMobile={true}/>,
             buildState('O') as never,
@@ -59,7 +59,10 @@ describe('components/channel_header_menu', () => {
 
         expect(screen.getByTestId('channelHeaderTitleLink')).toHaveAttribute('href', '/test-team/channels/town-square/members');
         expect(screen.getByLabelText('town square channel menu')).toBeInTheDocument();
-        expect(screen.getByRole('button', {name: 'Channel menu'})).toBeInTheDocument();
+
+        // The channel menu now lives in the settings section of the information page, so the
+        // header keeps no dropdown trigger of its own (R9, R10).
+        expect(screen.queryByRole('button', {name: 'Channel menu'})).not.toBeInTheDocument();
     });
 
     test('keeps the title as the menu trigger outside the narrow channel conversation case', () => {
