@@ -5,6 +5,7 @@ import React from 'react';
 import {useIntl} from 'react-intl';
 import {Link} from 'react-router-dom';
 
+import AccountOutlineIcon from '@mattermost/compass-icons/components/account-outline';
 import ChevronRightIcon from '@mattermost/compass-icons/components/chevron-right';
 
 type Props = {
@@ -33,15 +34,14 @@ const NarrowProfileRow = ({username}: Props) => {
             })}
             data-testid='narrowProfileRow'
         >
-            <span className='narrow-profile-row__avatar'>{username.slice(0, 1).toUpperCase()}</span>
-            <span className='narrow-profile-row__text'>
-                <span className='narrow-profile-row__name'>{username}</span>
-                <span className='narrow-profile-row__hint'>
-                    {intl.formatMessage({
-                        id: 'narrow_views.view_profile',
-                        defaultMessage: 'View profile',
-                    })}
-                </span>
+            <span className='narrow-profile-row__icon'>
+                <AccountOutlineIcon size={24}/>
+            </span>
+            <span className='narrow-profile-row__label'>
+                {intl.formatMessage({
+                    id: 'narrow_views.view_profile',
+                    defaultMessage: 'View profile',
+                })}
             </span>
             <ChevronRightIcon size={16}/>
         </Link>

@@ -22,6 +22,15 @@
                     .heading {
                         min-width: 0;
                     }
+
+                    // The same caret the wide header puts on its title trigger, so the narrow
+                    // title reads as something that opens rather than as plain text.
+                    > svg {
+                        flex: 0 0 auto;
+                        margin-left: 2px;
+                        color: inherit;
+                        fill: currentColor;
+                    }
                 }
             }
 
@@ -37,33 +46,32 @@
                 }
 
                 // The notification entry used to be a bottom bar destination. It sits beside
-                // search now: the same mentions page, reached from the header, with the same
-                // count (R4).
+                // search and the right sidebar toggle now, wearing the same round button as
+                // them and carrying the same count (R4).
                 .navbar-notifications {
                     position: relative;
-                    display: flex;
-                    width: 44px;
-                    height: 44px;
-                    flex: 0 0 44px;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 0;
-                    border: 0;
-                    color: rgba(var(--center-channel-color-rgb), 0.72);
-                    text-decoration: none;
+
+                    // The bell is a font glyph and so inherits the anchor colour, which would
+                    // paint it like a link. Give it the same paint the two neighbours get from
+                    // the .navbar-toggle fill, so all three read as one set.
+                    color: var(--sidebar-header-text-color);
+                    fill: var(--sidebar-header-text-color);
 
                     &:hover,
                     &:focus {
-                        color: rgba(var(--center-channel-color-rgb), 0.88);
+                        color: var(--sidebar-header-text-color);
                         text-decoration: none;
                     }
 
-                    // The count keeps the badge the bottom bar used, moved onto the icon's
-                    // corner so the 44px target is not widened by it (R6).
                     .badge-notify {
                         position: absolute;
-                        top: 4px;
-                        right: 2px;
+                        top: -4px;
+                        right: -4px;
+                        min-width: 18px;
+                        height: 18px;
+                        border-radius: 9px;
+                        font-size: 11px;
+                        line-height: 18px;
                     }
                 }
             }
@@ -2049,64 +2057,6 @@
     .signup-team-all {
         max-height: calc(75vh - (111px + 187px));
     }
-
-    // The drawer's last row: the way into the user's own profile now that the bottom bar is
-    // gone. It sits under the channel list and does not take any of its height (R12, R13).
-    .narrow-profile-row {
-        display: flex;
-        min-height: 56px;
-        flex: 0 0 auto;
-        align-items: center;
-        padding: 8px 16px;
-        border-top: 1px solid rgba(var(--sidebar-text-rgb), 0.12);
-        color: var(--sidebar-text);
-        gap: 10px;
-        text-decoration: none;
-
-        &:hover,
-        &:focus {
-            background: rgba(var(--sidebar-text-rgb), 0.08);
-            color: var(--sidebar-text);
-            text-decoration: none;
-        }
-
-        &__avatar {
-            display: flex;
-            width: 28px;
-            height: 28px;
-            flex: 0 0 28px;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            background: rgba(var(--sidebar-text-rgb), 0.16);
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        &__text {
-            display: flex;
-            overflow: hidden;
-            min-width: 0;
-            flex: 1 1 auto;
-            flex-direction: column;
-        }
-
-        &__name {
-            overflow: hidden;
-            font-size: 14px;
-            font-weight: 600;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        &__hint {
-            overflow: hidden;
-            color: rgba(var(--sidebar-text-rgb), 0.64);
-            font-size: 11px;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-    }
 }
 
 // on iOS, allow clicks within an input's label to actually propagate through to the input itself,
@@ -2138,5 +2088,54 @@ label {
 
     .entry-view__header {
         padding-top: calc(16px + env(safe-area-inset-top));
+    }
+
+    // The drawer's last row: the way into the user's own profile now that the bottom bar is
+    // gone. It sits under the channel list and does not take any of its height (R12, R13).
+    .narrow-profile-row {
+        display: flex;
+        min-height: 64px;
+        flex: 0 0 auto;
+        align-items: center;
+        padding: 10px 12px 10px 16px;
+        border-top: 1px solid rgba(var(--sidebar-text-rgb), 0.12);
+        background: var(--sidebar-bg);
+        color: var(--sidebar-text);
+        font-size: 14px;
+        font-weight: 600;
+        gap: 12px;
+        text-decoration: none;
+
+        &:hover,
+        &:focus {
+            background: rgba(var(--sidebar-text-rgb), 0.08);
+            color: var(--sidebar-text);
+            text-decoration: none;
+        }
+
+        &__icon {
+            display: flex;
+            width: 32px;
+            height: 32px;
+            flex: 0 0 32px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(var(--sidebar-text-rgb), 0.1);
+            color: rgba(var(--sidebar-text-rgb), 0.72);
+        }
+
+        &__label {
+            overflow: hidden;
+            flex: 1 1 auto;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        > svg {
+            flex: 0 0 auto;
+            color: rgba(var(--sidebar-text-rgb), 0.56);
+            fill: currentColor;
+        }
     }
 }

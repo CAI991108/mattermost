@@ -15,8 +15,9 @@ type Props = {
 /**
  * The notification entry in the narrow channel header. It is the bottom bar's notification
  * destination on another surface: the same team wide mentions page and the same mention count,
- * so the entry keeps working exactly as it did while the bar existed (R4, R6). The count caps at
- * 99 the way the bar's badge did, and the target is a full 44px square.
+ * so the entry keeps working exactly as it did while the bar existed (R4, R6). It wears the same
+ * round button as search and the right sidebar toggle, so the header reads as one row of equal
+ * controls, and the count caps at 99 the way the bar's badge did.
  */
 const NotificationsButton = ({teamName, unreadMentionCount}: Props) => {
     const intl = useIntl();
@@ -33,7 +34,7 @@ const NotificationsButton = ({teamName, unreadMentionCount}: Props) => {
     return (
         <Link
             to={`/${teamName}/mentions`}
-            className='navbar-right__icon navbar-notifications'
+            className='navbar-toggle navbar-right__icon pull-right navbar-notifications'
             aria-label={unreadMentionCount > 0 ? `${label}, ${unreadMentionCount}` : label}
             title={label}
             data-testid='narrowNotificationsButton'
